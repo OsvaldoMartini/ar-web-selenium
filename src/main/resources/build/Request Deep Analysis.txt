@@ -1,0 +1,207 @@
+Please perform a **deep investigation and full analysis of the entire codebase**.
+
+Using all the **specifications defined in the TXT file**, implement the necessary JavaScript logic wherever applicable. 
+This includes creating **heuristic business rules**, domain-driven behaviors, and supporting structures based on the **banking context**.
+
+## Banking Context Layer
+
+Create a dedicated **Banking Context** layer to encapsulate and organize all banking-related logic, business rules, data structures, and reusable behaviors.
+
+This separation is important because, in the future, the platform will need to support **additional company contexts** for other types of clients, not only banking. The architecture should therefore be extensible and designed to support multiple business domains.
+
+## Plugin-Based JavaScript Architecture
+
+Where appropriate, implement the business logic as **JavaScript plugins**.
+
+These plugins should:
+
+* contain **banking-related data context**, heuristic rules, and domain-specific behaviors
+* be **modular, structured, and reusable**
+* have a **clear and user-friendly plugin name** that can be displayed in the frontend
+* be **dynamically loadable**
+* support future extension without requiring changes to the core platform
+
+The system should support **loading one or more plugins from a specific selected folder**, so that I can add new plugins over time.
+
+Each plugin should:
+
+* represent a specific **banking capability, business rule set, or domain context**
+* have a **nice readable name** visible in the frontend UI
+* be discoverable and loadable from the configured plugin folder
+* be easy to extend for future non-banking client contexts
+
+## Integration with the Main Codebase
+
+Use the specifications from the TXT to **modify and extend the attached main codebase (`capi`)**.
+
+The implementation should integrate:
+
+* the new **Banking Context**
+* the **plugin architecture**
+* the related JavaScript business rules
+* the support for future multi-context client environments
+
+## AI Assistant Tab
+
+Add a new tab in the application called **“AI Assistant”**.
+
+This tab should allow me to select one or more **AI Assistant providers**, including:
+
+* **cloud-based AI assistants**
+* **local AI assistants running on my own PCs or servers**
+
+Please add a **multi-select dropdown** that allows me to choose one or multiple AI assistants.
+
+## AI Assistant and Context Integration
+
+The overall goal is to combine:
+
+* the **specifications from the TXT**
+* the **banking context**
+* the **plugin-based rule system**
+* the **selected AI assistants**
+
+This should allow the application to:
+
+* build requests using the correct **banking/domain context**
+* send those requests to one or more selected AI assistants
+* receive and process the responses
+* use those responses inside the application as part of the business workflow
+
+## General Design Expectations
+
+Please keep the implementation:
+
+* **clean and extensible**
+* **domain-driven**
+* **plugin-oriented**
+* ready for **future support of multiple company/client contexts**
+* suitable for both **frontend management** and **backend execution**
+
+---
+
+Here is an even more concise executive version, in case you want to send it as a direct implementation brief:
+
+---
+
+Please perform a full analysis of the entire codebase and update the attached `capi` project based on the specifications in the TXT.
+
+Implement the required JavaScript logic, including heuristic business rules, using a dedicated **Banking Context** layer so that banking-related rules, data, and behaviors are properly encapsulated. The solution must be extensible to support additional company contexts for other client types in the future.
+
+Where appropriate, implement the logic as **JavaScript plugins**. These plugins must contain banking-related context and business rules, be modular and readable, expose a clear frontend-friendly plugin name, and be dynamically loadable from a selected folder so that additional plugins can be added later without changing the core system.
+
+Also add a new **“AI Assistant”** tab to the application. In this tab, provide a **multi-select dropdown** that allows selection of one or more AI Assistant providers, including both cloud-based providers and local assistants running on my own infrastructure.
+
+The goal is to combine the TXT specifications, the banking context, the plugin system, and the selected AI assistants so the application can generate contextual requests, send them to the selected AI providers, and process their responses within the platform.
+
+
+
+Here is a cleaned-up and professional version of your text, followed by a clearer structured version like a mini manual.
+
+---
+
+## ✅ **Improved Grammar Version**
+
+Show me the architecture diagrams and workflow, including a set of specifications as a small manual in Microsoft Word.
+
+Please also verify whether everything has been properly implemented.
+
+Additionally, I want to be able to load schema APIs from the **"API Files"** tab. Using the plugins that are already loaded, the system should match or cross-reference possible banking contexts and add them to a **"Test Library."**
+
+The cards in this library should be similar to the existing ones, but with a light green background to indicate that they were loaded and dynamically generated from the API JSON schemas.
+
+---
+
+## 📘 **Structured Version (Mini Manual Style)**
+
+### 1. Objective
+
+Create a system that:
+
+* Displays architecture diagrams and workflow
+* Validates implementation correctness
+* Dynamically loads and processes API schemas
+* Generates test components based on banking-related APIs
+
+---
+
+### 2. Architecture & Workflow
+
+#### Core Flow:
+
+1. **API Schema Input**
+
+   * Source: "API Files" tab
+   * Format: JSON Schema
+
+2. **Plugin Processing Layer**
+
+   * Uses preloaded plugins
+   * Parses and interprets API schemas
+   * Identifies relevant banking contexts
+
+3. **Matching Engine**
+
+   * Cross-references schema data with:
+
+     * Existing banking logic
+     * Known API patterns
+   * Detects relationships and test opportunities
+
+4. **Test Library Generator**
+
+   * Automatically creates test cards
+   * Based on interpreted schema endpoints and data structures
+
+5. **UI Rendering Layer**
+
+   * Displays generated cards
+   * Applies visual distinction:
+
+     * ✅ Standard cards → default style
+     * 🟩 Generated cards → light green background
+
+---
+
+### 3. Functional Requirements
+
+* Load API schemas dynamically from UI tab
+* Support JSON Schema parsing
+* Plugin-based extensibility
+* Context-aware banking logic matching
+* Auto-generation of test cases/cards
+* Visual differentiation of generated elements
+
+---
+
+### 4. UI Specifications
+
+| Element         | Description                  |
+| --------------- | ---------------------------- |
+| API Files Tab   | Upload & manage schema files |
+| Test Library    | Displays all test cards      |
+| Generated Cards | Light green background       |
+| Static Cards    | Default UI style             |
+
+---
+
+### 5. Validation Checklist
+
+* [ ] API schemas load correctly
+* [ ] Plugins process schemas without errors
+* [ ] Banking context detection works
+* [ ] Test cards are generated properly
+* [ ] UI reflects dynamic vs static cards clearly
+
+---
+
+### 6. Notes
+
+* Ensure modular architecture for scalability
+* Maintain separation between static and dynamic data
+* Allow future extension for non-banking APIs
+
+---
+
+ALSO   **generate the actual .docx file** with proper formatting (headings, diagrams placeholders, etc.) or even **draw the architecture diagram visually**.
+ 

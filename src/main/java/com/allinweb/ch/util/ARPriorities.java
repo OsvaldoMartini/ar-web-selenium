@@ -1,24 +1,35 @@
 package com.allinweb.ch.util;
 
 import com.google.common.base.Strings;
+import com.allinweb.ch.facade.ScannerDialogPublisher;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Properties;
-import javax.swing.*;
+import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARPriorities {
 
+    private static final ARPropertyManager arPropertyManager;
+    public static Properties properties;
+    public static List<Priority> priorityList;
+    public static List<SearchConfig> searchList;
+    // Static final variable to hold the singleton instance
     protected static volatile ARPriorities instance;
+    private static String searchConfigTemplate =
+            "#numero priorità, categoria, identificativo\n" + "1,ByXPath,//a[@href],a[href]\n"
+                    + "2,ByLabels,label,spam,div,p\n"
+                    + "3,attribute,martini-id";
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
+    private Integer jobId;
 
     // Private constructor to prevent instantiation
-    private ARPriorities() {
-        // Initialize if necessary
-    }
+    private ARPriorities() {}
 
     // Public method to access the singleton instance
     public static ARPriorities getInstance() {
@@ -32,73 +43,9 @@ public class ARPriorities {
         return instance;
     }
 
-    private static String searchConfigTemplate =
-            "#numero priorità, categoria, identificativo\n" + "1,ByXPath,//a[@href],a[href]\n"
-                    + "2,ByLabels,label,spam,div,p\n"
-                    + "3,attribute,martini-id";
-    // Static final variable to hold the singleton instance
-
-    public static Properties properties;
-    public static List<Priority> priorityList;
-    public static List<SearchConfig> searchList;
-    private Integer jobId;
-
-    private static final ARPropertyManager arPropertyManager;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-    }
-
     // Public method to access the singleton instance
     public static void destroyInstance() {
         instance = null;
-    }
-
-    public void loadPriorities() {
-        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_PRIORITY);
-        if (priorityPath == null || priorityPath.isBlank()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Priority configuration folder is not set. Please set the folder of priority configuration file "
-                            + ARConstants.FILE_NAME_PRIORITIES,
-                    "Priority configuration folder not set",
-                    JOptionPane.WARNING_MESSAGE);
-            ARLogger.getInstance(ARPriorities.class).warning("Priority configuration folder not set");
-            throw new RuntimeException("Priority configuration not set");
-        }
-        String prioritiesFileName = priorityPath + ARConstants.FILE_NAME_PRIORITIES;
-        priorityList = new ArrayList<>();
-        File prioritiesFile = new File(prioritiesFileName);
-        if (!prioritiesFile.exists()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Priority configuration file is missing. Please check that the priority configuration is "
-                            + "set correctly or create the file: " + prioritiesFileName,
-                    "Priority configuration file missing",
-                    JOptionPane.WARNING_MESSAGE);
-            ARLogger.getInstance(ARPriorities.class)
-                    .warning("Priority configuration file missing" + prioritiesFileName);
-            throw new RuntimeException("Priority configuration file missing");
-        }
-        try (FileInputStream priorities = new FileInputStream(prioritiesFile)) {
-            properties = new Properties();
-            properties.load(priorities);
-            if (properties.size() == 0) {
-                ARLogger.getInstance(ARPriorities.class).warning("The file " + prioritiesFileName + "is empty");
-            }
-            properties.keySet().forEach(keyObj -> {
-                String[] params = String.valueOf(keyObj).split(ARConstants.FIELDS_SEPARATOR);
-                Priority priority = new Priority(
-                        Integer.parseInt(params[0]),
-                        params[1],
-                        Arrays.stream(Arrays.copyOfRange(params, 2, params.length))
-                                .toList());
-                priorityList.add(priority);
-            });
-            priorityList.sort(Comparator.comparingInt(Priority::getPriorityNumber));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public static List<Priority> getAllPriorityList() {
@@ -107,14 +54,6 @@ public class ARPriorities {
 
     public static List<SearchConfig> getSearchConfigList() {
         return searchList;
-    }
-
-    public Integer getJobId() {
-        return jobId;
-    }
-
-    public void setJobId(Integer jobId) {
-        this.jobId = jobId;
     }
 
     public static void loadPrioritiesFromString(String text) {
@@ -140,7 +79,7 @@ public class ARPriorities {
                 priorities.add(new Priority(priorityNumber, priorityType, name));
             } else {
                 // Handle invalid lines
-                System.err.println("Invalid line: " + line);
+                log.error("Invalid line: " + line);
             }
         }
         priorityList = priorities;
@@ -175,7 +114,7 @@ public class ARPriorities {
                 searchConfigs.add(new SearchConfig(searchNumber, searchType, name));
             } else {
                 // Handle invalid lines
-                System.err.println("Invalid line: " + line);
+                log.error("Invalid line: " + line);
             }
         }
         searchList = searchConfigs;
@@ -185,5 +124,64 @@ public class ARPriorities {
 
     public static boolean isFirstCharacterHash(String str) {
         return str != null && str.startsWith("#");
+    }
+
+    public void loadPriorities() {
+        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_PRIORITY);
+        if (priorityPath == null || priorityPath.isBlank()) {
+            publishPriorityWarning(
+                    "Priority configuration folder not set",
+                    "Priority configuration folder is not set. Please set the folder of priority configuration file "
+                            + ARConstantsEngine.FILE_NAME_PRIORITIES);
+            log.warn("Priority configuration folder not set");
+            throw new RuntimeException("Priority configuration not set");
+        }
+        String prioritiesFileName = priorityPath + ARConstantsEngine.FILE_NAME_PRIORITIES;
+        priorityList = new ArrayList<>();
+        File prioritiesFile = new File(prioritiesFileName);
+        if (!prioritiesFile.exists()) {
+            publishPriorityWarning(
+                    "Priority configuration file missing",
+                    "Priority configuration file is missing. Please check that the priority configuration is "
+                            + "set correctly or create the file: " + prioritiesFileName);
+
+            log.warn("Priority configuration file missing" + prioritiesFileName);
+            throw new RuntimeException("Priority configuration file missing");
+        }
+        try (FileInputStream priorities = new FileInputStream(prioritiesFile)) {
+            properties = new Properties();
+            properties.load(priorities);
+            if (properties.size() == 0) {
+                log.warn("The file " + prioritiesFileName + "is empty");
+            }
+            properties.keySet().forEach(keyObj -> {
+                String[] params = String.valueOf(keyObj).split(ARConstantsEngine.FIELDS_SEPARATOR);
+                Priority priority = new Priority(
+                        Integer.parseInt(params[0]),
+                        params[1],
+                        Arrays.stream(Arrays.copyOfRange(params, 2, params.length))
+                                .toList());
+                priorityList.add(priority);
+            });
+            priorityList.sort(Comparator.comparingInt(Priority::getPriorityNumber));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void publishPriorityWarning(String title, String message) {
+        boolean sent = ScannerDialogPublisher.getInstance()
+                .alert(ScannerDialogPublisher.Severity.WARNING, title, title, message);
+        if (!sent) {
+            log.warn("{}: {}", title, message);
+        }
+    }
+
+    public Integer getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(Integer jobId) {
+        this.jobId = jobId;
     }
 }

@@ -1,0 +1,3102 @@
+package com.allinweb.ch.socket;
+
+import com.allinweb.ch.db.ScannedElementRepository;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.BotJobWorkspaceController;
+import com.allinweb.ch.facade.PageMappingsCacheService;
+import com.allinweb.ch.facade.PageMappingsOcrAliasService;
+import com.allinweb.ch.facade.PageMappingsOcrReviewService;
+import com.allinweb.ch.facade.PageMappingsScanInventoryService;
+import com.allinweb.ch.facade.PageScanSnapshotFileSecurity;
+import com.allinweb.ch.facade.PageScanSnapshotLifecycleCoordinator;
+import com.allinweb.ch.facade.PageScanUrlRedactor;
+import com.allinweb.ch.facade.PageScanSnapshotRetentionService;
+import com.allinweb.ch.facade.PageScanSnapshotStorageHealth;
+import com.allinweb.ch.facade.PreScanWorkflowService;
+import com.allinweb.ch.facade.OcrConfigService;
+import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import javax.websocket.Session;
+import lombok.extern.slf4j.Slf4j;
+
+/** Owner-scoped backend seam for the detached Page Mappings explorer. */
+@Slf4j
+public final class PageMappingsWorkspaceService {
+
+    static final String RETARGET_OPERATION = "pageMappings.retarget";
+    static final String INVALIDATED_OPERATION = "pageMappings.invalidated";
+    private static final String SESSION_ID = DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER;
+    private static final Gson JSON = new Gson();
+    private static final SecureRandom WINDOW_CAPABILITY_RANDOM = new SecureRandom();
+    private static final int WINDOW_CAPABILITY_BYTES = 32;
+    private static final int MAX_RESCAN_REQUESTS = 256;
+    private static final int MAX_ACTIVE_MUTATIONS = 32;
+    private static final int MAX_MUTATION_OWNER_REVISIONS = 256;
+    private static final long DELIVERY_TIMEOUT_SECONDS = 5L;
+    private static final long MAX_MANIFEST_BYTES = 1_000_000L;
+    private static final long MAX_METADATA_BYTES = 1_000_000L;
+    private static final long MAX_JSON_ARTIFACT_BYTES = 16_000_000L;
+    private static final long MAX_SCREENSHOT_BYTES = 8_000_000L;
+    private static final Set<String> CAPTURE_FILES = Set.of(
+            "elements.json", "rects.json", "meta.json", "screenshot.png");
+    private static final int OCR_REVIEW_CONTRACT_VERSION = 1;
+    private static final int MAX_OCR_ALIAS_CHANGES = 1_000;
+    private static final Set<String> OCR_ALIAS_FIELDS = Set.of(
+            "scannedElementId",
+            "elementHash",
+            "expectedLastScannedAt",
+            "expectedScanCount",
+            "expectedClientNamed",
+            "clientNamed");
+    private static final PageMappingsOcrReviewService OCR_REVIEW =
+            new PageMappingsOcrReviewService();
+    private static final PageMappingsOcrAliasService OCR_ALIASES =
+            PageMappingsOcrAliasService.getInstance();
+    private static final PageMappingsScanInventoryService SCAN_INVENTORY =
+            new PageMappingsScanInventoryService();
+    private static final PageScanSnapshotRetentionService SNAPSHOT_RETENTION =
+            PageScanSnapshotRetentionService.getInstance();
+    private static final PageMappingsWorkspaceService INSTANCE = new PageMappingsWorkspaceService();
+
+    private final Object bindingLock = new Object();
+    private final BotJobOwnerResolver botJobOwnerResolver;
+    private final PageScannerOwnerResolver pageScannerOwnerResolver;
+    private final WindowAccess windowAccess;
+    private final RetargetPublisher retargetPublisher;
+    private final RetargetObserver retargetObserver;
+    private final ExactTransportAuthorizer transportAuthorizer;
+    private final SnapshotRootResolver snapshotRootResolver;
+    private final ActiveOwnerValidator activeOwnerValidator;
+    private final LinkedHashSet<String> acceptedRescanRequests = new LinkedHashSet<>();
+    private final Map<String, ActiveMutation> activeMutations = new HashMap<>();
+    private final LinkedHashMap<MutationOwner, Long> mutationOwnerRevisions =
+            new LinkedHashMap<>(16, 0.75f, true);
+    private Binding binding;
+    private String activeRescanKey = "";
+    private boolean cacheInspectionInFlight;
+    private long nextMutationRevision;
+
+    public static PageMappingsWorkspaceService getInstance() {
+        return INSTANCE;
+    }
+
+    private PageMappingsWorkspaceService() {
+        this(
+                PageMappingsWorkspaceService::resolveBotJobOwner,
+                authoritativePageScannerOwnerResolver(),
+                new WindowAccess() {
+                    @Override
+                    public boolean isOpen() {
+                        return WebSocketSessionManager.isSessionOpen(SESSION_ID);
+                    }
+
+                    @Override
+                    public boolean isLaunchPending() {
+                        return PagesOpenWorkspaceService.getInstance()
+                                .isDetachedWorkspaceLaunchPending(SESSION_ID);
+                    }
+
+                    @Override
+                    public boolean openOrFocus(int botJobId) {
+                        return openOrFocus(botJobId, null);
+                    }
+
+                    @Override
+                    public boolean openOrFocus(int botJobId, String windowCapability) {
+                        return PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
+                                SESSION_ID,
+                                botJobId,
+                                "Page Mappings requested for this Bot Job.",
+                                windowCapability);
+                    }
+
+                    @Override
+                    public void invalidate(
+                            Binding retired, Binding alternate, String reason) {
+                        PagesOpenWorkspaceService.getInstance()
+                                .clearDetachedWorkspaceLaunchPending(SESSION_ID);
+                        publishInvalidated(retired, alternate, reason);
+                        PagesOpenWorkspaceService.getInstance()
+                                .closeDetachedWorkspaceSession(SESSION_ID, reason);
+                        // Explicit invalidation always retires server authority immediately. The
+                        // client close message is advisory and cannot be trusted to complete.
+                        WebSocketSessionManager.closeSession(SESSION_ID);
+                    }
+                },
+                PageMappingsWorkspaceService::publishRetarget,
+                (previous, current) -> MemoryListWorkspaceService.getInstance()
+                        .pageMappingsRetargeted(previous, current),
+                PageMappingsWorkspaceService::isExactRegisteredTransport,
+                PageMappingsWorkspaceService::configuredSnapshotRoot,
+                PageMappingsWorkspaceService::requireActiveOwner);
+    }
+
+    PageMappingsWorkspaceService(
+            BotJobOwnerResolver botJobOwnerResolver,
+            PageScannerOwnerResolver pageScannerOwnerResolver,
+            WindowAccess windowAccess,
+            RetargetPublisher retargetPublisher,
+            RetargetObserver retargetObserver,
+            ExactTransportAuthorizer transportAuthorizer) {
+        this(
+                botJobOwnerResolver,
+                pageScannerOwnerResolver,
+                windowAccess,
+                retargetPublisher,
+                retargetObserver,
+                transportAuthorizer,
+                PageMappingsWorkspaceService::configuredSnapshotRoot,
+                target -> target);
+    }
+
+    PageMappingsWorkspaceService(
+            BotJobOwnerResolver botJobOwnerResolver,
+            PageScannerOwnerResolver pageScannerOwnerResolver,
+            WindowAccess windowAccess,
+            RetargetPublisher retargetPublisher,
+            RetargetObserver retargetObserver,
+            ExactTransportAuthorizer transportAuthorizer,
+            SnapshotRootResolver snapshotRootResolver) {
+        this(
+                botJobOwnerResolver,
+                pageScannerOwnerResolver,
+                windowAccess,
+                retargetPublisher,
+                retargetObserver,
+                transportAuthorizer,
+                snapshotRootResolver,
+                target -> target);
+    }
+
+    PageMappingsWorkspaceService(
+            BotJobOwnerResolver botJobOwnerResolver,
+            PageScannerOwnerResolver pageScannerOwnerResolver,
+            WindowAccess windowAccess,
+            RetargetPublisher retargetPublisher,
+            RetargetObserver retargetObserver,
+            ExactTransportAuthorizer transportAuthorizer,
+            SnapshotRootResolver snapshotRootResolver,
+            ActiveOwnerValidator activeOwnerValidator) {
+        this.botJobOwnerResolver = Objects.requireNonNull(botJobOwnerResolver);
+        this.pageScannerOwnerResolver = Objects.requireNonNull(pageScannerOwnerResolver);
+        this.windowAccess = Objects.requireNonNull(windowAccess);
+        this.retargetPublisher = Objects.requireNonNull(retargetPublisher);
+        this.retargetObserver = Objects.requireNonNull(retargetObserver);
+        this.transportAuthorizer = Objects.requireNonNull(transportAuthorizer);
+        this.snapshotRootResolver = Objects.requireNonNull(snapshotRootResolver);
+        this.activeOwnerValidator = Objects.requireNonNull(activeOwnerValidator);
+    }
+
+    /** Opens Page Mappings for the active, server-owned Bot Job Details workspace. */
+    public JsonObject openForBotJob(int botJobId) {
+        try {
+            synchronized (bindingLock) {
+                return open(botJobOwnerResolver.resolve(botJobId), null);
+            }
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(null, unauthorized.getMessage());
+        } catch (RuntimeException failure) {
+            log.warn("Unable to open Page Mappings for Bot Job {}", botJobId, failure);
+            return failure(null, "Page Mappings workspace could not be opened.");
+        }
+    }
+
+    /**
+     * Follows the application-owned Bot Job Details switch when Page Mappings already has an
+     * owner. A connected (or still-launching) window is retargeted in place; a disconnected stale
+     * binding is invalidated so it cannot reconnect later under the previous Bot Job.
+     */
+    public JsonObject activeBotJobChanged(
+            int previousBotJobId, long previousWorkspaceEpoch, int nextBotJobId) {
+        try {
+            synchronized (bindingLock) {
+                boolean alreadyOpen = windowAccess.isOpen();
+                boolean launchPending = !alreadyOpen && windowAccess.isLaunchPending();
+                OwnerTarget target;
+                try {
+                    target = botJobOwnerResolver.resolve(nextBotJobId);
+                } catch (RuntimeException unavailable) {
+                    if (binding != null || alreadyOpen || launchPending) {
+                        Binding retired = binding;
+                        invalidateLocked(
+                                retired,
+                                null,
+                                retired,
+                                "Page Mappings was retired because the active Bot Job is unavailable.");
+                    }
+                    throw unavailable;
+                }
+
+                if (binding == null) {
+                    if (alreadyOpen || launchPending) {
+                        invalidateLocked(
+                                null,
+                                null,
+                                null,
+                                "Page Mappings was retired because it had no active Bot Job owner.");
+                    }
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    response.addProperty("invalidated", alreadyOpen || launchPending);
+                    return response;
+                }
+
+                Binding retired = binding;
+                if (!alreadyOpen && !launchPending) {
+                    invalidateLocked(
+                            retired,
+                            null,
+                            retired,
+                            "Page Mappings was retired because the active Bot Job changed.");
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    response.addProperty("invalidated", true);
+                    return response;
+                }
+                if (retired.matches(target)) {
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    return response;
+                }
+                if (retired.botJobId() != previousBotJobId
+                        || retired.workspaceEpoch() != previousWorkspaceEpoch) {
+                    invalidateLocked(
+                            retired,
+                            null,
+                            retired,
+                            "Page Mappings was retired because its Bot Job owner was stale.");
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    response.addProperty("invalidated", true);
+                    return response;
+                }
+                return open(target, null);
+            }
+        } catch (IllegalArgumentException unavailable) {
+            return failure(null, unavailable.getMessage());
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "Unable to synchronize Page Mappings from Bot Job {} to {}",
+                    previousBotJobId,
+                    nextBotJobId,
+                    failure);
+            return failure(null, "Page Mappings could not follow the active Bot Job.");
+        }
+    }
+
+    /** Opens Page Mappings using only the context owned by the exact Page Scanner transport. */
+    public JsonObject openFromPageScanner(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        try {
+            synchronized (bindingLock) {
+                requireExactPageScannerTransport(requesterSessionId, requesterTransport);
+                return pageScannerOwnerResolver.withResolvedOwner(
+                        requesterSessionId,
+                        target -> {
+                            requireExactPageScannerTransport(
+                                    requesterSessionId, requesterTransport);
+                            validateOwnerAssertions(body, target, null);
+                            return open(target, body);
+                        });
+            }
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        } catch (RuntimeException failure) {
+            log.warn("Unable to open Page Mappings from Page Scanner {}", requesterSessionId, failure);
+            return failure(body, "Page Mappings workspace could not be opened.");
+        }
+    }
+
+    /** Loads owner-filtered capture history for the exact detached Page Mappings transport. */
+    public JsonObject bootstrap(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        MutationFence startedFence;
+        try {
+            synchronized (bindingLock) {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, false);
+                startedFence = mutationFenceLocked(MutationOwner.from(authorized));
+            }
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        if (startedFence.inFlight()) {
+            return mutationBootstrapFailure(body, authorized, startedFence);
+        }
+
+        JsonObject response = baseResponse(body, authorized);
+        response.addProperty("ok", true);
+        response.addProperty("storageReady", true);
+        response.addProperty("sessionId", SESSION_ID);
+        response.add("scanInventory", scanInventory(connection, authorized));
+        JsonArray snapshots = new JsonArray();
+        if (!snapshotTableExists(connection)) {
+            response.addProperty("ok", false);
+            response.addProperty("storageReady", false);
+            response.addProperty(
+                    "message",
+                    "Page Mappings storage is not initialized. No database migration was run.");
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+            response.add("snapshots", snapshots);
+            return finishBootstrapResponse(body, authorized, startedFence, response);
+        }
+        String sql = "SELECT scan_id, home_url_id, page_key, page_url, captured_at, element_count, "
+                + "manifest_sha256, status, pinned "
+                + "FROM page_scan_snapshot WHERE home_banking_id = ? AND bot_job_id = ? "
+                + "ORDER BY captured_at DESC";
+        try {
+            PageScanSnapshotLifecycleCoordinator.reconcileAll(
+                    Objects.requireNonNull(connection));
+        } catch (Exception reconciliationFailure) {
+            log.error("Unable to reconcile Page Mappings retention journals", reconciliationFailure);
+            response.addProperty("ok", false);
+            response.addProperty("storageReady", false);
+            response.addProperty(
+                    "message", "Page Mappings retention recovery is unavailable.");
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+            response.add("snapshots", snapshots);
+            return finishBootstrapResponse(body, authorized, startedFence, response);
+        }
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, authorized.homeBankingId());
+            statement.setInt(2, authorized.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    JsonObject snapshot = new JsonObject();
+                    snapshot.addProperty("scanId", rows.getString("scan_id"));
+                    if (rows.getObject("home_url_id") != null) {
+                        snapshot.addProperty("homeUrlId", rows.getInt("home_url_id"));
+                    }
+                    snapshot.addProperty("pageKey", rows.getString("page_key"));
+                    snapshot.addProperty(
+                            "pageUrl", PageScanUrlRedactor.redact(rows.getString("page_url")));
+                    snapshot.addProperty("capturedAt", rows.getString("captured_at"));
+                    snapshot.addProperty("elementCount", rows.getInt("element_count"));
+                    snapshot.addProperty("manifestSha256", rows.getString("manifest_sha256"));
+                    snapshot.addProperty("status", rows.getString("status"));
+                    snapshot.addProperty("pinned", rows.getInt("pinned") != 0);
+                    snapshots.add(snapshot);
+                }
+            }
+            addRetention(
+                    response,
+                    SNAPSHOT_RETENTION.summary(
+                            connection,
+                            authorized.homeBankingId(),
+                            authorized.botJobId()));
+        } catch (Exception failure) {
+            log.error(
+                    "Unable to load Page Mappings snapshots for homeBankingId={} botJobId={}",
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    failure);
+            response.addProperty("ok", false);
+            response.addProperty("storageReady", false);
+            response.addProperty(
+                    "message",
+                    snapshotTableExists(connection)
+                            ? "Page Mappings history is unavailable."
+                            : "Page Mappings storage is not initialized. No database migration was run.");
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+        }
+        response.add("snapshots", snapshots);
+        return finishBootstrapResponse(body, authorized, startedFence, response);
+    }
+
+    private JsonObject scanInventory(Connection connection, Binding authorized) {
+        JsonObject result = new JsonObject();
+        try {
+            PageMappingsScanInventoryService.Inventory inventory =
+                    SCAN_INVENTORY.load(connection, authorized.homeBankingId());
+            result = JSON.toJsonTree(inventory).getAsJsonObject();
+            result.addProperty("ready", true);
+        } catch (Exception failure) {
+            log.warn(
+                    "Unable to load Page Mappings scan inventory for homeBankingId={}",
+                    authorized.homeBankingId(),
+                    failure);
+            result.addProperty("ready", false);
+            result.addProperty("homeBankingId", authorized.homeBankingId());
+            result.addProperty("message", "The scanned page inventory is unavailable.");
+            result.add("jobs", new JsonArray());
+        }
+        return result;
+    }
+
+    private JsonObject finishBootstrapResponse(
+            JsonObject request,
+            Binding authorized,
+            MutationFence startedFence,
+            JsonObject response) {
+        synchronized (bindingLock) {
+            if (!sameBindingGeneration(binding, authorized)) {
+                JsonObject stale = failure(
+                        request,
+                        "Page Mappings owner changed while history was loading. Reload this page.",
+                        authorized);
+                stale.add("snapshots", new JsonArray());
+                return stale;
+            }
+            MutationFence currentFence = mutationFenceLocked(MutationOwner.from(authorized));
+            if (currentFence.inFlight()
+                    || currentFence.revision() != startedFence.revision()) {
+                return mutationBootstrapFailure(request, authorized, currentFence);
+            }
+            response.addProperty("mutationRevision", currentFence.revision());
+            response.addProperty("mutationInFlight", false);
+            return response;
+        }
+    }
+
+    private static JsonObject mutationBootstrapFailure(
+            JsonObject request, Binding owner, MutationFence fence) {
+        JsonObject response = failure(
+                request,
+                fence.inFlight()
+                        ? "A Page Mappings change is still finishing. Reload after it settles."
+                        : "Page Mappings changed while history was loading. Reload to obtain authoritative history.",
+                owner);
+        response.addProperty("reloadRequired", true);
+        response.addProperty("mutationInFlight", fence.inFlight());
+        response.addProperty("mutationRevision", fence.revision());
+        response.add("snapshots", new JsonArray());
+        return response;
+    }
+
+    /** Compares the live shared Playwright page with the latest owner-scoped READY capture. */
+    public JsonObject cacheState(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        synchronized (bindingLock) {
+            try {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, true);
+            } catch (IllegalArgumentException unauthorizedRequest) {
+                return failure(body, unauthorizedRequest.getMessage());
+            }
+            if (cacheInspectionInFlight) {
+                return failure(
+                        body, "A live page comparison is already in progress.", authorized);
+            }
+            cacheInspectionInFlight = true;
+        }
+        try {
+            PageMappingsCacheService.CacheState state = PageMappingsCacheService.inspect(
+                    Objects.requireNonNull(connection),
+                    authorized.homeBankingId(),
+                    authorized.botJobId());
+            if ("CURRENT".equals(state.state())
+                    && !verifyReusableCapture(
+                            connection, authorized, state.reusableScanId())) {
+                state = state.artifactStale();
+            }
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            response.addProperty("cacheState", state.state());
+            response.addProperty("message", state.message());
+            response.addProperty("browserAvailable", state.browserAvailable());
+            response.addProperty("livePageKey", state.livePageKey());
+            response.addProperty("livePageUrl", state.livePageUrl());
+            response.addProperty("liveNodeCount", state.liveNodeCount());
+            response.addProperty("reusableScanId", state.reusableScanId());
+            response.addProperty("comparedScanId", state.comparedScanId());
+            return response;
+        } finally {
+            synchronized (bindingLock) {
+                cacheInspectionInFlight = false;
+            }
+        }
+    }
+
+    /** Starts a server-owned Page Scanner run and publishes only Page Mappings progress. */
+    public JsonObject rescan(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        synchronized (bindingLock) {
+            Binding authorized = null;
+            boolean scrollPage = false;
+            int scrollPages = PreScanWorkflowService.DEFAULT_SCROLL_PAGES;
+            try {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, true);
+                scrollPage = optionalBoolean(body, "scrollPage", false);
+                scrollPages = optionalScrollPages(
+                        body, "scrollPages", PreScanWorkflowService.DEFAULT_SCROLL_PAGES);
+                if (!snapshotTableExists(connection)) {
+                    return rescanFailure(
+                            body,
+                            "Page Mappings storage is not initialized. No database migration was run.",
+                            authorized,
+                            scrollPage,
+                            scrollPages);
+                }
+                String requestId = string(body, "requestId").trim();
+                if (requestId.isEmpty() || requestId.length() > 200) {
+                    return rescanFailure(
+                            body,
+                            "A valid Page Mappings request ID is required.",
+                            authorized,
+                            scrollPage,
+                            scrollPages);
+                }
+                if (!activeRescanKey.isBlank()) {
+                    return rescanFailure(
+                            body,
+                            "A Page Mappings rescan is already in progress.",
+                            authorized,
+                            scrollPage,
+                            scrollPages);
+                }
+                if (!acceptRescanRequest(authorized.bindingEpoch(), requestId)) {
+                    return rescanFailure(
+                            body,
+                            "This Page Mappings rescan request was already accepted.",
+                            authorized,
+                            scrollPage,
+                            scrollPages);
+                }
+                activeOwnerValidator.require(authorized.asTarget());
+                PreScanWorkflowService.Context context = BotJobWorkspaceController.getInstance()
+                        .pageScannerContext(authorized.botJobId());
+                if (context.homeBankingId() != authorized.homeBankingId()
+                        || context.botJobId() != authorized.botJobId()) {
+                    return rescanFailure(
+                            body,
+                            "Page Mappings owner changed. Refresh this page.",
+                            authorized,
+                            scrollPage,
+                            scrollPages);
+                }
+                MutationTicket mutation = beginMutationLocked(
+                        authorized, MutationKind.RESCAN, requestId);
+                String rescanKey = rescanKey(authorized.bindingEpoch(), requestId);
+                activeRescanKey = rescanKey;
+                try {
+                    BotJobWorkspaceController.getInstance().pageMappingsRescan(
+                            context,
+                            authorized.workspaceEpoch(),
+                            SESSION_ID,
+                            authorized.bindingEpoch(),
+                            requestId,
+                            scrollPage,
+                            scrollPages,
+                            () -> finishRescan(rescanKey, mutation));
+                } catch (RuntimeException | Error startFailure) {
+                    finishRescan(rescanKey, mutation);
+                    throw startFailure;
+                }
+                JsonObject response = baseResponse(body, authorized);
+                response.addProperty("ok", true);
+                response.addProperty("accepted", true);
+                response.addProperty("scrollPage", scrollPage);
+                response.addProperty("scrollPages", scrollPages);
+                response.addProperty("message", "Page Mappings rescan started.");
+                return response;
+            } catch (IllegalArgumentException unauthorized) {
+                return authorized == null
+                        ? failure(body, unauthorized.getMessage())
+                        : rescanFailure(
+                                body,
+                                unauthorized.getMessage(),
+                                authorized,
+                                scrollPage,
+                                scrollPages);
+            } catch (RuntimeException unavailable) {
+                log.warn("Unable to start Page Mappings rescan", unavailable);
+                return authorized == null
+                        ? failure(body, "Page Mappings rescan could not be started.")
+                        : rescanFailure(
+                                body,
+                                "Page Mappings rescan could not be started.",
+                                authorized,
+                                scrollPage,
+                                scrollPages);
+            }
+        }
+    }
+
+    private static JsonObject rescanFailure(
+            JsonObject body,
+            String message,
+            Binding owner,
+            boolean scrollPage,
+            int scrollPages) {
+        JsonObject response = failure(body, message, owner);
+        response.addProperty("scrollPage", scrollPage);
+        response.addProperty("scrollPages", scrollPages);
+        return response;
+    }
+
+    private boolean acceptRescanRequest(String bindingEpoch, String requestId) {
+        String key = rescanKey(bindingEpoch, requestId);
+        if (!acceptedRescanRequests.add(key)) return false;
+        while (acceptedRescanRequests.size() > MAX_RESCAN_REQUESTS) {
+            var oldest = acceptedRescanRequests.iterator();
+            if (!oldest.hasNext()) break;
+            oldest.next();
+            oldest.remove();
+        }
+        return true;
+    }
+
+    private static String rescanKey(String bindingEpoch, String requestId) {
+        return bindingEpoch + '\u0000' + requestId;
+    }
+
+    private void finishRescan(String key, MutationTicket mutation) {
+        synchronized (bindingLock) {
+            if (Objects.equals(activeRescanKey, key)) activeRescanKey = "";
+            finishMutationLocked(mutation);
+        }
+    }
+
+    private boolean verifyReusableCapture(
+            Connection connection, Binding owner, String scanId) {
+        if (scanId == null || scanId.isBlank()) return false;
+        String expectedFingerprint;
+        CaptureRow selected;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT scan_id, page_key, page_url, captured_at, element_count, artifact_path, "
+                        + "manifest_sha256, view_fingerprint FROM page_scan_snapshot "
+                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? "
+                        + "AND status = 'READY'")) {
+            statement.setString(1, scanId);
+            statement.setInt(2, owner.homeBankingId());
+            statement.setInt(3, owner.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) return false;
+                selected = new CaptureRow(
+                        rows.getString("scan_id"),
+                        rows.getString("page_key"),
+                        rows.getString("page_url"),
+                        rows.getString("captured_at"),
+                        rows.getInt("element_count"),
+                        rows.getString("artifact_path"),
+                        rows.getString("manifest_sha256"));
+                expectedFingerprint = Objects.toString(
+                        rows.getString("view_fingerprint"), "").trim();
+            }
+            if (expectedFingerprint.isBlank()) return false;
+            VerifiedCapture verified = verifyCapture(
+                    snapshotRootResolver.resolve(), selected, owner, connection);
+            return expectedFingerprint.equals(verified.viewFingerprint());
+        } catch (Exception invalidCapture) {
+            log.warn(
+                    "Page Mappings cache rejected capture {} after integrity verification: {}",
+                    scanId,
+                    invalidCapture.getMessage());
+            return false;
+        }
+    }
+
+    /** Loads one artifact that belongs to the exact currently bound owner. */
+    public JsonObject capture(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+
+        String scanId = string(body, "scanId");
+        if (scanId.isBlank()) {
+            return failure(body, "A valid scan ID is required.", authorized);
+        }
+        CaptureRow selected;
+        try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(
+                "SELECT scan_id, page_key, page_url, captured_at, element_count, artifact_path, manifest_sha256 "
+                        + "FROM page_scan_snapshot "
+                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? "
+                        + "AND status = 'READY'")) {
+            statement.setString(1, scanId);
+            statement.setInt(2, authorized.homeBankingId());
+            statement.setInt(3, authorized.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    return captureFailure(
+                            body, "The selected scan capture was not found.", authorized, scanId);
+                }
+                selected = new CaptureRow(
+                        rows.getString("scan_id"),
+                        rows.getString("page_key"),
+                        rows.getString("page_url"),
+                        rows.getString("captured_at"),
+                        rows.getInt("element_count"),
+                        rows.getString("artifact_path"),
+                        rows.getString("manifest_sha256"));
+            }
+        } catch (Exception failure) {
+            return captureFailure(
+                    body, "The selected scan capture was not found.", authorized, scanId);
+        }
+
+        JsonObject response = baseResponse(body, authorized);
+        try {
+            VerifiedCapture capture = verifyCapture(
+                    snapshotRootResolver.resolve(), selected, authorized, connection);
+            response.addProperty("ok", true);
+            response.addProperty("scanId", selected.scanId());
+            response.addProperty("pageKey", selected.pageKey());
+            response.addProperty("capturedAt", selected.capturedAt());
+            response.addProperty("manifestSha256", selected.manifestSha256());
+            response.add("elements", capture.elements());
+            response.add("rectangles", capture.rectangles());
+            response.add("viewport", capture.viewport());
+            response.addProperty(
+                    "screenshotBase64", Base64.getEncoder().encodeToString(capture.screenshot()));
+            response.addProperty("screenshotMime", "image/png");
+            return response;
+        } catch (Exception failure) {
+            log.warn("Unable to load Page Mappings capture {}", scanId, failure);
+            return captureFailure(
+                    body, "The selected scan artifact could not be loaded.", authorized, scanId);
+        }
+    }
+
+    /** Pins or unpins one READY capture owned by the current Page Mappings binding. */
+    public JsonObject pinSnapshot(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        synchronized (bindingLock) {
+        Binding authorized = null;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            requireRequestId(body);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        if (!snapshotTableExists(connection)) {
+            return failure(
+                    body,
+                    "Page Mappings storage is not initialized. No database migration was run.",
+                    authorized);
+        }
+        String scanId = string(body, "scanId").trim();
+        if (body == null
+                || !body.has("pinned")
+                || !body.get("pinned").isJsonPrimitive()
+                || !body.getAsJsonPrimitive("pinned").isBoolean()) {
+            return failure(body, "A valid pinned state is required.", authorized);
+        }
+        try {
+            Binding commitOwner = authorized;
+            PageScanSnapshotRetentionService.PinResult result = commitWorkspaceMutation(
+                    commitOwner,
+                    () -> SNAPSHOT_RETENTION.pin(
+                            Objects.requireNonNull(connection),
+                            commitOwner.homeBankingId(),
+                            commitOwner.botJobId(),
+                            scanId,
+                            body.get("pinned").getAsBoolean()));
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            response.addProperty("scanId", result.scanId());
+            response.addProperty("pinned", result.pinned());
+            addRetention(response, result.summary());
+            response.addProperty(
+                    "message",
+                    result.pinned()
+                            ? "Capture pinned. Retention will preserve it."
+                            : "Capture unpinned.");
+            return response;
+        } catch (PageScanSnapshotRetentionService.PinOutcomeUnknownException unknown) {
+            log.error("Page Mapping pin outcome is unknown for {}", scanId, unknown);
+            JsonObject response = failure(body, unknown.getMessage(), authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (PageScanSnapshotRetentionService.StaleSnapshotException stale) {
+            JsonObject response = failure(body, stale.getMessage(), authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage(), authorized);
+        } catch (Exception unavailable) {
+            log.warn("Unable to update Page Mapping pin {}", scanId, unavailable);
+            return failure(body, "The selected capture pin could not be updated.", authorized);
+        }
+        }
+    }
+
+    /** Persists the global retention policy in the existing application configuration file. */
+    public JsonObject updateRetention(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        synchronized (bindingLock) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            requireRequestId(body);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        if (!snapshotTableExists(connection)) {
+            return failure(
+                    body,
+                    "Page Mappings storage is not initialized. No database migration was run.",
+                    authorized);
+        }
+        try {
+            int retentionDays = requiredNonNegativeInteger(body, "retentionDays");
+            int maxUnpinnedPerPage =
+                    requiredNonNegativeInteger(body, "maxUnpinnedPerPage");
+            Binding commitOwner = authorized;
+            PageScanSnapshotRetentionService.Summary summary = commitWorkspaceMutation(
+                    commitOwner,
+                    () -> SNAPSHOT_RETENTION.savePolicy(
+                            Objects.requireNonNull(connection),
+                            commitOwner.homeBankingId(),
+                            commitOwner.botJobId(),
+                            retentionDays,
+                            maxUnpinnedPerPage));
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            addRetention(response, summary);
+            response.addProperty(
+                    "message",
+                    summary.policy().enabled()
+                            ? "System-wide snapshot retention policy saved. It runs after successful scans."
+                            : "System-wide snapshot retention is disabled.");
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage(), authorized);
+        } catch (IOException unknown) {
+            log.warn("Page Mapping retention policy outcome requires reload", unknown);
+            JsonObject response = failure(
+                    body,
+                    "Snapshot retention policy could not be confirmed. Reload before changing it again.",
+                    authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (Exception unavailable) {
+            log.warn("Unable to save Page Mapping retention policy", unavailable);
+            return failure(body, "Snapshot retention policy could not be saved.", authorized);
+        }
+        }
+    }
+
+    /** Purges only currently eligible, unpinned READY captures for the bound owner/Bot Job. */
+    public JsonObject purgeRetention(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        final RetentionAuthority authority;
+        try {
+            authority = authorizeRetentionRequest(body, requesterSessionId, requesterTransport);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        return purgeRetention(body, authority, connection);
+    }
+
+    /** Executes an accepted purge only while its exact owner generation is still current. */
+    JsonObject purgeRetention(
+            JsonObject body, RetentionAuthority authority, Connection connection) {
+        synchronized (bindingLock) {
+        Binding authorized = null;
+        try {
+            authorized = requireCurrentRetentionAuthority(authority);
+            if (!authority.requestId().equals(requireRequestId(body))) {
+                throw new IllegalArgumentException(
+                        "The Page Mappings retention request identity changed.");
+            }
+            validateOwnerAssertions(body, authorized.asTarget(), authorized.bindingEpoch());
+            if (!snapshotTableExists(connection)) {
+                return failure(
+                        body,
+                        "Page Mappings storage is not initialized. No database migration was run.",
+                        authorized);
+            }
+            int expectedRetentionDays =
+                    requiredNonNegativeInteger(body, "expectedRetentionDays");
+            int expectedMaxUnpinnedPerPage =
+                    requiredNonNegativeInteger(body, "expectedMaxUnpinnedPerPage");
+            Binding commitOwner = authorized;
+            PageScanSnapshotRetentionService.PurgeResult result = commitWorkspaceMutation(
+                    commitOwner,
+                    () -> SNAPSHOT_RETENTION.purgeConfigured(
+                            Objects.requireNonNull(connection),
+                            commitOwner.homeBankingId(),
+                            commitOwner.botJobId(),
+                            expectedRetentionDays,
+                            expectedMaxUnpinnedPerPage));
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            JsonArray purged = new JsonArray();
+            for (String scanId : result.purgedScanIds()) purged.add(scanId);
+            response.add("purgedScanIds", purged);
+            response.addProperty("cleanupPending", result.cleanupPending());
+            addRetention(response, result.summary());
+            int remaining = result.summary().eligibleCount();
+            response.addProperty(
+                    "message",
+                    result.purgedScanIds().isEmpty()
+                            ? "No unpinned captures are currently eligible for purge."
+                            : result.purgedScanIds().size()
+                                    + " unpinned capture(s) purged."
+                                    + (remaining > 0
+                                            ? " " + remaining + " remain eligible."
+                                            : ""));
+            return response;
+        } catch (PageScanSnapshotRetentionService.StaleRetentionPolicyException stale) {
+            JsonObject response = failure(body, stale.getMessage(), authorized);
+            addRetentionPolicy(response, stale.currentPolicy());
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (PageScanSnapshotRetentionService.StaleSnapshotException stale) {
+            JsonObject response = failure(
+                    body,
+                    "Capture history changed while the purge was running. Reload before continuing.",
+                    authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (PageScanSnapshotRetentionService.PurgeOutcomeUnknownException unknown) {
+            log.error("Page Mapping retention purge outcome is unknown", unknown);
+            JsonObject response = failure(body, unknown.getMessage(), authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage());
+        } catch (Exception unavailable) {
+            log.warn("Unable to purge Page Mapping retention candidates", unavailable);
+            JsonObject response = authorized == null
+                    ? failure(body, "Eligible snapshots could not be purged.")
+                    : failure(body, "Eligible snapshots could not be purged.", authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        }
+        }
+    }
+
+    /** Runs OCR only against one exact, integrity-verified immutable Page Mappings capture. */
+    public JsonObject ocrReview(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+
+        String scanId = string(body, "scanId").trim();
+        try {
+            requireOcrContract(body, authorized);
+            OcrCapture selected = loadOcrCapture(connection, authorized, scanId);
+            requireCaptureAssertions(body, selected.capture());
+            VerifiedCapture verified = verifyCapture(
+                    snapshotRootResolver.resolve(), selected.capture(), authorized, connection);
+            PageMappingsOcrReviewService.ReviewResult review = OCR_REVIEW.review(
+                    reviewInput(selected, verified, authorized.homeBankingId()));
+
+            // OCR can take long enough for the detached window to be retargeted. Never return an
+            // old owner's result as current after that boundary changes.
+            Binding current = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            if (!current.bindingEpoch().equals(authorized.bindingEpoch())) {
+                return failure(body, "Page Mappings owner changed. Refresh OCR Review.", authorized);
+            }
+
+            JsonObject response = baseResponse(body, current);
+            response.addProperty("ok", true);
+            addCaptureIdentity(response, selected.capture());
+            response.addProperty("source", review.source());
+            response.addProperty("wordCount", review.wordCount());
+            response.add("counts", JSON.toJsonTree(review.counts()));
+            response.add("rows", JSON.toJsonTree(review.rows()));
+            response.add("words", JSON.toJsonTree(review.words()));
+            response.addProperty("message", "OCR Review completed for the selected capture.");
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage(), authorized);
+        } catch (Exception unavailable) {
+            log.warn("Unable to run Page Mappings OCR Review for scan {}", scanId, unavailable);
+            return failure(
+                    body,
+                    "OCR Review could not process the selected capture.",
+                    authorized);
+        }
+    }
+
+    /** Atomically persists selected OCR aliases for one exact immutable capture membership. */
+    public JsonObject ocrReviewApply(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        synchronized (bindingLock) {
+            Binding authorized;
+            try {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, true);
+            } catch (IllegalArgumentException unauthorizedRequest) {
+                return failure(body, unauthorizedRequest.getMessage());
+            }
+
+            String scanId = string(body, "scanId").trim();
+            try {
+                requireOcrContract(body, authorized);
+                OcrCapture selected = loadOcrCapture(connection, authorized, scanId);
+                requireCaptureAssertions(body, selected.capture());
+                VerifiedCapture verified = verifyCapture(
+                        snapshotRootResolver.resolve(), selected.capture(), authorized, connection);
+                List<PageMappingsOcrAliasService.AliasChange> changes =
+                        parseAliasChanges(body, verified.elements());
+                Binding commitOwner = authorized;
+                PageMappingsOcrAliasService.ApplyResult applied = commitWorkspaceMutation(
+                        commitOwner,
+                        () -> OCR_ALIASES.apply(
+                                commitOwner.homeBankingId(),
+                                commitOwner.botJobId(),
+                                selected.capture().pageKey(),
+                                changes));
+
+                JsonObject response = baseResponse(body, authorized);
+                response.addProperty("ok", true);
+                addCaptureIdentity(response, selected.capture());
+                response.addProperty("changedCount", applied.changedCount());
+                response.add("aliases", JSON.toJsonTree(applied.aliases()));
+                response.addProperty(
+                        "message",
+                        applied.changedCount() == 1
+                                ? "One Page Mapping name was saved."
+                                : applied.changedCount() + " Page Mapping names were saved.");
+                return response;
+            } catch (PageMappingsOcrAliasService.AliasApplyOutcomeUnknownException unknown) {
+                log.error(
+                        "Page Mappings OCR alias Apply outcome is unknown for scan {}",
+                        scanId,
+                        unknown);
+                JsonObject response = failure(body, unknown.getMessage(), authorized);
+                response.addProperty(
+                        "errorCode", "PAGE_MAPPINGS_OCR_ALIAS_OUTCOME_UNKNOWN");
+                response.addProperty("reloadRequired", true);
+                return response;
+            } catch (PageMappingsOcrAliasService.AliasApplyRefusedException refused) {
+                JsonObject response = failure(body, refused.getMessage(), authorized);
+                response.addProperty("errorCode", refused.code());
+                return response;
+            } catch (IllegalArgumentException invalid) {
+                return failure(body, invalid.getMessage(), authorized);
+            } catch (Exception unavailable) {
+                log.warn(
+                        "Unable to apply Page Mappings OCR aliases for scan {}",
+                        scanId,
+                        unavailable);
+                JsonObject response = failure(
+                        body,
+                        "OCR Review names could not be saved.",
+                        authorized);
+                response.addProperty("reloadRequired", true);
+                return response;
+            }
+        }
+    }
+
+    private static OcrCapture loadOcrCapture(
+            Connection connection, Binding owner, String scanId) throws Exception {
+        if (scanId == null || scanId.isBlank() || scanId.length() > 80) {
+            throw new IllegalArgumentException("A valid OCR Review scan ID is required.");
+        }
+        String sql = "SELECT scan_id, home_url_id, page_key, page_url, captured_at, "
+                + "element_count, artifact_path, manifest_sha256 FROM page_scan_snapshot "
+                + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? "
+                + "AND status = 'READY'";
+        try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
+            statement.setString(1, scanId);
+            statement.setInt(2, owner.homeBankingId());
+            statement.setInt(3, owner.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    throw new IllegalArgumentException(
+                            "The selected OCR Review capture is no longer available.");
+                }
+                Object storedHomeUrlId = rows.getObject("home_url_id");
+                Integer homeUrlId = storedHomeUrlId == null ? null : rows.getInt("home_url_id");
+                CaptureRow capture = new CaptureRow(
+                        rows.getString("scan_id"),
+                        rows.getString("page_key"),
+                        rows.getString("page_url"),
+                        rows.getString("captured_at"),
+                        rows.getInt("element_count"),
+                        rows.getString("artifact_path"),
+                        rows.getString("manifest_sha256"));
+                if (rows.next()) {
+                    throw new IOException("The selected OCR Review capture identity is ambiguous");
+                }
+                return new OcrCapture(capture, homeUrlId);
+            }
+        }
+    }
+
+    private static PageMappingsOcrReviewService.ReviewInput reviewInput(
+            OcrCapture selected, VerifiedCapture verified, int homeBankingId) throws IOException {
+        List<PageMappingsOcrReviewService.ReviewElement> elements =
+                new ArrayList<>(verified.elements().size());
+        for (JsonElement value : verified.elements()) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IOException("The OCR Review element membership is invalid");
+            }
+            JsonObject element = value.getAsJsonObject();
+            elements.add(new PageMappingsOcrReviewService.ReviewElement(
+                    optionalPositiveLong(element, "scannedElementId"),
+                    text(element, "elementHash"),
+                    text(element, "lastScannedAt"),
+                    optionalPositiveInteger(element, "scanCount"),
+                    text(element, "definedName"),
+                    nullableText(element, "clientNamed"),
+                    text(element, "tagName"),
+                    text(element, "someText"),
+                    text(element, "xPath"),
+                    text(element, "iFrameXPath")));
+        }
+
+        List<PageMappingsOcrReviewService.CaptureRectangle> rectangles =
+                new ArrayList<>(verified.rectangles().size());
+        for (JsonElement value : verified.rectangles()) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IOException("The OCR Review capture geometry is invalid");
+            }
+            JsonObject rectangle = value.getAsJsonObject();
+            rectangles.add(new PageMappingsOcrReviewService.CaptureRectangle(
+                    requiredNonNegativeInteger(rectangle, "elementIndex"),
+                    requiredFiniteNumber(rectangle, "x"),
+                    requiredFiniteNumber(rectangle, "y"),
+                    requiredPositiveNumber(rectangle, "width"),
+                    requiredPositiveNumber(rectangle, "height")));
+        }
+        return new PageMappingsOcrReviewService.ReviewInput(
+                verified.screenshot(),
+                elements,
+                rectangles,
+                requiredPositiveNumber(verified.viewport(), "devicePixelRatio"),
+                OcrConfigService.getInstance().resolveFor(
+                        homeBankingId, selected.homeUrlId()),
+                selected.capture().scanId());
+    }
+
+    private static List<PageMappingsOcrAliasService.AliasChange> parseAliasChanges(
+            JsonObject body, JsonArray verifiedElements) throws IOException {
+        if (body == null || !body.has("changes") || !body.get("changes").isJsonArray()) {
+            throw new IllegalArgumentException("Select at least one OCR name to save.");
+        }
+        JsonArray requested = body.getAsJsonArray("changes");
+        if (requested.size() == 0 || requested.size() > MAX_OCR_ALIAS_CHANGES) {
+            throw new IllegalArgumentException("The OCR Review selection size is invalid.");
+        }
+        Map<Long, JsonObject> membership = new HashMap<>();
+        for (JsonElement value : verifiedElements) {
+            if (value == null || !value.isJsonObject()) continue;
+            JsonObject element = value.getAsJsonObject();
+            long scannedElementId = optionalPositiveLong(element, "scannedElementId");
+            if (scannedElementId > 0 && membership.put(scannedElementId, element) != null) {
+                throw new IOException("The OCR Review capture membership is ambiguous");
+            }
+        }
+
+        List<PageMappingsOcrAliasService.AliasChange> changes =
+                new ArrayList<>(requested.size());
+        Set<Long> selectedIds = new HashSet<>();
+        for (JsonElement value : requested) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IllegalArgumentException("An OCR Review name is invalid.");
+            }
+            JsonObject change = value.getAsJsonObject();
+            if (!change.keySet().equals(OCR_ALIAS_FIELDS)) {
+                throw new IllegalArgumentException("The OCR Review name contract is invalid.");
+            }
+            long scannedElementId = requiredPositiveLong(change, "scannedElementId");
+            if (!selectedIds.add(scannedElementId)) {
+                throw new IllegalArgumentException(
+                        "The same OCR Review row cannot be saved twice.");
+            }
+            String elementHash = text(change, "elementHash").trim();
+            String expectedLastScannedAt = text(change, "expectedLastScannedAt").trim();
+            int expectedScanCount = requiredPositiveInteger(change, "expectedScanCount");
+            String expectedClientNamed = requiredNullableText(change, "expectedClientNamed");
+            String clientNamed = requiredNullableText(change, "clientNamed");
+
+            JsonObject member = membership.get(scannedElementId);
+            if (member == null
+                    || !elementHash.equalsIgnoreCase(text(member, "elementHash"))
+                    || !expectedLastScannedAt.equals(text(member, "lastScannedAt"))
+                    || expectedScanCount != optionalPositiveInteger(member, "scanCount")
+                    || !Objects.equals(expectedClientNamed, nullableText(member, "clientNamed"))) {
+                throw new IllegalArgumentException(
+                        "An OCR Review row changed. Reload the selected capture.");
+            }
+            changes.add(new PageMappingsOcrAliasService.AliasChange(
+                    scannedElementId,
+                    elementHash,
+                    expectedLastScannedAt,
+                    expectedScanCount,
+                    expectedClientNamed,
+                    clientNamed));
+        }
+        return List.copyOf(changes);
+    }
+
+    private static void requireOcrContract(JsonObject body, Binding owner) throws IOException {
+        if (requiredNonNegativeInteger(body, "contractVersion")
+                != OCR_REVIEW_CONTRACT_VERSION) {
+            throw new IllegalArgumentException("The OCR Review contract is not supported.");
+        }
+        String requestId = string(body, "requestId").trim();
+        String bindingEpoch = string(body, "bindingEpoch").trim();
+        if (requestId.isEmpty()
+                || requestId.length() > 200
+                || bindingEpoch.isEmpty()
+                || bindingEpoch.length() > 200
+                || !bindingEpoch.equals(owner.bindingEpoch())
+                || requiredPositiveLong(body, "workspaceEpoch") != owner.workspaceEpoch()
+                || requiredPositiveInteger(body, "homeBankingId") != owner.homeBankingId()
+                || requiredPositiveInteger(body, "botJobId") != owner.botJobId()) {
+            throw new IllegalArgumentException(
+                    "Page Mappings ownership changed. Reload OCR Review.");
+        }
+    }
+
+    private static void requireCaptureAssertions(JsonObject body, CaptureRow selected)
+            throws IOException {
+        requireEquals(string(body, "scanId").trim(), selected.scanId(), "OCR Review scan ID");
+        requireEquals(string(body, "pageKey").trim(), selected.pageKey(), "OCR Review page key");
+        requireEquals(
+                string(body, "capturedAt").trim(),
+                selected.capturedAt(),
+                "OCR Review capture timestamp");
+        String assertedManifest = string(body, "manifestSha256").trim();
+        requireSha256(assertedManifest, "OCR Review manifest checksum");
+        if (!assertedManifest.equalsIgnoreCase(selected.manifestSha256())) {
+            throw new IOException("The OCR Review manifest checksum does not match");
+        }
+    }
+
+    private static void addCaptureIdentity(JsonObject response, CaptureRow capture) {
+        response.addProperty("contractVersion", OCR_REVIEW_CONTRACT_VERSION);
+        response.addProperty("scanId", capture.scanId());
+        response.addProperty("pageKey", capture.pageKey());
+        response.addProperty("capturedAt", capture.capturedAt());
+        response.addProperty("manifestSha256", capture.manifestSha256());
+    }
+
+    private static VerifiedCapture verifyCapture(
+            Path configuredRoot,
+            CaptureRow selected,
+            Binding owner,
+            Connection connection)
+            throws Exception {
+        requireText(selected.scanId(), "scan ID");
+        requireText(selected.pageKey(), "page key");
+        requireText(selected.capturedAt(), "capture timestamp");
+        requireSha256(selected.manifestSha256(), "stored manifest checksum");
+        if (selected.elementCount() < 0) {
+            throw new IOException("The capture element count is invalid");
+        }
+
+        Path folder = resolveCaptureFolder(configuredRoot, selected.artifactPath(), owner);
+        if (folder.getFileName() == null
+                || !folder.getFileName().toString().endsWith(selected.scanId())) {
+            throw new IOException("The capture artifact folder does not match its scan ID");
+        }
+        Path manifestFile = captureFile(folder, "manifest.json");
+        byte[] manifestBytes = readLimited(manifestFile, MAX_MANIFEST_BYTES);
+        if (!selected.manifestSha256().equalsIgnoreCase(sha256(manifestBytes))) {
+            throw new IOException("The capture manifest checksum does not match its registry row");
+        }
+        JsonObject manifest = parseObject(manifestBytes, "capture manifest");
+        requireEquals(text(manifest, "format"), "page-scan-snapshot-v1", "manifest format");
+        requireEquals(text(manifest, "scanId"), selected.scanId(), "manifest scan ID");
+        requireEquals(text(manifest, "capturedAt"), selected.capturedAt(), "manifest timestamp");
+        requireInteger(manifest, "elementCount", selected.elementCount(), "manifest element count");
+        JsonObject manifestOwner = requiredObject(manifest, "owner", "manifest owner");
+        requireInteger(
+                manifestOwner,
+                "homeBankingId",
+                owner.homeBankingId(),
+                "manifest organization owner");
+        requireInteger(
+                manifestOwner, "botJobId", owner.botJobId(), "manifest Bot Job owner");
+        JsonObject manifestPage = requiredObject(manifest, "page", "manifest page");
+        requireEquals(text(manifestPage, "pageKey"), selected.pageKey(), "manifest page key");
+        requireEquals(
+                PageScanUrlRedactor.redact(text(manifestPage, "url")),
+                PageScanUrlRedactor.redact(selected.pageUrl()),
+                "manifest redacted page URL");
+
+        JsonObject manifestFiles = requiredObject(manifest, "files", "manifest files");
+        if (!manifestFiles.keySet().equals(CAPTURE_FILES)) {
+            throw new IOException("The capture manifest file set is invalid");
+        }
+        Map<String, byte[]> verifiedFiles = new HashMap<>();
+        for (String fileName : CAPTURE_FILES) {
+            String expectedHash = text(manifestFiles, fileName);
+            requireSha256(expectedHash, "manifest checksum for " + fileName);
+            Path file = captureFile(folder, fileName);
+            long maximum = maximumArtifactBytes(fileName);
+            byte[] verifiedBytes = readLimited(file, maximum);
+            if (!expectedHash.equalsIgnoreCase(sha256(verifiedBytes))) {
+                throw new IOException("The capture file checksum is invalid: " + fileName);
+            }
+            verifiedFiles.put(fileName, verifiedBytes);
+        }
+
+        JsonArray elements = parseArray(
+                verifiedFiles.get("elements.json"),
+                "capture elements");
+        if (elements.size() != selected.elementCount()) {
+            throw new IOException("The capture element membership is incomplete");
+        }
+        JsonArray sourceRectangles = parseArray(
+                verifiedFiles.get("rects.json"),
+                "capture rectangles");
+        JsonObject metadata = parseObject(
+                verifiedFiles.get("meta.json"),
+                "capture metadata");
+        requireEquals(text(metadata, "scanId"), selected.scanId(), "metadata scan ID");
+        requireEquals(text(metadata, "pageKey"), selected.pageKey(), "metadata page key");
+        requireEquals(text(metadata, "capturedAt"), selected.capturedAt(), "metadata timestamp");
+        requireInteger(
+                metadata,
+                "homeBankingId",
+                owner.homeBankingId(),
+                "metadata organization owner");
+        requireInteger(metadata, "botJobId", owner.botJobId(), "metadata Bot Job owner");
+        requireInteger(metadata, "elementCount", selected.elementCount(), "metadata element count");
+        JsonObject manifestCapture = requiredObject(manifest, "capture", "manifest capture geometry");
+        JsonObject metadataCapture = requiredObject(metadata, "capture", "metadata capture geometry");
+        if (!manifestCapture.equals(metadataCapture)) {
+            throw new IOException("The capture geometry metadata is inconsistent");
+        }
+
+        JsonObject viewport = viewport(metadataCapture);
+        JsonArray enrichedElements = enrichElements(
+                connection,
+                owner.homeBankingId(),
+                owner.botJobId(),
+                selected.pageKey(),
+                elements);
+        JsonArray rectangles = rectangles(
+                sourceRectangles,
+                enrichedElements,
+                "FULL_PAGE".equals(text(viewport, "screenshotScope")));
+        byte[] screenshot = verifiedFiles.get("screenshot.png");
+        if (screenshot.length == 0) {
+            throw new IOException("The capture screenshot is empty");
+        }
+        return new VerifiedCapture(
+                enrichedElements,
+                rectangles,
+                viewport,
+                screenshot,
+                text(metadataCapture, "viewFingerprint"));
+    }
+
+    private static Path configuredSnapshotRoot() throws IOException {
+        return PageScanSnapshotStorageHealth.configuredSnapshotRoot();
+    }
+
+    private static Path resolveCaptureFolder(
+            Path configuredRoot, String artifactPath, Binding owner) throws IOException {
+        if (configuredRoot == null
+                || !Files.isDirectory(configuredRoot, LinkOption.NOFOLLOW_LINKS)
+                || Files.isSymbolicLink(configuredRoot)) {
+            throw new IOException("The Page Scanner artifact root is unavailable");
+        }
+        String storedPath = requireText(artifactPath, "artifact path");
+        Path relative;
+        try {
+            relative = Path.of(storedPath).normalize();
+        } catch (RuntimeException invalidPath) {
+            throw new IOException("The capture artifact path is invalid", invalidPath);
+        }
+        if (relative.isAbsolute()
+                || relative.getNameCount() < 3
+                || "..".equals(relative.getName(0).toString())) {
+            throw new IOException("The capture artifact path is outside its owner root");
+        }
+        Path expectedOwner = Path.of(
+                "org-" + owner.homeBankingId(), "bot-job-" + owner.botJobId());
+        if (!relative.startsWith(expectedOwner)) {
+            throw new IOException("The capture artifact path does not match its owner");
+        }
+
+        Path root = configuredRoot.toRealPath();
+        Path cursor = root;
+        for (Path segment : relative) {
+            cursor = cursor.resolve(segment);
+            if (Files.isSymbolicLink(cursor)
+                    || !Files.isDirectory(cursor, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Linked capture artifact paths are not allowed");
+            }
+        }
+        Path folder = root.resolve(relative).normalize();
+        if (!folder.startsWith(root)
+                || !Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("The capture artifact folder is unavailable");
+        }
+        Path realFolder = folder.toRealPath();
+        if (!realFolder.startsWith(root)) {
+            throw new IOException("The capture artifact folder escaped its root");
+        }
+        PageScanSnapshotFileSecurity.requirePrivateCaptureDirectory(root, realFolder);
+        return realFolder;
+    }
+
+    private static Path captureFile(Path folder, String fileName) throws IOException {
+        if (folder == null || fileName == null || fileName.isBlank()) {
+            throw new IOException("A required capture file is unavailable");
+        }
+        Path file = folder.resolve(fileName).normalize();
+        if (!folder.equals(file.getParent())
+                || Files.isSymbolicLink(file)
+                || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("A required capture file is unavailable: " + fileName);
+        }
+        return file;
+    }
+
+    private static JsonArray enrichElements(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            String pageKey,
+            JsonArray elements)
+            throws Exception {
+        List<String> hashes = new ArrayList<>(elements.size());
+        for (JsonElement value : elements) {
+            if (value == null || value.isJsonNull() || !value.isJsonObject()) {
+                hashes.add("");
+                continue;
+            }
+            JsonObject element = value.getAsJsonObject();
+            element.addProperty("pageKey", pageKey);
+            ElementDTO dto = JSON.fromJson(element, ElementDTO.class);
+            hashes.add(ScannedElementRepository.pageScopedHash(pageKey, dto));
+        }
+
+        Map<String, RegistryIdentity> registry = new HashMap<>();
+        String sql = "SELECT id, element_hash, last_scanned_at, scan_count, "
+                + "defined_name, client_named FROM scanned_element "
+                + "WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ?";
+        try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setString(3, pageKey);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    RegistryIdentity identity = new RegistryIdentity(
+                            rows.getLong("id"),
+                            rows.getString("element_hash"),
+                            rows.getString("last_scanned_at"),
+                            rows.getInt("scan_count"),
+                            rows.getString("defined_name"),
+                            rows.getString("client_named"));
+                    requireRegistryIdentity(identity);
+                    if (registry.putIfAbsent(identity.elementHash(), identity) != null) {
+                        throw new IOException("The scanned element registry contains duplicate identities");
+                    }
+                }
+            }
+        }
+
+        for (int index = 0; index < elements.size(); index++) {
+            JsonElement value = elements.get(index);
+            if (value == null || value.isJsonNull() || !value.isJsonObject()) continue;
+            RegistryIdentity identity = registry.get(hashes.get(index));
+            if (identity == null) continue;
+            JsonObject element = value.getAsJsonObject();
+            element.addProperty("scannedElementId", identity.scannedElementId());
+            element.addProperty("elementHash", identity.elementHash());
+            element.addProperty("lastScannedAt", identity.lastScannedAt());
+            element.addProperty("scanCount", identity.scanCount());
+            element.addProperty("definedName", identity.definedName());
+            element.addProperty("clientNamed", identity.clientNamed());
+        }
+        return elements;
+    }
+
+    private static void requireRegistryIdentity(RegistryIdentity identity) throws IOException {
+        if (identity.scannedElementId() <= 0
+                || identity.scanCount() <= 0
+                || identity.lastScannedAt() == null
+                || identity.lastScannedAt().isBlank()) {
+            throw new IOException("The scanned element registry identity is incomplete");
+        }
+        requireSha256(identity.elementHash(), "scanned element identity");
+    }
+
+    private static JsonObject viewport(JsonObject capture) throws IOException {
+        double cssWidth = requiredPositiveNumber(capture, "cssWidth");
+        double cssHeight = requiredPositiveNumber(capture, "cssHeight");
+        double devicePixelRatio = requiredPositiveNumber(capture, "devicePixelRatio");
+        String storedScope = text(capture, "screenshotScope").trim().toLowerCase(Locale.ROOT);
+        String responseScope;
+        if ("viewport".equals(storedScope)) responseScope = "VIEWPORT";
+        else if ("full_page".equals(storedScope)) responseScope = "FULL_PAGE";
+        else throw new IOException("The capture screenshot scope is invalid");
+
+        JsonObject viewport = new JsonObject();
+        viewport.addProperty("cssWidth", cssWidth);
+        viewport.addProperty("cssHeight", cssHeight);
+        viewport.addProperty("devicePixelRatio", devicePixelRatio);
+        viewport.addProperty("screenshotScope", responseScope);
+        return viewport;
+    }
+
+    private static JsonArray rectangles(
+            JsonArray source, JsonArray elements, boolean fullPage) throws IOException {
+        JsonArray result = new JsonArray();
+        Set<Integer> correlated = new HashSet<>();
+        for (JsonElement value : source) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IOException("The capture rectangle entry is invalid");
+            }
+            JsonObject rectangle = value.getAsJsonObject();
+            int elementIndex = requiredNonNegativeInteger(rectangle, "elementIndex");
+            if (elementIndex >= elements.size() || !correlated.add(elementIndex)) {
+                throw new IOException("The capture rectangle correlation is invalid");
+            }
+            if (!requiredBoolean(rectangle, "found")) continue;
+            JsonObject bounds = requiredObject(rectangle, "bounds", "capture rectangle bounds");
+            double x = requiredFiniteNumber(bounds, fullPage ? "pageX" : "x");
+            double y = requiredFiniteNumber(bounds, fullPage ? "pageY" : "y");
+            double width = requiredPositiveNumber(bounds, "width");
+            double height = requiredPositiveNumber(bounds, "height");
+
+            JsonObject output = new JsonObject();
+            output.addProperty("elementIndex", elementIndex);
+            output.addProperty("x", x);
+            output.addProperty("y", y);
+            output.addProperty("width", width);
+            output.addProperty("height", height);
+            JsonElement element = elements.get(elementIndex);
+            if (element != null && element.isJsonObject()) {
+                JsonObject object = element.getAsJsonObject();
+                if (object.has("scannedElementId")) {
+                    output.add("scannedElementId", object.get("scannedElementId"));
+                }
+                if (object.has("elementHash")) {
+                    output.add("elementHash", object.get("elementHash"));
+                }
+            }
+            result.add(output);
+        }
+        return result;
+    }
+
+    private static byte[] readLimited(Path file, long maximumBytes) throws IOException {
+        if (maximumBytes < 0 || maximumBytes >= Integer.MAX_VALUE) {
+            throw new IOException("The capture file size limit is invalid");
+        }
+        try (InputStream input = Files.newInputStream(
+                file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+            byte[] bytes = input.readNBytes((int) maximumBytes + 1);
+            if (bytes.length > maximumBytes) {
+                throw new IOException("The capture file exceeds its safe size");
+            }
+            return bytes;
+        } catch (UnsupportedOperationException noFollowUnsupported) {
+            throw new IOException("The capture file cannot be opened safely", noFollowUnsupported);
+        }
+    }
+
+    private static JsonObject parseObject(byte[] bytes, String label) throws IOException {
+        try {
+            JsonElement parsed = JsonParser.parseString(
+                    new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+            if (!parsed.isJsonObject()) throw new IOException("The " + label + " is not an object");
+            return parsed.getAsJsonObject();
+        } catch (RuntimeException invalidJson) {
+            throw new IOException("The " + label + " is invalid", invalidJson);
+        }
+    }
+
+    private static JsonArray parseArray(byte[] bytes, String label) throws IOException {
+        try {
+            JsonElement parsed = JsonParser.parseString(
+                    new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+            if (!parsed.isJsonArray()) throw new IOException("The " + label + " is not an array");
+            return parsed.getAsJsonArray();
+        } catch (RuntimeException invalidJson) {
+            throw new IOException("The " + label + " is invalid", invalidJson);
+        }
+    }
+
+    private static long maximumArtifactBytes(String fileName) {
+        return switch (fileName) {
+            case "meta.json" -> MAX_METADATA_BYTES;
+            case "screenshot.png" -> MAX_SCREENSHOT_BYTES;
+            default -> MAX_JSON_ARTIFACT_BYTES;
+        };
+    }
+
+    private static String sha256(byte[] bytes) throws Exception {
+        return hex(MessageDigest.getInstance("SHA-256").digest(bytes));
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) {
+            result.append(Character.forDigit((value >> 4) & 0x0f, 16));
+            result.append(Character.forDigit(value & 0x0f, 16));
+        }
+        return result.toString();
+    }
+
+    private static String requireText(String value, String label) throws IOException {
+        if (value == null || value.isBlank()) throw new IOException("The " + label + " is missing");
+        return value;
+    }
+
+    private static void requireEquals(String actual, String expected, String label)
+            throws IOException {
+        if (!Objects.equals(actual, expected)) {
+            throw new IOException("The " + label + " does not match");
+        }
+    }
+
+    private static void requireSha256(String value, String label) throws IOException {
+        if (value == null || !value.matches("(?i)[0-9a-f]{64}")) {
+            throw new IOException("The " + label + " is invalid");
+        }
+    }
+
+    private static JsonObject requiredObject(JsonObject parent, String field, String label)
+            throws IOException {
+        if (parent == null || !parent.has(field) || !parent.get(field).isJsonObject()) {
+            throw new IOException("The " + label + " is missing");
+        }
+        return parent.getAsJsonObject(field);
+    }
+
+    private static void requireInteger(
+            JsonObject object, String field, int expected, String label) throws IOException {
+        if (requiredNonNegativeInteger(object, field) != expected) {
+            throw new IOException("The " + label + " does not match");
+        }
+    }
+
+    private static int requiredNonNegativeInteger(JsonObject object, String field)
+            throws IOException {
+        double value = requiredFiniteNumber(object, field);
+        if (value < 0 || value > Integer.MAX_VALUE || value != Math.rint(value)) {
+            throw new IOException("The capture integer field is invalid: " + field);
+        }
+        return (int) value;
+    }
+
+    private static String requireRequestId(JsonObject body) {
+        String requestId = string(body, "requestId").trim();
+        if (requestId.isEmpty() || requestId.length() > 200) {
+            throw new IllegalArgumentException("A valid Page Mappings request ID is required.");
+        }
+        return requestId;
+    }
+
+    private static boolean snapshotTableExists(Connection connection) {
+        if (connection == null) return false;
+        try {
+            DatabaseMetaData metadata = connection.getMetaData();
+            try (ResultSet tables = metadata.getTables(null, null, null, new String[] {"TABLE"})) {
+                while (tables.next()) {
+                    if ("page_scan_snapshot".equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception unavailable) {
+            log.debug("Unable to inspect Page Mappings storage metadata", unavailable);
+        }
+        return false;
+    }
+
+    private static void addRetention(
+            JsonObject response, PageScanSnapshotRetentionService.Summary summary) {
+        if (summary == null) {
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+            return;
+        }
+        JsonObject retention = retentionPolicy(summary.policy());
+        retention.addProperty("readyCount", summary.readyCount());
+        retention.addProperty("pinnedCount", summary.pinnedCount());
+        retention.addProperty("eligibleCount", summary.eligibleCount());
+        response.add("retention", retention);
+    }
+
+    private static void addRetentionPolicy(
+            JsonObject response, PageScanSnapshotRetentionService.Policy policy) {
+        JsonObject retention = retentionPolicy(policy);
+        retention.addProperty("readyCount", 0);
+        retention.addProperty("pinnedCount", 0);
+        retention.addProperty("eligibleCount", 0);
+        response.add("retention", retention);
+    }
+
+    private static JsonObject retentionPolicy(PageScanSnapshotRetentionService.Policy policy) {
+        PageScanSnapshotRetentionService.Policy current =
+                policy == null ? new PageScanSnapshotRetentionService.Policy(0, 0) : policy;
+        JsonObject retention = new JsonObject();
+        retention.addProperty("retentionDays", current.retentionDays());
+        retention.addProperty("maxUnpinnedPerPage", current.maxUnpinnedPerPage());
+        retention.addProperty("enabled", current.enabled());
+        retention.addProperty("policyScope", "SYSTEM");
+        retention.addProperty("countScope", "BOT_JOB");
+        retention.addProperty(
+                "purgeBatchLimit", PageScanSnapshotRetentionService.MAX_PURGE_BATCH);
+        return retention;
+    }
+
+    private static boolean requiredBoolean(JsonObject object, String field) throws IOException {
+        if (object == null
+                || !object.has(field)
+                || !object.get(field).isJsonPrimitive()
+                || !object.get(field).getAsJsonPrimitive().isBoolean()) {
+            throw new IOException("The capture boolean field is invalid: " + field);
+        }
+        return object.get(field).getAsBoolean();
+    }
+
+    private static double requiredPositiveNumber(JsonObject object, String field)
+            throws IOException {
+        double value = requiredFiniteNumber(object, field);
+        if (value <= 0) throw new IOException("The capture number is invalid: " + field);
+        return value;
+    }
+
+    private static double requiredFiniteNumber(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) {
+            throw new IOException("The capture number is missing: " + field);
+        }
+        try {
+            double value = object.get(field).getAsDouble();
+            if (!Double.isFinite(value)) throw new IOException("The capture number is invalid: " + field);
+            return value;
+        } catch (RuntimeException invalidNumber) {
+            throw new IOException("The capture number is invalid: " + field, invalidNumber);
+        }
+    }
+
+    private static int requiredPositiveInteger(JsonObject object, String field)
+            throws IOException {
+        int value = requiredNonNegativeInteger(object, field);
+        if (value <= 0) throw new IOException("The positive integer field is invalid: " + field);
+        return value;
+    }
+
+    private static long requiredPositiveLong(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) {
+            throw new IOException("The positive integer field is missing: " + field);
+        }
+        try {
+            JsonElement input = object.get(field);
+            if (!input.isJsonPrimitive() || !input.getAsJsonPrimitive().isNumber()) {
+                throw new NumberFormatException("not a JSON number");
+            }
+            long value = new java.math.BigDecimal(input.getAsString()).longValueExact();
+            if (value <= 0) {
+                throw new IOException("The positive integer field is invalid: " + field);
+            }
+            return value;
+        } catch (RuntimeException invalidNumber) {
+            throw new IOException("The positive integer field is invalid: " + field, invalidNumber);
+        }
+    }
+
+    private static long optionalPositiveLong(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return 0L;
+        return requiredPositiveLong(object, field);
+    }
+
+    private static int optionalPositiveInteger(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return 0;
+        return requiredPositiveInteger(object, field);
+    }
+
+    private static String nullableText(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return null;
+        JsonElement value = object.get(field);
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+            throw new IOException("The text field is invalid: " + field);
+        }
+        return value.getAsString();
+    }
+
+    private static String requiredNullableText(JsonObject object, String field)
+            throws IOException {
+        if (object == null || !object.has(field)) {
+            throw new IOException("The text field is missing: " + field);
+        }
+        return nullableText(object, field);
+    }
+
+    private static <T> T commitWorkspaceMutation(
+            Binding owner, CheckedWorkspaceMutation<T> mutation) throws Exception {
+        Objects.requireNonNull(owner, "Page Mappings mutation owner is required");
+        Objects.requireNonNull(mutation, "Page Mappings mutation is required");
+        try {
+            return BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    owner.botJobId(),
+                    owner.workspaceEpoch(),
+                    () -> {
+                        try {
+                            return mutation.run();
+                        } catch (RuntimeException | Error unchecked) {
+                            throw unchecked;
+                        } catch (Exception checked) {
+                            throw new CheckedWorkspaceMutationFailure(checked);
+                        }
+                    });
+        } catch (CheckedWorkspaceMutationFailure wrapped) {
+            throw wrapped.checked();
+        }
+    }
+
+    /**
+     * Atomically authorizes one mutating Page Mappings request and registers its owner-scoped
+     * recovery fence before a ledger or worker can accept it.
+     */
+    MutationTicket beginMutation(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            MutationKind kind) {
+        Objects.requireNonNull(kind, "Page Mappings mutation kind is required");
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            return beginMutationLocked(authorized, kind, requireRequestId(body));
+        }
+    }
+
+    /** Releases exactly one admission lease after its request reaches a terminal server path. */
+    void finishMutation(MutationTicket ticket) {
+        synchronized (bindingLock) {
+            finishMutationLocked(ticket);
+        }
+    }
+
+    private MutationTicket beginMutationLocked(
+            Binding owner, MutationKind kind, String requestId) {
+        MutationOwner mutationOwner = MutationOwner.from(owner);
+        String key = kind.name()
+                + '\u0000'
+                + owner.bindingEpoch()
+                + '\u0000'
+                + owner.workspaceEpoch()
+                + '\u0000'
+                + owner.homeBankingId()
+                + '\u0000'
+                + owner.botJobId()
+                + '\u0000'
+                + requestId;
+        ActiveMutation active = activeMutations.get(key);
+        if (active == null) {
+            if (activeMutations.size() >= MAX_ACTIVE_MUTATIONS) {
+                throw new IllegalArgumentException(
+                        "Too many Page Mappings changes are still finishing. Reload before retrying.");
+            }
+            active = new ActiveMutation(
+                    key, mutationOwner, owner.bindingEpoch(), kind, requestId);
+            activeMutations.put(key, active);
+            bumpMutationRevisionLocked(mutationOwner);
+        }
+        String leaseId = UUID.randomUUID().toString();
+        active.leases().add(leaseId);
+        return new MutationTicket(
+                key,
+                leaseId,
+                mutationOwner,
+                owner.bindingEpoch(),
+                kind,
+                requestId);
+    }
+
+    private void finishMutationLocked(MutationTicket ticket) {
+        if (ticket == null) return;
+        ActiveMutation active = activeMutations.get(ticket.key());
+        if (active == null || !active.matches(ticket) || !active.leases().remove(ticket.leaseId())) {
+            return;
+        }
+        if (!active.leases().isEmpty()) return;
+        activeMutations.remove(ticket.key());
+        bumpMutationRevisionLocked(ticket.owner());
+    }
+
+    private MutationFence mutationFenceLocked(MutationOwner owner) {
+        long revision = mutationOwnerRevisions.getOrDefault(owner, 0L);
+        boolean inFlight = activeMutations.values().stream()
+                .anyMatch(active -> active.owner().equals(owner));
+        return new MutationFence(revision, inFlight);
+    }
+
+    private void bumpMutationRevisionLocked(MutationOwner owner) {
+        long revision = ++nextMutationRevision;
+        mutationOwnerRevisions.put(owner, revision);
+        trimMutationOwnerRevisionsLocked();
+    }
+
+    private void trimMutationOwnerRevisionsLocked() {
+        while (mutationOwnerRevisions.size() > MAX_MUTATION_OWNER_REVISIONS) {
+            boolean removed = false;
+            var revisions = mutationOwnerRevisions.entrySet().iterator();
+            while (revisions.hasNext()) {
+                MutationOwner candidate = revisions.next().getKey();
+                boolean active = activeMutations.values().stream()
+                        .anyMatch(mutation -> mutation.owner().equals(candidate));
+                if (active) continue;
+                revisions.remove();
+                removed = true;
+                break;
+            }
+            if (!removed) return;
+        }
+    }
+
+    private static boolean sameBindingGeneration(Binding first, Binding second) {
+        return first != null
+                && second != null
+                && first.bindingEpoch().equals(second.bindingEpoch())
+                && first.workspaceEpoch() == second.workspaceEpoch()
+                && first.homeBankingId() == second.homeBankingId()
+                && first.botJobId() == second.botJobId();
+    }
+
+    /**
+     * Authorizes a Page Mappings Memory List contribution against the current owner and epoch.
+     * Client owner fields remain assertions only and never choose the server-side scope.
+     */
+    Binding authorizeMemoryListSource(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        return authorizeDetachedRequest(body, requesterSessionId, requesterTransport, true);
+    }
+
+    /**
+     * Captures the exact owner generation for one retention request before it can enter the
+     * asynchronous purge ledger. The client owner fields are assertions only; the live binding is
+     * always authoritative.
+     */
+    RetentionAuthority authorizeRetentionRequest(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            return RetentionAuthority.from(authorized, requireRequestId(body));
+        }
+    }
+
+    /**
+     * Captures an exact OCR owner generation before the request can occupy the process-wide OCR
+     * ledger or worker. Malformed contracts and stale transports therefore consume no OCR capacity.
+     */
+    OcrAuthority authorizeOcrRequest(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            try {
+                requireOcrContract(body, authorized);
+            } catch (IOException invalidContract) {
+                throw new IllegalArgumentException(
+                        "The OCR Review request is invalid.", invalidContract);
+            }
+            return OcrAuthority.from(authorized, requireRequestId(body));
+        }
+    }
+
+    /**
+     * Linearizes one OCR response with retarget/invalidation so old-owner capture data is never
+     * delivered to a transport after it has become authoritative for another Bot Job.
+     */
+    boolean deliverOcrIfCurrent(
+            OcrAuthority authority,
+            String requesterSessionId,
+            Session requesterTransport,
+            Runnable delivery) {
+        Objects.requireNonNull(authority, "OCR authority");
+        Objects.requireNonNull(delivery, "OCR response delivery is required");
+        synchronized (bindingLock) {
+            if (!SESSION_ID.equals(requesterSessionId)
+                    || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)
+                    || !authority.matches(binding)) {
+                return false;
+            }
+            try {
+                activeOwnerValidator.require(binding.asTarget());
+            } catch (IllegalArgumentException staleOwner) {
+                return false;
+            }
+            delivery.run();
+            return true;
+        }
+    }
+
+    /**
+     * Delivers a retention terminal response only while both the accepted owner generation and
+     * the exact WebSocket transport are still current. A reconnect may attach its replacement
+     * transport to the in-flight request without exposing an old owner's response after retarget.
+     */
+    boolean deliverRetentionIfCurrent(
+            RetentionAuthority authority,
+            String requesterSessionId,
+            Session requesterTransport,
+            Runnable delivery) {
+        Objects.requireNonNull(authority, "retention authority");
+        Objects.requireNonNull(delivery, "retention response delivery is required");
+        synchronized (bindingLock) {
+            if (!SESSION_ID.equals(requesterSessionId)
+                    || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)
+                    || !authority.matches(binding)) {
+                return false;
+            }
+            try {
+                activeOwnerValidator.require(binding.asTarget());
+            } catch (IllegalArgumentException staleOwner) {
+                return false;
+            }
+            delivery.run();
+            return true;
+        }
+    }
+
+    private Binding requireCurrentRetentionAuthority(RetentionAuthority authority) {
+        Objects.requireNonNull(authority, "retention authority");
+        if (!authority.matches(binding)) {
+            throw new IllegalArgumentException(
+                    "Page Mappings owner changed. Reload before changing retention.");
+        }
+        activeOwnerValidator.require(binding.asTarget());
+        return binding;
+    }
+
+    /**
+     * Runs one Page Mappings Memory operation while the exact owner binding remains authoritative.
+     *
+     * <p>The callback deliberately remains inside {@code bindingLock}. Memory List mutations take
+     * their own state lock only after this lock, so a committed delete or retarget cannot clear an
+     * owner and then have an already-authorized stale request recreate it.
+     */
+    <T> T withAuthorizedMemoryListSource(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Function<Binding, T> operation) {
+        Objects.requireNonNull(operation, "operation");
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            return operation.apply(authorized);
+        }
+    }
+
+    /** Validates the unguessable capability before Page Mappings registration or takeover. */
+    boolean authorizeWindowTransport(Session requesterTransport) {
+        String assertedCapability = requestParameter(requesterTransport, "windowCapability");
+        if (assertedCapability.isBlank() || assertedCapability.length() > 256) return false;
+        synchronized (bindingLock) {
+            return binding != null
+                    && constantTimeEquals(
+                            binding.windowCapability(), assertedCapability);
+        }
+    }
+
+    /**
+     * Validates and registers the exact Page Mappings transport as one atomic ownership action.
+     *
+     * <p>A fresh launch can rotate the capability concurrently with a browser reconnect. Keeping
+     * the verification and exact-session takeover under the same binding lock prevents a stale
+     * transport from passing validation and then evicting the current window.
+     */
+    boolean authorizeAndTakeOverWindowTransport(Session requesterTransport) {
+        String assertedCapability = requestParameter(requesterTransport, "windowCapability");
+        if (assertedCapability.isBlank() || assertedCapability.length() > 256) return false;
+        synchronized (bindingLock) {
+            if (binding == null
+                    || !constantTimeEquals(binding.windowCapability(), assertedCapability)) {
+                return false;
+            }
+            WebSocketSessionManager.takeOverSession(SESSION_ID, requesterTransport);
+            return true;
+        }
+    }
+
+    /** Invalidates the detached owner only after one or more Bot Jobs were committed deleted. */
+    public boolean botJobsDeleted(Collection<Integer> botJobIds) {
+        if (botJobIds == null || botJobIds.isEmpty()) return false;
+        synchronized (bindingLock) {
+            botJobIds.stream()
+                    .filter(Objects::nonNull)
+                    .filter(id -> id > 0)
+                    .forEach(id -> {
+                        try {
+                            if (BotJobDetailsWorkspaceRegistry.getInstance().retire(id)) {
+                                closeMemoryProducerTransports();
+                            }
+                        } catch (RuntimeException registryFailure) {
+                            log.warn("Unable to retire deleted Bot Job {} workspace", id, registryFailure);
+                        }
+                        try {
+                            PageScannerWorkspaceCoordinator.getInstance()
+                                    .activeSessionIdForBotJob(id)
+                                    .ifPresent(PageScannerWorkspaceCoordinator.getInstance()::close);
+                        } catch (RuntimeException scannerFailure) {
+                            log.warn("Unable to retire deleted Bot Job {} Page Scanner", id, scannerFailure);
+                        }
+                    });
+            try {
+                // Retire every server-owned source context before the final Memory clear. An
+                // in-flight source then either finishes before this point and is removed here, or
+                // resolves afterward and fails against the retired context.
+                MemoryListWorkspaceService.getInstance().botJobsDeleted(botJobIds);
+            } catch (RuntimeException cleanupFailure) {
+                log.warn("Unable to clear deleted Bot Job Memory List state", cleanupFailure);
+            }
+            if (binding == null || !botJobIds.contains(binding.botJobId())) return false;
+            invalidateLocked(
+                    binding,
+                    binding,
+                    binding,
+                    "The Page Mappings Bot Job was deleted.");
+            return true;
+        }
+    }
+
+    /** Invalidates every detached owner after a committed full database replacement. */
+    public boolean allBotJobsReplaced() {
+        synchronized (bindingLock) {
+            try {
+                BotJobDetailsWorkspaceRegistry.getInstance().closeActive();
+            } catch (RuntimeException registryFailure) {
+                log.warn("Unable to retire the replaced Bot Job workspace", registryFailure);
+            }
+            closeMemoryProducerTransports();
+            try {
+                PageScannerWorkspaceCoordinator.getInstance().closeActive();
+            } catch (RuntimeException scannerFailure) {
+                log.warn("Unable to retire the replaced Page Scanner workspace", scannerFailure);
+            }
+            try {
+                MemoryListWorkspaceService.getInstance().allBotJobsReplaced();
+            } catch (RuntimeException cleanupFailure) {
+                log.warn("Unable to clear replaced Bot Job Memory List state", cleanupFailure);
+            }
+            if (binding == null) {
+                clearInvalidatedMemory(null, null);
+                return false;
+            }
+            invalidateLocked(
+                    binding,
+                    binding,
+                    binding,
+                    "Page Mappings was closed because the Bot Job database was replaced.");
+            return true;
+        }
+    }
+
+    private JsonObject open(OwnerTarget target, JsonObject request) {
+        if (target.homeBankingId() <= 0 || target.botJobId() <= 0 || target.workspaceEpoch() <= 0) {
+            return failure(request, "Page Mappings requires an active Bot Job owner.");
+        }
+
+        synchronized (bindingLock) {
+            Binding previous = binding;
+            boolean alreadyOpen = windowAccess.isOpen();
+            boolean launchPending = !alreadyOpen && windowAccess.isLaunchPending();
+            if (alreadyOpen && previous == null) {
+                windowAccess.invalidate(
+                        null,
+                        null,
+                        "Page Mappings had no authoritative launch capability.");
+                return failure(request, "Page Mappings was reset. Open it again.");
+            }
+            boolean changed = previous == null || !previous.matches(target);
+            boolean freshLaunch = !alreadyOpen && !launchPending;
+            String windowCapability = previous == null || freshLaunch
+                    ? newWindowCapability()
+                    : previous.windowCapability();
+            Binding candidate = changed || freshLaunch
+                    ? new Binding(
+                            UUID.randomUUID().toString(),
+                            windowCapability,
+                            target.workspaceEpoch(),
+                            target.homeBankingId(),
+                            target.botJobId(),
+                            target.botJobName())
+                    : previous;
+            binding = candidate;
+            final boolean opened;
+            try {
+                opened = windowAccess.openOrFocus(
+                        candidate.botJobId(), candidate.windowCapability());
+            } catch (RuntimeException launchFailure) {
+                binding = previous;
+                throw launchFailure;
+            }
+            if (!opened) {
+                binding = previous;
+                return failure(request, "Page Mappings workspace could not be opened.");
+            }
+
+            boolean retargetPublished = changed && alreadyOpen;
+            if (retargetPublished && !retargetPublisher.publish(candidate)) {
+                invalidateLocked(
+                        previous,
+                        candidate,
+                        previous,
+                        "Page Mappings owner synchronization failed.");
+                return failure(request, "The existing Page Mappings page could not be retargeted.");
+            }
+            if (changed || freshLaunch) {
+                try {
+                    retargetObserver.retargeted(previous, candidate);
+                } catch (RuntimeException cleanupFailure) {
+                    log.warn("Unable to clear the previous Page Mappings Memory List owner", cleanupFailure);
+                    invalidateLocked(
+                            previous,
+                            candidate,
+                            candidate,
+                            freshLaunch
+                                    ? "Page Mappings launch ownership could not be established."
+                                    : "Page Mappings owner cleanup failed.");
+                    return failure(request, "Page Mappings owner could not be changed safely.");
+                }
+            }
+
+            JsonObject response = baseResponse(request, candidate);
+            response.addProperty("ok", true);
+            response.addProperty("alreadyOpen", alreadyOpen);
+            response.addProperty("retargeted", retargetPublished);
+            response.addProperty(
+                    "message",
+                    retargetPublished
+                            ? "Page Mappings workspace retargeted."
+                            : alreadyOpen
+                                    ? "Page Mappings workspace focused."
+                            : "Page Mappings workspace opened.");
+            return response;
+        }
+    }
+
+    private Binding authorizeDetachedRequest(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        return authorizeDetachedRequest(body, requesterSessionId, requesterTransport, false);
+    }
+
+    private Binding authorizeDetachedRequest(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            boolean requireBindingEpoch) {
+        synchronized (bindingLock) {
+            if (!SESSION_ID.equals(requesterSessionId)
+                    || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The detached Page Mappings transport is not authoritative.");
+            }
+            if (binding == null) {
+                throw new IllegalArgumentException("Page Mappings has no active Bot Job owner.");
+            }
+            activeOwnerValidator.require(binding.asTarget());
+            validateOwnerAssertions(body, binding.asTarget(), binding.bindingEpoch());
+            JsonObject nested = object(body, "snapshot");
+            if (nested != null) {
+                validateOwnerAssertions(nested, binding.asTarget(), binding.bindingEpoch());
+            }
+            if (requireBindingEpoch) {
+                requireCurrentBindingEpoch(body, nested, binding.bindingEpoch());
+            }
+            return binding;
+        }
+    }
+
+    private void requireExactPageScannerTransport(String sessionId, Session transport) {
+        if (!ScannerWorkspaceSessions.isPageScannerSession(sessionId)
+                || !transportAuthorizer.isExact(sessionId, transport)) {
+            throw new IllegalArgumentException("The Page Scanner transport is not authoritative.");
+        }
+    }
+
+    private static void validateOwnerAssertions(
+            JsonObject body, OwnerTarget target, String expectedBindingEpoch) {
+        assertInteger(body, "homeBankingId", target.homeBankingId());
+        assertInteger(body, "botJobId", target.botJobId());
+        assertLong(body, "workspaceEpoch", target.workspaceEpoch());
+        if (expectedBindingEpoch != null) {
+            assertEpoch(body, "bindingEpoch", expectedBindingEpoch);
+            assertEpoch(body, "sourceBindingEpoch", expectedBindingEpoch);
+        }
+    }
+
+    private static void assertInteger(JsonObject body, String field, int expected) {
+        long asserted = assertedPositiveLong(body, field);
+        if (asserted > 0 && asserted != expected) {
+            throw new IllegalArgumentException("Page Mappings owner changed. Refresh this page.");
+        }
+    }
+
+    private static void assertLong(JsonObject body, String field, long expected) {
+        long asserted = assertedPositiveLong(body, field);
+        if (asserted > 0 && asserted != expected) {
+            throw new IllegalArgumentException("Page Mappings owner changed. Refresh this page.");
+        }
+    }
+
+    private static long assertedPositiveLong(JsonObject body, String field) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) return 0;
+        try {
+            long value = body.get(field).getAsLong();
+            return Math.max(0, value);
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException("Page Mappings owner assertion is invalid.");
+        }
+    }
+
+    private static void assertEpoch(JsonObject body, String field, String expected) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) return;
+        String asserted = string(body, field).trim();
+        if (!asserted.isEmpty() && !asserted.equals(expected)) {
+            throw new IllegalArgumentException("Page Mappings owner changed. Refresh this page.");
+        }
+    }
+
+    private static void requireCurrentBindingEpoch(
+            JsonObject body, JsonObject nested, String expected) {
+        boolean supplied = hasEpoch(body, "bindingEpoch")
+                || hasEpoch(body, "sourceBindingEpoch")
+                || hasEpoch(nested, "bindingEpoch")
+                || hasEpoch(nested, "sourceBindingEpoch");
+        if (!supplied) {
+            throw new IllegalArgumentException(
+                    "Page Mappings owner changed. Refresh this page.");
+        }
+        assertEpoch(body, "bindingEpoch", expected);
+        assertEpoch(body, "sourceBindingEpoch", expected);
+        assertEpoch(nested, "bindingEpoch", expected);
+        assertEpoch(nested, "sourceBindingEpoch", expected);
+    }
+
+    private static boolean hasEpoch(JsonObject body, String field) {
+        return body != null
+                && body.has(field)
+                && !body.get(field).isJsonNull()
+                && !string(body, field).isBlank();
+    }
+
+    private static OwnerTarget resolveBotJobOwner(int botJobId) {
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                BotJobDetailsWorkspaceRegistry.getInstance().require(botJobId);
+        return new OwnerTarget(
+                active.homeBankingId(),
+                active.botJobId(),
+                active.workspaceEpoch(),
+                active.name());
+    }
+
+    private static OwnerTarget resolvePageScannerOwner(String requesterSessionId) {
+        PageScannerWorkspaceCoordinator.WorkspaceContext context =
+                PageScannerWorkspaceCoordinator.getInstance()
+                        .authoritativeContext(requesterSessionId);
+        return requireActiveOwner(new OwnerTarget(
+                context.homeBankingId(),
+                context.botJobId(),
+                context.workspaceEpoch(),
+                context.botJobName()));
+    }
+
+    private static PageScannerOwnerResolver authoritativePageScannerOwnerResolver() {
+        return new PageScannerOwnerResolver() {
+            @Override
+            public OwnerTarget resolve(String requesterSessionId) {
+                return resolvePageScannerOwner(requesterSessionId);
+            }
+
+            @Override
+            public <T> T withResolvedOwner(
+                    String requesterSessionId, Function<OwnerTarget, T> action) {
+                return PageScannerWorkspaceCoordinator.getInstance()
+                        .withAuthoritativeContext(
+                                requesterSessionId, context -> action.apply(requireActiveOwner(
+                                        new OwnerTarget(
+                                                context.homeBankingId(),
+                                                context.botJobId(),
+                                                context.workspaceEpoch(),
+                                                context.botJobName()))));
+            }
+        };
+    }
+
+    private static OwnerTarget requireActiveOwner(OwnerTarget target) {
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                BotJobDetailsWorkspaceRegistry.getInstance()
+                        .require(target.botJobId(), target.workspaceEpoch());
+        if (active.homeBankingId() != target.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "Page Mappings does not match the active Bot Job organization.");
+        }
+        return target;
+    }
+
+    private static boolean isExactRegisteredTransport(String sessionId, Session transport) {
+        return transport != null
+                && transport.isOpen()
+                && WebSocketSessionManager.getSession(sessionId) == transport;
+    }
+
+    private static boolean publishRetarget(Binding current) {
+        Session transport = WebSocketSessionManager.getSession(SESSION_ID);
+        if (!isExactRegisteredTransport(SESSION_ID, transport)) return false;
+
+        JsonObject body = baseResponse(null, current);
+        body.addProperty("ok", true);
+        body.addProperty("retargeted", true);
+        body.addProperty("message", "Page Mappings workspace retargeted.");
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("homeBankingId", current.homeBankingId());
+        envelope.addProperty("sessionId", SESSION_ID);
+        envelope.addProperty("operationId", RETARGET_OPERATION);
+        envelope.addProperty("body", body.toString());
+        try {
+            WebSocketSessionManager.sendTextAcknowledged(transport, envelope.toString())
+                    .get(DELIVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return true;
+        } catch (Exception sendFailure) {
+            if (sendFailure instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Unable to publish Page Mappings retarget", sendFailure);
+            return false;
+        }
+    }
+
+    private static boolean publishInvalidated(
+            Binding retired, Binding alternate, String reason) {
+        if (retired == null) return false;
+        Session transport = WebSocketSessionManager.getSession(SESSION_ID);
+        if (!isExactRegisteredTransport(SESSION_ID, transport)) return false;
+
+        JsonObject body = invalidationBody(retired, alternate, reason);
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("homeBankingId", retired.homeBankingId());
+        envelope.addProperty("sessionId", SESSION_ID);
+        envelope.addProperty("operationId", INVALIDATED_OPERATION);
+        envelope.addProperty("body", body.toString());
+        try {
+            WebSocketSessionManager.sendTextAcknowledged(transport, envelope.toString())
+                    .get(DELIVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return true;
+        } catch (Exception sendFailure) {
+            if (sendFailure instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Unable to publish Page Mappings invalidation", sendFailure);
+            return false;
+        }
+    }
+
+    static JsonObject invalidationBody(Binding retired, String reason) {
+        return invalidationBody(retired, null, reason);
+    }
+
+    static JsonObject invalidationBody(
+            Binding retired, Binding alternate, String reason) {
+        JsonObject body = baseResponse(null, Objects.requireNonNull(retired));
+        if (alternate != null && !alternate.bindingEpoch().equals(retired.bindingEpoch())) {
+            body.addProperty("alternateBindingEpoch", alternate.bindingEpoch());
+            body.addProperty("alternateWorkspaceEpoch", alternate.workspaceEpoch());
+            body.addProperty("alternateHomeBankingId", alternate.homeBankingId());
+            body.addProperty("alternateBotJobId", alternate.botJobId());
+        }
+        body.addProperty("ok", false);
+        body.addProperty("invalidated", true);
+        body.addProperty(
+                "message",
+                reason == null || reason.isBlank()
+                        ? "Page Mappings owner is no longer available."
+                        : reason);
+        return body;
+    }
+
+    private void invalidateLocked(
+            Binding previousMemoryOwner,
+            Binding candidateMemoryOwner,
+            Binding retiredForClient,
+            String reason) {
+        binding = null;
+        clearInvalidatedMemory(previousMemoryOwner, candidateMemoryOwner);
+        Binding alternate = alternateBinding(
+                retiredForClient, previousMemoryOwner, candidateMemoryOwner);
+        try {
+            windowAccess.invalidate(retiredForClient, alternate, reason);
+        } catch (RuntimeException closeFailure) {
+            log.warn("Unable to close invalidated Page Mappings workspace", closeFailure);
+            WebSocketSessionManager.closeSession(SESSION_ID);
+        }
+    }
+
+    private void clearInvalidatedMemory(Binding previous, Binding candidate) {
+        RuntimeException firstFailure = null;
+        for (Binding owner : distinctBindings(previous, candidate)) {
+            try {
+                retargetObserver.retargeted(owner, null);
+            } catch (RuntimeException cleanupFailure) {
+                if (firstFailure == null) firstFailure = cleanupFailure;
+                log.warn(
+                        "Unable to clear invalidated Page Mappings Memory List owner {}",
+                        owner == null ? "ALL" : owner.bindingEpoch(),
+                        cleanupFailure);
+            }
+        }
+        if (previous == null && candidate == null) {
+            try {
+                retargetObserver.retargeted(null, null);
+            } catch (RuntimeException cleanupFailure) {
+                firstFailure = cleanupFailure;
+                log.warn("Unable to clear all Page Mappings Memory List state", cleanupFailure);
+            }
+        }
+        if (firstFailure != null) {
+            log.debug("Page Mappings invalidation continued after Memory cleanup failure");
+        }
+    }
+
+    private static List<Binding> distinctBindings(Binding first, Binding second) {
+        if (first == null) return second == null ? List.of() : List.of(second);
+        if (second == null || first.bindingEpoch().equals(second.bindingEpoch())) {
+            return List.of(first);
+        }
+        return List.of(first, second);
+    }
+
+    private static void closeMemoryProducerTransports() {
+        for (String sessionId : List.of(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                ScannerWorkspaceSessions.SCANNER_GRID,
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+            try {
+                WebSocketSessionManager.closeSession(sessionId);
+            } catch (RuntimeException closeFailure) {
+                log.warn("Unable to retire stale Memory source transport {}", sessionId, closeFailure);
+            }
+        }
+    }
+
+    private static Binding alternateBinding(
+            Binding retired, Binding previous, Binding candidate) {
+        for (Binding owner : distinctBindings(previous, candidate)) {
+            if (retired == null || !owner.bindingEpoch().equals(retired.bindingEpoch())) {
+                return owner;
+            }
+        }
+        return null;
+    }
+
+    private static String newWindowCapability() {
+        byte[] capability = new byte[WINDOW_CAPABILITY_BYTES];
+        WINDOW_CAPABILITY_RANDOM.nextBytes(capability);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(capability);
+    }
+
+    private static boolean constantTimeEquals(String expected, String asserted) {
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                asserted.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String requestParameter(Session session, String field) {
+        if (session == null || field == null) return "";
+        try {
+            List<String> values = session.getRequestParameterMap().get(field);
+            return values == null || values.isEmpty() || values.get(0) == null
+                    ? ""
+                    : values.get(0).trim();
+        } catch (RuntimeException invalidRequest) {
+            return "";
+        }
+    }
+
+    private static JsonObject baseResponse(JsonObject request, Binding owner) {
+        JsonObject response = new JsonObject();
+        copyRequestId(response, request);
+        response.addProperty("bindingEpoch", owner.bindingEpoch());
+        response.addProperty("workspaceEpoch", owner.workspaceEpoch());
+        response.addProperty("homeBankingId", owner.homeBankingId());
+        response.addProperty("botJobId", owner.botJobId());
+        response.addProperty("botJobName", owner.botJobName());
+        return response;
+    }
+
+    private static JsonObject failure(JsonObject request, String message) {
+        JsonObject response = new JsonObject();
+        copyRequestId(response, request);
+        response.addProperty("ok", false);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "Page Mappings request was rejected."
+                        : message);
+        return response;
+    }
+
+    private static JsonObject failure(JsonObject request, String message, Binding owner) {
+        JsonObject response = baseResponse(request, owner);
+        response.addProperty("ok", false);
+        response.addProperty("message", message);
+        return response;
+    }
+
+    private static JsonObject captureFailure(
+            JsonObject request, String message, Binding owner, String scanId) {
+        JsonObject response = failure(request, message, owner);
+        if (scanId != null && !scanId.isBlank()) response.addProperty("scanId", scanId);
+        return response;
+    }
+
+    private static void copyRequestId(JsonObject target, JsonObject source) {
+        String requestId = string(source, "requestId");
+        if (!requestId.isBlank()) target.addProperty("requestId", requestId);
+    }
+
+    private static String string(JsonObject body, String field) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) return "";
+        try {
+            return body.get(field).getAsString();
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+
+    private static String text(JsonObject body, String field) {
+        return string(body, field);
+    }
+
+    private static boolean optionalBoolean(
+            JsonObject body, String field, boolean defaultValue) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) {
+            return defaultValue;
+        }
+        if (!body.get(field).isJsonPrimitive()
+                || !body.getAsJsonPrimitive(field).isBoolean()) {
+            throw new IllegalArgumentException("A valid " + field + " state is required.");
+        }
+        return body.getAsJsonPrimitive(field).getAsBoolean();
+    }
+
+    private static int optionalScrollPages(
+            JsonObject body, String field, int defaultValue) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) {
+            return defaultValue;
+        }
+        return requiredScrollPages(body, field);
+    }
+
+    private static int requiredScrollPages(JsonObject body, String field) {
+        if (body == null
+                || !body.has(field)
+                || !body.get(field).isJsonPrimitive()
+                || !body.getAsJsonPrimitive(field).isNumber()) {
+            throw new IllegalArgumentException("A valid Page Mappings scroll page count is required.");
+        }
+        double numeric;
+        try {
+            numeric = body.getAsJsonPrimitive(field).getAsDouble();
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException(
+                    "A valid Page Mappings scroll page count is required.", invalid);
+        }
+        if (!Double.isFinite(numeric)
+                || numeric != Math.rint(numeric)
+                || numeric < PreScanWorkflowService.MIN_SCROLL_PAGES
+                || numeric > PreScanWorkflowService.MAX_SCROLL_PAGES) {
+            throw new IllegalArgumentException(
+                    "Page Mappings scroll pages must be between "
+                            + PreScanWorkflowService.MIN_SCROLL_PAGES
+                            + " and "
+                            + PreScanWorkflowService.MAX_SCROLL_PAGES
+                            + ".");
+        }
+        return (int) numeric;
+    }
+
+    private static JsonObject object(JsonObject body, String field) {
+        if (body == null || !body.has(field) || !body.get(field).isJsonObject()) return null;
+        return body.getAsJsonObject(field);
+    }
+
+    record OwnerTarget(
+            int homeBankingId,
+            int botJobId,
+            long workspaceEpoch,
+            String botJobName) {
+        OwnerTarget {
+            botJobName = botJobName == null ? "" : botJobName;
+        }
+    }
+
+    enum MutationKind {
+        RESCAN,
+        OCR_APPLY,
+        PIN,
+        RETENTION_UPDATE,
+        RETENTION_PURGE
+    }
+
+    private record MutationOwner(long workspaceEpoch, int homeBankingId, int botJobId) {
+        private static MutationOwner from(Binding binding) {
+            Objects.requireNonNull(binding, "Page Mappings mutation owner is required");
+            return new MutationOwner(
+                    binding.workspaceEpoch(),
+                    binding.homeBankingId(),
+                    binding.botJobId());
+        }
+    }
+
+    private record MutationFence(long revision, boolean inFlight) {}
+
+    record MutationTicket(
+            String key,
+            String leaseId,
+            MutationOwner owner,
+            String bindingEpoch,
+            MutationKind kind,
+            String requestId) {
+        MutationTicket {
+            key = Objects.requireNonNull(key);
+            leaseId = Objects.requireNonNull(leaseId);
+            owner = Objects.requireNonNull(owner);
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            kind = Objects.requireNonNull(kind);
+            requestId = Objects.requireNonNull(requestId);
+        }
+
+        RetentionAuthority retentionAuthority() {
+            return new RetentionAuthority(
+                    bindingEpoch,
+                    owner.workspaceEpoch(),
+                    owner.homeBankingId(),
+                    owner.botJobId(),
+                    requestId);
+        }
+
+        OcrAuthority ocrAuthority() {
+            return new OcrAuthority(
+                    bindingEpoch,
+                    owner.workspaceEpoch(),
+                    owner.homeBankingId(),
+                    owner.botJobId(),
+                    requestId);
+        }
+    }
+
+    private static final class ActiveMutation {
+        private final String key;
+        private final MutationOwner owner;
+        private final String bindingEpoch;
+        private final MutationKind kind;
+        private final String requestId;
+        private final Set<String> leases = new HashSet<>();
+
+        private ActiveMutation(
+                String key,
+                MutationOwner owner,
+                String bindingEpoch,
+                MutationKind kind,
+                String requestId) {
+            this.key = Objects.requireNonNull(key);
+            this.owner = Objects.requireNonNull(owner);
+            this.bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            this.kind = Objects.requireNonNull(kind);
+            this.requestId = Objects.requireNonNull(requestId);
+        }
+
+        private MutationOwner owner() {
+            return owner;
+        }
+
+        private Set<String> leases() {
+            return leases;
+        }
+
+        private boolean matches(MutationTicket ticket) {
+            return key.equals(ticket.key())
+                    && owner.equals(ticket.owner())
+                    && bindingEpoch.equals(ticket.bindingEpoch())
+                    && kind == ticket.kind()
+                    && requestId.equals(ticket.requestId());
+        }
+    }
+
+    record Binding(
+            String bindingEpoch,
+            String windowCapability,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String botJobName) {
+        Binding {
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            windowCapability = Objects.requireNonNull(windowCapability);
+            botJobName = botJobName == null ? "" : botJobName;
+        }
+
+        boolean matches(OwnerTarget target) {
+            return homeBankingId == target.homeBankingId()
+                    && botJobId == target.botJobId()
+                    && workspaceEpoch == target.workspaceEpoch();
+        }
+
+        OwnerTarget asTarget() {
+            return new OwnerTarget(homeBankingId, botJobId, workspaceEpoch, botJobName);
+        }
+    }
+
+    record RetentionAuthority(
+            String bindingEpoch,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String requestId) {
+        RetentionAuthority {
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            requestId = Objects.requireNonNull(requestId);
+        }
+
+        static RetentionAuthority from(Binding binding, String requestId) {
+            Objects.requireNonNull(binding, "binding");
+            return new RetentionAuthority(
+                    binding.bindingEpoch(),
+                    binding.workspaceEpoch(),
+                    binding.homeBankingId(),
+                    binding.botJobId(),
+                    requestId);
+        }
+
+        boolean matches(Binding candidate) {
+            return candidate != null
+                    && bindingEpoch.equals(candidate.bindingEpoch())
+                    && workspaceEpoch == candidate.workspaceEpoch()
+                    && homeBankingId == candidate.homeBankingId()
+                    && botJobId == candidate.botJobId();
+        }
+
+        String ledgerKey() {
+            return bindingEpoch
+                    + '\u0000'
+                    + workspaceEpoch
+                    + '\u0000'
+                    + homeBankingId
+                    + '\u0000'
+                    + botJobId
+                    + '\u0000'
+                    + requestId;
+        }
+    }
+
+    record OcrAuthority(
+            String bindingEpoch,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String requestId) {
+        OcrAuthority {
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            requestId = Objects.requireNonNull(requestId);
+        }
+
+        static OcrAuthority from(Binding binding, String requestId) {
+            Objects.requireNonNull(binding, "binding");
+            return new OcrAuthority(
+                    binding.bindingEpoch(),
+                    binding.workspaceEpoch(),
+                    binding.homeBankingId(),
+                    binding.botJobId(),
+                    requestId);
+        }
+
+        boolean matches(Binding candidate) {
+            return candidate != null
+                    && bindingEpoch.equals(candidate.bindingEpoch())
+                    && workspaceEpoch == candidate.workspaceEpoch()
+                    && homeBankingId == candidate.homeBankingId()
+                    && botJobId == candidate.botJobId();
+        }
+
+        String ledgerKey(String responseOperation) {
+            return responseOperation
+                    + '\u0000'
+                    + bindingEpoch
+                    + '\u0000'
+                    + workspaceEpoch
+                    + '\u0000'
+                    + homeBankingId
+                    + '\u0000'
+                    + botJobId
+                    + '\u0000'
+                    + requestId;
+        }
+    }
+
+    @FunctionalInterface
+    private interface CheckedWorkspaceMutation<T> {
+        T run() throws Exception;
+    }
+
+    private static final class CheckedWorkspaceMutationFailure extends RuntimeException {
+        private final Exception checked;
+
+        private CheckedWorkspaceMutationFailure(Exception checked) {
+            super(Objects.requireNonNull(checked));
+            this.checked = checked;
+        }
+
+        private Exception checked() {
+            return checked;
+        }
+    }
+
+    @FunctionalInterface
+    interface BotJobOwnerResolver {
+        OwnerTarget resolve(int botJobId);
+    }
+
+    @FunctionalInterface
+    interface PageScannerOwnerResolver {
+        OwnerTarget resolve(String requesterSessionId);
+
+        default <T> T withResolvedOwner(
+                String requesterSessionId, Function<OwnerTarget, T> action) {
+            return action.apply(resolve(requesterSessionId));
+        }
+    }
+
+    @FunctionalInterface
+    interface ActiveOwnerValidator {
+        OwnerTarget require(OwnerTarget target);
+    }
+
+    interface WindowAccess {
+        boolean isOpen();
+
+        default boolean isLaunchPending() {
+            return false;
+        }
+
+        boolean openOrFocus(int botJobId);
+
+        default boolean openOrFocus(int botJobId, String windowCapability) {
+            return openOrFocus(botJobId);
+        }
+
+        default void invalidate(Binding retired, String reason) {}
+
+        default void invalidate(Binding retired, Binding alternate, String reason) {
+            invalidate(retired, reason);
+        }
+    }
+
+    @FunctionalInterface
+    interface RetargetPublisher {
+        boolean publish(Binding current);
+    }
+
+    @FunctionalInterface
+    interface RetargetObserver {
+        void retargeted(Binding previous, Binding current);
+    }
+
+    @FunctionalInterface
+    interface ExactTransportAuthorizer {
+        boolean isExact(String sessionId, Session transport);
+    }
+
+    @FunctionalInterface
+    interface SnapshotRootResolver {
+        Path resolve() throws IOException;
+    }
+
+    private record CaptureRow(
+            String scanId,
+            String pageKey,
+            String pageUrl,
+            String capturedAt,
+            int elementCount,
+            String artifactPath,
+            String manifestSha256) {}
+
+    private record OcrCapture(CaptureRow capture, Integer homeUrlId) {}
+
+    private record RegistryIdentity(
+            long scannedElementId,
+            String elementHash,
+            String lastScannedAt,
+            int scanCount,
+            String definedName,
+            String clientNamed) {}
+
+    private record VerifiedCapture(
+            JsonArray elements,
+            JsonArray rectangles,
+            JsonObject viewport,
+            byte[] screenshot,
+            String viewFingerprint) {}
+}

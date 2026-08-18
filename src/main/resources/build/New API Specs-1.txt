@@ -1,0 +1,451 @@
+-------- Messaggio originale --------
+
+Oggetto:	Libreria Test da creare con Chatgpt
+Data:	15.03.2026 19:11
+Mittente:	<a.palmas@allinweb.ch>
+Destinatario:	<o.martini@allinweb.ch>
+
+
+Ciao Osvaldo
+
+Stavo pensando di creare una libreria di test cases che possiamo importare direttamente nel tool prova a leggere e dimmi se puo funzionare.
+
+ 
+
+I would like to propose building a large reusable library of automated test cases for our tool, generated with ChatGPT using our Avaloq CAPI APIs.
+
+The objective is to preload the platform with approximately 1000 ready-to-use test cases organized in a clear business-oriented structure, so that both technical users and business users can easily navigate, understand, and reuse them.
+
+The key principle is that the tool must speak the language of business, not APIs.
+When a user creates or reads a test case, they should see a logical business flow, while the API layer remains an implementation detail described in plain language.
+
+Objectives
+
+Provide 1000 ready-to-run test cases
+Organize them in 10 business categories
+Each category will contain 5 subcategories (50 total)
+Each subcategory will contain ~20 tests
+Each test will include:
+business description
+logical flow
+parameterized inputs
+expected results
+documentation
+tutorial
+This will allow the platform to ship with a complete reference test library, making the tool immediately useful for demo, training, and production test design.
+
+Proposed Structure
+
+10 Categories
+
+Client Management
+Account Lifecycle
+Payments & Transfers
+Investment Portfolio
+Trading Operations
+Compliance & KYC
+Corporate Actions
+Lending & Credit
+Reporting & Monitoring
+Operational Maintenance
+Example Subcategories (50 total)
+
+Client Management
+
+Client onboarding
+Client profile update
+Address management
+Client closure
+Client segmentation
+Account Lifecycle
+
+Account opening
+Account funding
+Account balance operations
+Account limits
+Account closure
+Payments
+
+Internal transfers
+External payments
+Scheduled payments
+Payment validation
+Payment reconciliation
+Investments
+
+Portfolio creation
+Asset allocation
+Portfolio rebalancing
+Portfolio valuation
+Portfolio reporting
+Trading
+
+Equity orders
+Bond orders
+Order lifecycle
+Trade settlement
+Trade cancellation
+Compliance
+
+KYC updates
+AML checks
+Document verification
+Risk classification
+Regulatory reporting
+Corporate Actions
+
+Dividend distribution
+Stock split
+Maturity processing
+Coupon payments
+Asset adjustments
+Lending
+
+Loan creation
+Credit checks
+Collateral management
+Loan repayment
+Loan closure
+Reporting
+
+Client statements
+Portfolio reports
+Account activity
+Audit logs
+Operational metrics
+Operations
+
+Data maintenance
+Batch processing
+System monitoring
+Error recovery
+Operational controls
+Import Format for the Tool
+
+The tool should support importing test cases from structured files instead of hardcoding data.
+
+Example format (JSON):
+
+{
+
+  "category": "Payments",
+
+  "subcategory": "Internal Transfers",
+
+  "testName": "Transfer between two retail accounts",
+
+  "businessDescription": "Verify that a customer can transfer funds between two internal accounts and that balances are updated correctly.",
+
+  "tags": ["retail", "transfer", "balance"],
+
+  "parameters": {
+
+    "sourceAccount": "${ACCOUNT_SOURCE}",
+
+    "destinationAccount": "${ACCOUNT_DEST}",
+
+    "amount": "${TRANSFER_AMOUNT}",
+
+    "currency": "EUR"
+
+  },
+
+  "steps": [
+
+    {
+
+      "step": 1,
+
+      "name": "Retrieve source account balance",
+
+      "businessDescription": "The system verifies the available balance of the customer's account before executing the transfer."
+
+    },
+
+    {
+
+      "step": 2,
+
+      "name": "Execute transfer",
+
+      "businessDescription": "Funds are transferred between the two accounts using the internal transfer service."
+
+    },
+
+    {
+
+      "step": 3,
+
+      "name": "Validate balances",
+
+      "businessDescription": "The system confirms that the debit and credit were applied correctly."
+
+    }
+
+  ],
+
+  "expectedResult": "The transfer is executed successfully and both account balances are updated.",
+
+  "documentation": "This test validates the internal transfer process for retail banking customers."
+
+}
+
+Important:
+
+No hardcoded values
+All values must be parameterized
+Parameters can be injected by the environment or test runner
+Example parameters file:
+
+{
+
+  "ACCOUNT_SOURCE": "ACC_10001",
+
+  "ACCOUNT_DEST": "ACC_10002",
+
+  "TRANSFER_AMOUNT": "500"
+
+}
+
+Example Prompt to Generate Tests with ChatGPT
+
+Osvaldo can use the following prompt with ChatGPT when generating the test library.
+
+You are generating enterprise banking test cases.
+
+ 
+
+Context:
+
+The APIs come from Avaloq CAPI specifications.
+
+The ZIP file contains the full OpenAPI definitions.
+
+ 
+
+Goal:
+
+Generate business-oriented test cases for a banking test automation tool.
+
+ 
+
+Constraints:
+
+- The user interface is designed for business users.
+
+- Avoid technical language such as JSON, HTTP, or API calls.
+
+- Describe flows in business terms.
+
+- Each test must contain:
+
+  - category
+
+  - subcategory
+
+  - test name
+
+  - business description
+
+  - logical steps
+
+  - parameters
+
+  - expected result
+
+  - documentation
+
+ 
+
+Structure:
+
+10 categories
+
+50 subcategories
+
+~1000 tests total
+
+ 
+
+Each test must be exportable in JSON format compatible with the import schema.
+
+ 
+
+Use parameter placeholders instead of fixed values.
+
+Attach the ZIP containing all CAPI specifications when generating the tests.
+
+Example UI — Business-Oriented Test Library
+
+Dashboard View
+
+🟦 Test Library Dashboard
+
+Category
+
+Subcategories
+
+Tests
+
+Last Updated
+
+Client Management
+
+5
+
+100
+
+Today
+
+Account Lifecycle
+
+5
+
+100
+
+Today
+
+Payments & Transfers
+
+5
+
+100
+
+Today
+
+Investment Portfolio
+
+5
+
+100
+
+Today
+
+Trading Operations
+
+5
+
+100
+
+Today
+
+Compliance & KYC
+
+5
+
+100
+
+Today
+
+Corporate Actions
+
+5
+
+100
+
+Today
+
+Lending & Credit
+
+5
+
+100
+
+Today
+
+Reporting & Monitoring
+
+5
+
+100
+
+Today
+
+Operations
+
+5
+
+100
+
+Today
+
+Search bar:
+
+🔍 Search test cases by name, category, business function, or tag.
+
+Test Case Explorer
+
+🟦 Test Case: Internal Transfer Between Accounts
+
+Business Scenario
+A client transfers money between two personal accounts.
+
+Process Flow
+
+1  Verify account balance
+2️ Execute transfer
+3️ Confirm balances updated
+
+Parameters
+
+Parameter
+
+Description
+
+sourceAccount
+
+Source account number
+
+destinationAccount
+
+Destination account
+
+amount
+
+Transfer amount
+
+Expected Result
+Transfer completed and both accounts updated correctly.
+
+Workflow Visualization
+
+🟦 Business Flow
+
+Client Initiates Transfer
+
+⬇
+
+Validate Source Account
+
+⬇
+
+Execute Transfer
+
+⬇
+
+Update Destination Balance
+
+⬇
+
+Confirm Transaction
+
+Why This Is Important
+
+With this approach the tool will immediately include:
+
+1000 ready-to-run tests
+business-readable workflows
+structured navigation
+searchable test library
+documentation and tutorials
+This makes the platform much easier to adopt for business testers, QA teams, and banking analysts, not only developers.
+
+If you want, I can also prepare:
+
+the complete 1000 test structure
+the 50 subcategory taxonomy
+the import schema specification
+a visual enterprise UI layout for the tool
+so we can directly integrate it into the product.
+
+ 

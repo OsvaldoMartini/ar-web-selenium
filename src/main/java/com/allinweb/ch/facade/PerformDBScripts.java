@@ -1,0 +1,69 @@
+package com.allinweb.ch.facade;
+
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import java.sql.Connection;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class PerformDBScripts {
+    private static final ARPropertyManager arPropertyManager;
+    protected static volatile PerformDBScripts instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
+
+    @Getter
+    @Setter
+    public Connection conn = null;
+
+    // Private constructor to prevent instantiation
+    private PerformDBScripts() {}
+
+    public static PerformDBScripts getInstance() {
+        if (instance == null) {
+            synchronized (PerformDBScripts.class) {
+                if (instance == null) {
+                    instance = new PerformDBScripts();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize(Connection conn) {
+        this.conn = conn;
+    }
+
+    public String deleteNullBlocksSQL(String tableName) {
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+        // Pick correct foreign key column based on table family
+        String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        // Pick correct relation (block → instruction, component_block → component_instruction)
+        String tableRelation = "block".equalsIgnoreCase(tableName) ? "instruction" : "component_instruction";
+
+        // Only use alias in databases that support it
+        boolean useAlias = !"TEXT".equalsIgnoreCase(dataBaseType) && !"Access".equalsIgnoreCase(dataBaseType);
+
+        String alias = useAlias ? " t" : "";
+        String fromPart = tableName + (useAlias ? alias : "");
+
+        String sql = "DELETE FROM " + fromPart
+                + " WHERE " + foreignKeyColumn + " = ? "
+                + "AND NOT EXISTS ("
+                + "  SELECT 1 FROM " + tableRelation + " bli "
+                + "  WHERE bli.block_id = " + (useAlias ? alias + ".id" : tableName + ".id")
+                + ")";
+
+        return sql;
+    }
+}

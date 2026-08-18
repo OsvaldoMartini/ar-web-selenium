@@ -1,0 +1,58 @@
+package com.allinweb.ch.facade.scanner.prelaunch;
+
+import com.allinweb.ch.model.BlockLoadDTO;
+import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.util.ErrorMessage;
+import java.util.List;
+
+public final class ScannerPreLaunchDefinitionLoad {
+    private final Operations operations;
+
+    public ScannerPreLaunchDefinitionLoad(Operations operations) {
+        this.operations = operations;
+    }
+
+    public ErrorMessage loadDefinitions() {
+        BotJobLoadDTO currentBotJob = operations.currentBotJob();
+        ScannerPreLaunchPreparation.Result result = operations.loadDefinitions(currentBotJob);
+        operations.setExcelDataGoto(result.excelDataGoto());
+        operations.setBlocksLoaded(result.blocksLoaded());
+        if (result.variableLoadWarning() != null) {
+            operations.warn(
+                    "Variable definitions are unavailable. Execution will continue and affected "
+                            + "variable steps will be reported as VOID.");
+        }
+        if (result.botJobMissing()) {
+            operations.warn("I cannot find a Bot Job with this Organization ID: "
+                    + currentBotJob.getHomeBankingId()
+                    + " Environment ID: "
+                    + currentBotJob.getId());
+        }
+        return result.errorMessage();
+    }
+
+    public void reportLoadError(ErrorMessage errorMessage) {
+        if (errorMessage == null) {
+            return;
+        }
+        operations.error("Error: " + errorMessage.getErrorMessage());
+        operations.showOperationFailed(errorMessage);
+    }
+
+    public interface Operations {
+        BotJobLoadDTO currentBotJob();
+
+        ScannerPreLaunchPreparation.Result loadDefinitions(BotJobLoadDTO currentBotJob);
+
+        void setExcelDataGoto(List<InstructionLoad> excelDataGoto);
+
+        void setBlocksLoaded(List<BlockLoadDTO> blocksLoaded);
+
+        void showOperationFailed(ErrorMessage errorMessage);
+
+        void warn(String message);
+
+        void error(String message);
+    }
+}

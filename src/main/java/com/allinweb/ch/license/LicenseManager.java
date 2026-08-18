@@ -21,9 +21,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
+    public static final String API_URL = "https://multiplugins.ch/api";
+    public static final String APP_VERSION = "4.2";
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
 
@@ -32,30 +36,67 @@ public class LicenseManager {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    public static void generateRequestFile(String fileFolder, String ownerLicence) throws Exception {
-        String encryptedRequest = encrypt(ownerLicence + "|" + SystemDetails.getSystemDetails(), KEY);
-        String fileName = "ARWeb 1.1.0.request";
-        File newFile;
+    /**
+     * Returns true if the input is a valid email address (RFC 5322 simplified).
+     */
+    public static boolean isEmail(String input) {
+        if (input == null || input.isBlank()) return false;
+        return input.matches(
+                "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~\\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*\\.[a-zA-Z]{2,}$");
+    }
 
-        newFile = new File(fileFolder, fileName);
+    /**
+     * Encrypted format:
+     *   organization|owner|pcName|domainName|userName|requestDate|email  (7 parts)
+     * Owner and email are independent both optional.
+     */
+    private static final String DEFAULT_EMAIL = "o.martini@allinweb.ch";
 
-        // Write the encrypted data to the file
+    public static void generateRequestFile(String fileFolder, String organization, String owner, String email)
+            throws Exception {
+        String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
+        String safeOwner = (owner != null) ? owner : "";
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag
+                + "|" + APP_VERSION;
+        String encryptedRequest = encrypt(requestData, KEY);
+        String safeEmail = (email != null && !email.isBlank()) ? email : "";
+        String fileLabel = !safeOwner.isEmpty() ? safeOwner : (!safeEmail.isEmpty() ? safeEmail : "request");
+        String fileName = organization + "-" + fileLabel + ".request";
+        File newFile = new File(fileFolder, fileName);
+
         try (FileWriter writer = new FileWriter(newFile)) {
             writer.write(encryptedRequest);
-            System.out.println("File saved to: " + newFile.getAbsolutePath());
+            log.info("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException error) {
-            System.err.println("Error writing to file: " + error.getMessage());
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                            + fileFolder + "</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span style='color: #6A1B9A; font-weight: bold;'>"
-                            + fileName + "</span>",
-                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
-                    0);
+            log.warn("Error reading/writing to the file: " + error.getMessage());
         }
+    }
+
+    /**
+     * Sends the encrypted license request directly to the MultiPlugins API.
+     * Returns "SUCCESS" on success, or the error message on failure.
+     */
+    public static String sendRequestOnline(String organization, String owner, String email) throws Exception {
+        // MultiPlugins network traffic disabled — UI is gated; this method is a no-op kept for callers.
+        log.info("sendRequestOnline disabled — no network call performed (org={})", organization);
+        return "DISABLED";
+    }
+
+    /**
+     * Pings the API to check connectivity.
+     * Returns true if the server responds with ok:true, false otherwise.
+     */
+    public static boolean pingApi() {
+        // MultiPlugins network traffic disabled — always reports unreachable.
+        return false;
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 
     public static boolean importResponseFile(String filePath) throws Exception {
@@ -79,7 +120,7 @@ public class LicenseManager {
             licensePath = System.getProperty("user.dir");
         }
 
-        licensePath += "\\ARWeb.lic";
+        licensePath += "/ARWeb.lic";
         Files.writeString(Paths.get(licensePath), encrypt(data, KEY));
     }
 
@@ -100,13 +141,7 @@ public class LicenseManager {
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
             return new String(decrypted);
         } catch (Exception error) {
-            performMessage.errorMessage(
-                    "An error occurred while decrypting the license file.",
-                    "File Name:",
-                    "ARWeb.lic",
-                    "Please verify if the file is corrupted or tampered.",
-                    null,
-                    0);
+            log.error("An error occurred while decrypting the license file.");
         }
         return null;
     }
@@ -128,8 +163,7 @@ public class LicenseManager {
         String fileName = licPath.getFileName().toString(); //
 
         if (!fileName.endsWith(".request")) {
-            performMessage.errorMessage(
-                    "Invalid file selected!", "Must have a '.request' extension.", "File selected:", fileName, null, 0);
+            log.warn("Invalid request file extension: {}", fileName);
             return "Invalid file selected";
         }
 
@@ -142,41 +176,56 @@ public class LicenseManager {
         }
     }
 
-    private static LicenceVal validateLicense(String decryptedContent) {
-        // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
+    static LicenceVal validateLicense(String decryptedContent) {
+        if (decryptedContent == null || decryptedContent.isBlank()) return LicenceVal.MISSING;
+        // .lic format: pcName|domainName|userName|expiryDate|orgKey|organization|version
+        // Minimum 4 parts required, rest optional
         String[] parts = decryptedContent.split("\\|");
-        if (parts.length != 4) return LicenceVal.MISSING; // Invalid data format
-
-        //        System.out.println("License:" + parts);
+        if (parts.length < 4) return LicenceVal.MISSING;
 
         String pcID = parts[0];
         String domainName = parts[1];
         String userName = parts[2];
-        LocalDate expiryDate = LocalDate.parse(parts[3], DateTimeFormatter.ISO_LOCAL_DATE);
+        LocalDate expiryDate;
+        try {
+            expiryDate = LocalDate.parse(parts[3], DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (Exception error) {
+            return LicenceVal.MISSING;
+        }
         String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 
-        // System.out.println(" expiryDate is " + expiryDate);
-        // Check if the PC ID matches and the current date is before the expiry date
-        if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED; // date has expired
+        // orgKey at [4] (64-char hex), organization at [5], version at [6]
+        if (parts.length >= 5) {
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_ORG_KEY.getValue(), parts[4]);
+        }
+        if (parts.length >= 6) {
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_EMAIL.getValue(), parts[5]);
+        }
+        if (parts.length >= 7) {
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_VERSION.getValue(), parts[6]);
+        }
 
+        if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED;
         if (!SystemDetails.getSystemComputerName().equals(pcID)) return LicenceVal.PCNOTMATCH;
         if (!SystemDetails.getSystemDomainName().equals(domainName)) return LicenceVal.DOMAINNOTMATCH;
-        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH; // PC ID does not match
-        return LicenceVal.VALID; // License is valid
+        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH;
+        return LicenceVal.VALID;
     }
 
     public String genereteResponseFile(String decryptedContent, int numDays) {
-        // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
+        // Format: organization|owner|pcName|domainName|userName|requestDate|email (7 parts)
+        // Compat:  organization|owner|pcName|domainName|userName|requestDate (6 parts)
+        // Legacy:  ownerName|pcName|domainName|userName|requestDate (5 parts)
         try {
             String[] parts = decryptedContent.split("\\|");
 
-            String pcID = parts[1];
-            String domainName = parts[2];
-            String userName = parts[3];
-            // LocalDate expiryDate = LocalDate.parse(parts[4], DateTimeFormatter.ISO_LOCAL_DATE);
+            int offset = parts.length >= 6 ? 2 : 1; // skip organization+owner or just owner
+            String pcID = parts[offset];
+            String domainName = parts[offset + 1];
+            String userName = parts[offset + 2];
 
-            LocalDate expiryDate = LocalDate.parse(parts[4], DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalDate expiryDate = LocalDate.parse(parts[offset + 3], DateTimeFormatter.ISO_LOCAL_DATE);
             expiryDate = expiryDate.plusDays(numDays);
 
             String encryptedResponse = encrypt(pcID + "|" + domainName + "|" + userName + "|" + expiryDate, KEY);
@@ -200,10 +249,10 @@ public class LicenseManager {
             // Write the encrypted data to the file
             try (FileWriter writer = new FileWriter(newFile)) {
                 writer.write(encryptedResponse);
-                System.out.println("File saved to: " + newFile.getAbsolutePath());
+                log.info("File saved to: " + newFile.getAbsolutePath());
                 return "File creation success";
             } catch (IOException e) {
-                System.err.println("Error writing to file: " + e.getMessage());
+                log.error("Error writing to file: " + e.getMessage());
                 performMessage.errorMessage(
                         "Error writing to the file!",
                         "File Name:",

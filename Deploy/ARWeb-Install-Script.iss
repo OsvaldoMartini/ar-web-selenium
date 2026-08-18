@@ -54,9 +54,6 @@ Source: "C:\ARWeb\ARWeb-Scanner\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Sc
 Source: "C:\ARWeb\ARWeb-Scanner\java\*"; DestDir: "{app}\ARWeb-Scanner\java\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\java\lib\*"; DestDir: "{app}\ARWeb-Scanner\java\lib\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\java\bin\*"; DestDir: "{app}\ARWeb-Scanner\java\bin\"; Flags: ignoreversion
-; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\javaFX\bin\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\bin\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\javaFX\lib\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\lib\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\lang\*"; DestDir: "{app}\ARWeb-Scanner\lang\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\config\*"; DestDir: "{app}\ARWeb-Scanner\config\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb\database.mdb"; DestDir: "{app}\ARWeb\"; Flags: ignoreversion

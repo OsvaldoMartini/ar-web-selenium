@@ -3,22 +3,43 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARPropertyManager {
+    private static final PerformMessage performMessage;
+    private static final String lock = "locked";
     protected static volatile ARPropertyManager instance;
 
-    // Private constructor to prevent instantiation
-    private ARPropertyManager() {
-        // Initialize if necessary
+    // Static block to initialize
+    static {
+        performMessage = PerformMessage.getInstance();
     }
+
+    @Getter
+    @Setter
+    private Properties properties = new Properties();
+
+    @Getter
+    @Setter
+    private String configurationFileName;
+
+    // Private constructor to prevent instantiation
+    private ARPropertyManager() {}
 
     public static ARPropertyManager getInstance() {
         if (instance == null) {
@@ -31,25 +52,32 @@ public class ARPropertyManager {
         return instance;
     }
 
-    private static final PerformMessage performMessage;
-
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
+    public static String getTodaysDate(int day) {
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(day);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        return yesterday.format(formatter);
     }
 
-    private static final String lock = "locked";
-
-    @Getter
-    @Setter
-    private Properties properties = new Properties();
-
-    @Getter
-    @Setter
-    private String configurationFileName;
-
     public void loadProperties(FileInputStream configFile) {
-        configurationFileName = System.getProperty("ARWebConfig");
+        if (System.getProperty("ARWebConfig") != null) {
+            configurationFileName = System.getProperty("ARWebConfig");
+        } else {
+            // Use application directory as default
+            String appDir = System.getProperty("user.dir"); // root folder where app is running
+            configurationFileName = appDir + File.separator + "Config-4.2" + File.separator + "TESTS.config";
+
+            // Ensure directories exist
+            File config = new File(configurationFileName);
+            if (!config.exists()) {
+                try {
+                    config.getParentFile().mkdirs(); // create Config-4.2 folder
+                    config.createNewFile(); // create TESTS.config
+                } catch (IOException e) {
+                    log.error("Failed to create default config file in app directory: {}", configurationFileName, e);
+                }
+            }
+        }
 
         //        if (!Strings.isNullOrEmpty(configurationFileName)) {
         //            File configurationFile = new File(configurationFileName);
@@ -60,8 +88,13 @@ public class ARPropertyManager {
             String logLevel = this.properties.getProperty(ARPropertyEnum.LOG_LEVEL.getValue());
             System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
 
+            // Redirect System.out and System.err
+            System.setOut(new PrintStream(new LoggingOutputStream(log, false), true));
+            System.setErr(new PrintStream(new LoggingOutputStream(log, true), true));
+
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
             if (logPath == null || logPath.isBlank()) {
+                log.error("Configuration Warning: Log Path is Missing");
                 performMessage.errorMessage(
                         "Configuration Warning: Log Path is Missing",
                         "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Warning: Log path configuration not found!</span> ⚠️",
@@ -76,6 +109,7 @@ public class ARPropertyManager {
                 setProperty(ARPropertyEnum.PATH_LOG.getValue(), logPath);
                 File logDirectory = new File(logPath);
                 if (!logDirectory.exists() && !logDirectory.mkdirs()) {
+                    log.error("Log Directory Creation Failed. {}", logPath);
                     performMessage.errorMessage(
                             "Error: Log Directory Creation Failed",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create log directory!</span>",
@@ -89,6 +123,7 @@ public class ARPropertyManager {
 
             String dataBasePath = getProperty(ARPropertyEnum.PATH_DB);
             if (dataBasePath == null || dataBasePath.isBlank()) {
+                log.error("Configuration Warning: Database Path is Missing");
                 performMessage.errorMessage(
                         "Configuration Warning: Database Path is Missing",
                         "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Warning: Database path configuration not found!</span> ⚠️",
@@ -103,6 +138,9 @@ public class ARPropertyManager {
                 setProperty(ARPropertyEnum.PATH_DB.getValue(), dataBasePath);
                 File dbDirectory = new File(dataBasePath);
                 if (!dbDirectory.exists() && !dbDirectory.mkdirs()) {
+                    log.error(
+                            "Error: Database Directory Creation Failed: {}. Please ensure the application has the necessary permissions!",
+                            dataBasePath);
                     performMessage.errorMessage(
                             "Error: Database Directory Creation Failed",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create database directory!</span>",
@@ -131,26 +169,20 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
-
-            //        } catch (Exception e) {
-            //
-            //            createDefaultProperties(configurationFile);
-            //
-            //            //                loadProperties();
-            //            Platform.runLater(() -> {
-            //                arConfigurationScene.showModal();
-            //            });
-
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2g Beta Test");
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 09/04/2026");
         } catch (IOException error) {
-            performMessage.errorMessage(
-                    "File Creation Error",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
-                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new line
-                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has the necessary write permissions for the directory.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
+            log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
+            //            performMessage.errorMessage(
+            //                    "File Creation Error",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create
+            // file:</span>",
+            //                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename
+            // on a new line
+            //                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has
+            // the necessary write permissions for the directory.</span>",
+            //                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+            //                    0);
         }
     }
 
@@ -165,54 +197,176 @@ public class ARPropertyManager {
         return this.properties.getProperty(property.getValue());
     }
 
+    /**
+     * Resolves the effective plugins directory.
+     * <ol>
+     *   <li>If {@code path_plugins} is configured and the directory exists, returns it.</li>
+     *   <li>If the configured directory does not exist, falls back to
+     *       {@code {project parent}/ARWeb/plugins} (consistent with other ARWeb paths).</li>
+     *   <li>If {@code path_plugins} is not configured at all, falls back to
+     *       {@code {project parent}/ARWeb/plugins}.</li>
+     * </ol>
+     *
+     * @return the resolved plugins directory path (never null)
+     */
+    public String resolvePluginsDir() {
+        String configured = getProperty(ARPropertyEnum.PATH_PLUGINS);
+        if (configured != null && !configured.isBlank()) {
+            java.nio.file.Path configuredPath = java.nio.file.Paths.get(configured);
+            if (java.nio.file.Files.isDirectory(configuredPath)) {
+                return configured;
+            }
+            log.warn(
+                    "resolvePluginsDir - configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
+                    configured);
+        } else {
+            log.warn("resolvePluginsDir - path_plugins is not configured. Falling back to ARWeb/plugins.");
+        }
+
+        String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
+        String fallback = parentPath + "\\ARWeb\\plugins";
+        log.info("resolvePluginsDir - using fallback plugins path: {}", fallback);
+        return fallback;
+    }
+
     public void setProperty(String propertyName, String value) {
-        this.properties.setProperty(propertyName, value);
-        try (FileOutputStream output = new FileOutputStream(configurationFileName)) {
-            //            this.properties.store(output, "added property: " + propertyName + " with value: " + value);
-            this.properties.store(output, null);
-        } catch (FileNotFoundException e) {
-            performMessage.errorMessage(
-                    configurationFileName, // Using configurationFileName as the title
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration file not found!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been created at:</span>",
-                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new line
-                    "<span style='color: #E65100;'>Please set the necessary configuration values in this new file.</span><br><span style='font-style: italic;'>Details: "
-                            + e.getMessage() + "</span>",
-                    0);
+        try {
+            setPropertyChecked(propertyName, value);
         } catch (IOException error) {
-            performMessage.errorMessage(
-                    "Error Reading File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to read file:</span>",
-                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the application has the necessary read permissions for the file and that the file exists.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
+            log.error(
+                    "Error writing property {} to configuration file {}: {}",
+                    propertyName,
+                    configurationFileName,
+                    error.getMessage());
+        }
+    }
+
+    /**
+     * Updates one property and atomically replaces the exact configuration file supplied with
+     * {@code -c}. Callers that report persistence success to React use this checked variant.
+     */
+    public synchronized void setPropertyChecked(String propertyName, String value) throws IOException {
+        Map<String, String> update = new LinkedHashMap<>();
+        update.put(propertyName, value);
+        setPropertiesChecked(update);
+    }
+
+    /**
+     * Persists a related group of configuration values, preferring one atomic file replacement.
+     * Windows cannot replace the file while the startup configuration stream is still open, so
+     * that specific replacement failure falls back to the same in-place write used previously.
+     * The in-memory properties are restored when both persistence strategies fail.
+     */
+    public synchronized void setPropertiesChecked(Map<String, String> updates) throws IOException {
+        if (updates == null || updates.isEmpty()) return;
+        if (Strings.isNullOrEmpty(configurationFileName)) {
+            throw new IOException("The active configuration file is not available");
+        }
+        for (String propertyName : updates.keySet()) {
+            if (Strings.isNullOrEmpty(propertyName)) {
+                throw new IOException("A configuration property name is required");
+            }
+        }
+
+        Path target = new File(configurationFileName).toPath().toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent == null) {
+            throw new IOException("The active configuration directory is not available");
+        }
+        Files.createDirectories(parent);
+
+        Map<String, String> previousValues = new LinkedHashMap<>();
+        for (Map.Entry<String, String> update : updates.entrySet()) {
+            previousValues.put(update.getKey(), properties.getProperty(update.getKey()));
+            properties.setProperty(update.getKey(), update.getValue() == null ? "" : update.getValue());
+        }
+
+        Path temporary = null;
+        try {
+            temporary = Files.createTempFile(parent, target.getFileName().toString() + ".", ".tmp");
+            try (FileOutputStream output = new FileOutputStream(temporary.toFile())) {
+                properties.store(output, null);
+            }
+            try {
+                try {
+                    Files.move(
+                            temporary,
+                            target,
+                            StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException unsupported) {
+                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException replacementFailure) {
+                try (FileOutputStream output = new FileOutputStream(target.toFile())) {
+                    properties.store(output, null);
+                } catch (IOException directWriteFailure) {
+                    directWriteFailure.addSuppressed(replacementFailure);
+                    throw directWriteFailure;
+                }
+            }
+        } catch (IOException failure) {
+            for (Map.Entry<String, String> previous : previousValues.entrySet()) {
+                if (previous.getValue() == null) {
+                    properties.remove(previous.getKey());
+                } else {
+                    properties.setProperty(previous.getKey(), previous.getValue());
+                }
+            }
+            throw failure;
+        } finally {
+            if (temporary != null) {
+                try {
+                    Files.deleteIfExists(temporary);
+                } catch (IOException cleanupFailure) {
+                    log.warn(
+                            "Could not delete temporary configuration file {}: {}",
+                            temporary,
+                            cleanupFailure.getMessage());
+                }
+            }
         }
     }
 
     public void createDefaultProperties(File configurationFile) {
-
+        log.warn("Creation of new \"ARWeb.config\" file: {}", configurationFileName);
         performMessage.errorMessage(
                 "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration file not found!</span>",
                 "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been created at:</span>",
                 "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new line
                 "<span style='color: #E65100;'>Please set the necessary configuration values in this new file.</span><br><span style='font-style: italic;'>Details: "
                         + "ARWeb.config" + "</span>",
+                null,
                 0);
+
+        // Nice Msg Pattern
+        //        performMessage.errorMessage(
+        //                "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
+        //                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration
+        // file not found!</span>",
+        //                "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been created
+        // at:</span>",
+        //                "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new
+        // line
+        //                "<span style='color: #E65100;'>Please set the necessary configuration values in this new
+        // file.</span><br><span style='font-style: italic;'>Details: "
+        //                        + "ARWeb.config" + "</span>",
+        //                0);
 
         boolean dirSuccess = configurationFile.mkdirs();
         configurationFile.delete();
         try {
             configurationFile.createNewFile();
-            setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstants.USER_PATH);
+            setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstantsEngine.USER_PATH);
 
-            setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), "C:\\ARWeb\\ARWeb\\Excel");
-            setProperty(ARPropertyEnum.PATH_LOG.getValue(), "C:\\ARWeb\\ARWeb\\Logs");
-            setProperty(ARPropertyEnum.PATH_EXPORT.getValue(), "C:\\ARWeb\\ARWeb\\Export");
-            setProperty(ARPropertyEnum.PATH_REPORT.getValue(), "C:\\ARWeb\\ARWeb\\Reports");
-            setProperty(ARPropertyEnum.PATH_DB.getValue(), "C:\\ARWeb\\ARWeb");
-            setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), "C:\\ARWeb\\ARWeb");
+            String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
+
+            setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), parentPath + "\\ARWeb\\Excel");
+            setProperty(ARPropertyEnum.PATH_LOG.getValue(), parentPath + "\\ARWeb\\Logs");
+            setProperty(ARPropertyEnum.PATH_EXPORT.getValue(), parentPath + "\\ARWeb\\Export");
+            setProperty(ARPropertyEnum.PATH_REPORT.getValue(), parentPath + "\\ARWeb\\Reports");
+            setProperty(ARPropertyEnum.PATH_DB.getValue(), parentPath + "\\ARWeb");
+            setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), parentPath + "\\ARWeb");
 
             setProperty(ARPropertyEnum.DB_URL.getValue(), "jdbc:postgresql://localhost:5432/ar_web");
             setProperty(ARPropertyEnum.DB_USER.getValue(), "XXXXXX");
@@ -221,38 +375,48 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
 
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
-            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.USER_PATH);
-            setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstants.USER_PATH + "\\driver");
+            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
+            setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
+            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+            setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
+            setProperty(ARPropertyEnum.URL_PLUGINS.getValue(), "");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
-            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstants.EDGE);
+            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue(), "15");
 
-        } catch (IOException ex) {
-            performMessage.errorMessage(
-                    "File Creation Error",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
-                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename on a new line
-                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has the necessary write permissions for the directory.</span>",
-                    "<span style='font-style: italic;'>Details: " + ex.getMessage() + "</span>",
-                    0);
+        } catch (IOException error) {
+            log.error("Error creating \"ARWeb.config\": {} -> {}", configurationFileName, error.getMessage());
+
+            //            performMessage.errorMessage(
+            //                    "File Creation Error",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create
+            // file:</span>",
+            //                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename
+            // on a new line
+            //                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has
+            // the necessary write permissions for the directory.</span>",
+            //                    "<span style='font-style: italic;'>Details: " + ex.getMessage() + "</span>",
+            //                    0);
         }
     }
 
     public List<String> checkProperties(Properties properties) {
         String[] requiredProperties = {
             "data_base",
-            "db_url",
-            "db_user",
-            "db_pwd",
+            //            "db_url",
+            //            "db_user",
+            //            "db_pwd",
+            "path_appium",
+            "path_plugins",
+            "navigation_time",
             "path_excel",
             "path_log",
             "path_db",
             "path_report",
             "path_priority",
             "path_engine",
-            "path_web_driver",
             "log_level",
             "browser"
         };
@@ -293,23 +457,39 @@ public class ARPropertyManager {
             if (!Strings.isNullOrEmpty(part1)) {
                 part3 = "<span style='color: #c0392b; font-weight: bold;'>" + part3 + "</span>";
             }
-
-            performMessage.errorMessage(
-                    "Configuration Warning: Missing Mandatory Paths",
-                    "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Consider configuring all paths that are missing!</span> ⚠️",
+            log.error(
+                    "Configuration Warning: Missing Mandatory Paths: {} / {} / {}",
                     part1,
-                    Strings.isNullOrEmpty(part2) ? null : part2,
-                    Strings.isNullOrEmpty(part3) ? null : part3,
-                    0);
+                    Strings.isNullOrEmpty(part2) ? "" : part2,
+                    Strings.isNullOrEmpty(part3) ? "" : part3);
+            //            performMessage.errorMessage(
+            //                    "Configuration Warning: Missing Mandatory Paths",
+            //                    "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Consider
+            // configuring all paths that are missing!</span> ⚠️",
+            //                    part1,
+            //                    Strings.isNullOrEmpty(part2) ? null : part2,
+            //                    Strings.isNullOrEmpty(part3) ? null : part3,
+            //                    0);
+
+            for (String prop : missingProperties) {
+                // appium
+                if ("path_appium".equals(prop)) {
+                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                }
+
+                // plugins
+                if ("path_plugins".equals(prop)) {
+                    setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
+                }
+
+                // navigation time
+                if ("navigation_time".equals(prop)) {
+                    setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), "2");
+                }
+            }
+
             return true;
         }
         return false;
-    }
-
-    public static String getTodaysDate(int day) {
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(day);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        return yesterday.format(formatter);
     }
 }

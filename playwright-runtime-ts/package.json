@@ -1,0 +1,25 @@
+{
+  "name": "@arweb/playwright-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Isolated TypeScript worker-plane boundary for AR Web Playwright execution V2",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "npm run typecheck",
+    "demo:five-browsers": "npm run build && node scripts/five-browser-mock.cjs",
+    "test": "npm run build && node --test dist/test/executionGrantVerifier.test.js dist/test/executionRegistry.test.js dist/test/javaGrantCompatibility.test.js dist/test/pageReadiness.test.js dist/test/physicalActionExecutor.test.js dist/test/runtimeServer.test.js dist/test/scannerEvaluation.test.js dist/test/workerPool.test.js",
+    "start": "node dist/src/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.11",
+    "typescript": "5.6.3"
+  },
+  "dependencies": {
+    "playwright-core": "1.61.1"
+  }
+}

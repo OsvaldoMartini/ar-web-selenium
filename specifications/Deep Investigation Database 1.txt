@@ -1,0 +1,224 @@
+Please conduct a **deep technical investigation** of the following project:
+
+`C:\Martini\abr-web-selenium`
+
+## Primary focus
+
+I need a thorough analysis of the project’s **database lifecycle**, with particular attention to:
+
+1. **Database creation when the database does not yet exist**
+2. **Database migration design and execution**
+3. **Backup and restore logic**, especially where IDs and key relationships must be preserved across database versions
+
+---
+
+## Specific objectives
+
+### 1. Database creation
+
+Please verify:
+
+* how the application detects that the database does not exist
+* where and how the database is created
+* whether schema initialization is complete and reliable
+* whether creation is consistent across supported database types
+* whether there are missing steps, hidden assumptions, or risks during first-time startup
+
+### 2. Migration system
+
+I want a correct and maintainable migration mechanism based on a dedicated folder such as:
+
+`/migration`
+
+with migration files executed in strict order, for example:
+
+* `001_...`
+* `002_...`
+* `003_...`
+
+Please analyze whether the current project already supports this properly, and if not, explain what is missing.
+
+In particular, verify:
+
+* whether migrations are applied in the correct sequence
+* whether already-applied migrations are tracked
+* whether migrations are idempotent and safe
+* whether failed migrations can leave the database in an inconsistent state
+* whether there is a proper migration history table or equivalent mechanism
+* whether schema creation and migrations are clearly separated
+* whether the current implementation can scale safely over future releases
+
+### 3. Backup and restore with preserved IDs
+
+A critical part of the system is the backup/restore flow, where the application must preserve IDs and relationships from the old database into the new one.
+
+The current control flow includes logic such as:
+
+```java
+backupDBButton.setOnMouseClicked(e -> runBackupScripts());
+restoreDBButton.setOnMouseClicked(e -> runRestoreScripts());
+```
+
+The backup logic currently runs multiple export steps in sequence, for example:
+
+* `backupHomeBanking`
+* `backupHomeUrl`
+* `backupBotJob`
+* `backupBlock`
+* `backupInstruction`
+* `backupVariable`
+* `backupReference`
+* `backupComponentBlock`
+* `backupComponentInstruction`
+* `backupComponentVariable`
+* `backupComponentReference`
+
+The restore flow is more complex because the restore order is mandatory due to ID dependencies and relationship preservation. Example:
+
+```java
+if (errorMessage == null) {
+    backupFilePath = databasePath + File.separator + "backup_instruction_" + formattedDate + ".sql";
+    errorMessage = performBackup.restoreInstruction(conn, backupFilePath, null);
+}
+
+if (errorMessage == null) {
+    backupFilePath = databasePath + File.separator + "backup_variable_" + formattedDate + ".sql";
+    errorMessage = performBackup.restoreVariable(conn, backupFilePath, null);
+}
+
+if (errorMessage == null) {
+    errorMessage = performBackup.restoreUpdateInstruction(conn, null);
+}
+
+if (errorMessage == null) {
+    backupFilePath = databasePath + File.separator + "backup_reference_" + formattedDate + ".sql";
+    errorMessage = performBackup.restoreReference(conn, backupFilePath, null);
+}
+```
+
+Please investigate this logic carefully and determine:
+
+* whether the backup sequence is technically correct
+* whether the restore sequence is correct and complete
+* whether all ID mappings and foreign-key dependencies are preserved safely
+* whether there are hidden ordering constraints not properly enforced
+* whether any restore step can corrupt data, duplicate data, or break references
+* whether transactions are used correctly during restore
+* whether rollback behavior is safe if one restore step fails
+* whether the current design is robust enough for long-term maintenance
+
+---
+
+## Migration review of refactored code
+
+I also need you to verify whether all methods were migrated correctly from the **original unified file** into the new folder/module structure.
+
+Please identify:
+
+* methods that were migrated correctly
+* methods that were only partially migrated
+* methods that are missing
+* logic that changed unintentionally during migration
+* inconsistencies in naming, parameters, sequencing, exception handling, or transaction handling
+* duplicated logic
+* dead code
+* any silent regressions introduced by the refactor
+
+If possible, compare the original implementation and the current modularized implementation and produce a precise gap analysis.
+
+---
+
+## Required engineering assessment
+
+Please provide a serious and professional assessment from both a:
+
+### Technical perspective
+
+Evaluate:
+
+* correctness
+* reliability
+* transactional safety
+* migration safety
+* restore safety
+* maintainability
+* extensibility
+* testability
+* architectural clarity
+
+### Product-engineering perspective
+
+Evaluate:
+
+* operational risk in production
+* upgrade safety between versions
+* recoverability after backup/restore
+* developer experience for future maintenance
+* release management implications
+* whether the current approach is suitable for a growing product
+
+---
+
+## Expected output
+
+Please structure your answer as follows:
+
+### A. Current architecture findings
+
+Describe how the current database creation, migration, backup, and restore flows work.
+
+### B. Problems found
+
+List all issues, bugs, risks, missing logic, sequencing problems, and migration inconsistencies.
+
+### C. Method migration audit
+
+State whether all methods were migrated correctly from the original unified file into the new folder structure, and identify any missing or altered behavior.
+
+### D. Root-cause analysis
+
+Explain why the current design is fragile or correct, especially around ID preservation and restore ordering.
+
+### E. Recommended target architecture
+
+Propose a better architecture for:
+
+* database creation
+* migration tracking
+* ordered migration execution from `/migration`
+* backup/restore with preserved IDs
+* transaction management
+* validation and verification after restore
+
+### F. Concrete remediation plan
+
+Give a step-by-step implementation plan, including recommended folder structure, migration naming convention, migration runner design, and how to validate correctness.
+
+### G. Risk ranking
+
+Classify findings as:
+
+* critical
+* high
+* medium
+* low
+
+---
+
+## Important instruction
+
+Do not give a generic answer. I want a **real engineering investigation** of the codebase, with attention to:
+
+* actual control flow
+* method dependencies
+* ordering constraints
+* missing logic
+* migration correctness
+* restore correctness
+* preservation of keys and relationships
+
+If parts of the system are ambiguous, state that clearly and explain what must be verified in code.
+
+---
+
+If you want, I can also turn this into an even sharper **“senior code audit” prompt** that is optimized for Claude, Cursor, Copilot, or another code-analysis assistant.

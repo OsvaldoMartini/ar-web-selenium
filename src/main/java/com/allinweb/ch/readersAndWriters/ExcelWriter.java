@@ -1,91 +1,71 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.driver.ARPlaywrightDriver;
+import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.model.CsvTable;
+import com.allinweb.ch.model.FieldData;
+import com.allinweb.ch.util.ARConstantsEngine;
+import com.allinweb.ch.util.ARExecution;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.awt.AWTException;
-import java.awt.Rectangle;
-import java.awt.Robot;
-import java.awt.Toolkit;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javafx.util.Pair;
-import javax.imageio.ImageIO;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Font;
-import org.apache.poi.util.IOUtils;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TakesScreenshot;
-import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ExcelWriter {
     private static final ARPropertyManager arPropertyManager;
+    private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
+    private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
+    private static final DateTimeFormatter FORMAT_DATE_AND_TIME = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss");
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static int CURRENT_ROW_INDEX = 0;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
-    private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
+    private final String botJobName;
+    private final boolean fullPath;
 
-    private static final DateTimeFormatter FORMAT_DATE_AND_TIME = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss");
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-    private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
-    private String botJobName;
-    private static WebDriver webDriver;
-
-    private static int CURRENT_ROW_INDEX = 0;
-
-    public ExcelWriter(String botJobName, WebDriver webDriver, boolean isFullPath) {
+    public ExcelWriter(String botJobName, boolean isFullPath) {
         this.botJobName = botJobName;
-        this.webDriver = webDriver;
-        boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel", isFullPath);
-        String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
-        try {
-            managedExcelMap.put("export", new ManagedExcel(botJobName, "export", true, isFullPath));
-
-            managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
-            managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
-        } catch (Exception ex) {
-            ARLogger.getInstance(ExcelWriter.class)
-                    .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
-        }
+        this.fullPath = isFullPath;
     }
 
     public ExcelChain withPurpose(String purpose) {
-        return new ExcelChain(managedExcelMap.get(purpose), botJobName);
+        ManagedExcel managedExcel = switch (purpose) {
+            case "export" -> new ManagedExcel(botJobName, purpose, true, fullPath);
+            case "excel" -> new ManagedExcel(
+                    botJobName,
+                    purpose,
+                    !ManagedExcel.checkIfExcelExist(botJobName, purpose, fullPath),
+                    fullPath);
+            case "report" -> new ManagedExcel(
+                    botJobName + " (" + LocalDateTime.now().format(FORMAT_DATE_AND_TIME) + ")",
+                    purpose,
+                    true,
+                    fullPath);
+            default -> throw new IllegalArgumentException("Unsupported Excel purpose: " + purpose);
+        };
+        return new ExcelChain(managedExcel, botJobName, "export".equals(purpose));
     }
 
-    public record ExcelChain(ManagedExcel managedExcel, String botJobName) {
-
-        public void insertValueFieldName(String fieldName, String value) {
-            try {
-
-                managedExcel
-                        .onSheet(0)
-                        .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
-                        .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
-                managedExcel.save();
-            } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
-            }
-        }
+    public record ExcelChain(ManagedExcel managedExcel, String botJobName, boolean closeAfterWrite)
+            implements AutoCloseable {
 
         public static void writeMapToCSV(Map<String, String> mapExport, String filePath, String delimiterCSV) {
             try (FileWriter writer = new FileWriter(filePath)) {
@@ -105,10 +85,26 @@ public class ExcelWriter {
                 }
                 writer.write(valuesBuilder.toString() + "\n");
 
-                System.out.println("CSV file created successfully at: " + filePath);
+                log.info("CSV file created successfully at: " + filePath);
 
             } catch (IOException e) {
-                System.err.println("Error writing to CSV file: " + e.getMessage());
+                log.error("Error writing to CSV file: " + e.getMessage());
+            }
+        }
+
+        public void insertValueFieldName(String fieldName, String value) {
+            try {
+
+                managedExcel
+                        .onSheet(0)
+                        .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
+                        .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
+                managedExcel.save();
+            } catch (Exception ex) {
+
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
             }
         }
 
@@ -119,25 +115,31 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
+
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
             }
         }
 
-        public void insertCSVContentIntoExcel(List<String> columnsCSV, List<List<String>> rowsCSV, int exportIndex) {
+        public void insertCSVContentIntoExcel(List<String> columnsCSV, CsvTable tableCSV, int exportIndex) {
             try {
 
-                managedExcel.onSheet(0).insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex);
+                managedExcel.onSheet(0).insertCSVContentIntoExcel(columnsCSV, tableCSV, exportIndex);
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
+                log.error("Unable to write execution export workbook: {}", botJobName, ex);
+                throw new IllegalStateException(
+                        "Unable to write Excel export file: " + botJobName, ex);
+            } finally {
+                if (closeAfterWrite) close();
             }
+        }
+
+        @Override
+        public void close() {
+            managedExcel.close();
         }
 
         public void insertReportHead() {
@@ -168,10 +170,10 @@ public class ExcelWriter {
         }
 
         public boolean insertInstructionResult(
-                ARConstants.ConditionStatus currentCondition,
+                ARExecution.ConditionStatus currentCondition,
                 String blockName,
                 String[] actions,
-                Pair<String, String> msgLoop,
+                FieldData msgLoop,
                 Map<String, String> data,
                 LocalTime time,
                 boolean success) {
@@ -191,54 +193,59 @@ public class ExcelWriter {
 
                 String action =
                         switch (actions[0]) {
-                            case ARConstants.OTHER -> "OTHER";
-                            case ARConstants.OUTPUT -> "OUTPUT";
-                            case ARConstants.CLICK -> "CLICK";
-                            case ARConstants.INSERT -> "INSERT";
-                            case ARConstants.EXTRACT_FIELD -> "EXTRACT";
-                            case ARConstants.QUIT -> "QUIT";
-                            case ARConstants.HOLD -> "HOLD";
-                            case ARConstants.REFRESH_ONLY -> "REFRESH";
-                            case ARConstants.REFRESH_HOLD -> "WAIT (REFRESH LOOP)";
-                            case ARConstants.REFRESH_LOOP -> "JUMP (REFRESH LOOP)";
-                            case ARConstants.LOOP -> "JUMP TO";
-                            case ARConstants.VISUALIZE -> "VISUALIZE";
-                            case ARConstants.SEARCH -> "SEARCH";
-                            case ARConstants.SET_VALUE -> "SET VALUE";
-                            case ARConstants.GET_VALUE -> "GET VALUE";
-                            case ARConstants.CHECK_VALUE -> "CHECK VALUE";
-                            case ARConstants.GOTO -> "GOTO";
-                            case ARConstants.IF -> "IF";
-                            case ARConstants.ELSE -> "ELSE";
-                            case ARConstants.ENDIF -> "ENDIF";
-                            case ARConstants.SCREEN -> "SCREENSHOT";
-                            case ARConstants.PAUSE -> "PAUSE";
-                            case ARConstants.IGNORE -> "IGNORE";
-                            case ARConstants.EXIT -> "EXIT";
-                            case ARConstants.BY_PASS -> "BY_PASS";
-                            case ARConstants.EXCEL_BLOCK_HEADER -> "EXCEL_BLOCK_HEADER";
-                            case ARConstants.NEXT_ROW -> "EXCEL DATA NEXT ROW";
+                            case ARConstantsEngine.OTHER -> "OTHER";
+                            case ARConstantsEngine.OUTPUT -> "OUTPUT";
+                            case ARConstantsEngine.CLICK -> "CLICK";
+                            case ARConstantsEngine.INSERT -> "INSERT";
+                            case ARConstantsEngine.EXTRACT_FIELD -> "EXTRACT";
+                            case ARConstantsEngine.QUIT -> "QUIT";
+                            case ARConstantsEngine.HOLD -> "HOLD";
+                            case ARConstantsEngine.REFRESH_ONLY -> "REFRESH";
+                            case ARConstantsEngine.REFRESH_HOLD -> "WAIT (REFRESH LOOP)";
+                            case ARConstantsEngine.REFRESH_LOOP -> "JUMP (REFRESH LOOP)";
+                            case ARConstantsEngine.LOOP -> "JUMP TO";
+                            case ARConstantsEngine.VISUALIZE -> "VISUALIZE";
+                            case ARConstantsEngine.SEARCH -> "SEARCH";
+                            case ARConstantsEngine.SET_VALUE -> "SET VALUE";
+                            case ARConstantsEngine.GET_VALUE -> "GET VALUE";
+                            case ARConstantsEngine.CHECK_VALUE -> "CHECK VALUE";
+                            case ARConstantsEngine.PDF_CHECK -> "PDF CHECK";
+                            case ARConstantsEngine.CSV_CHECK -> "CSV CHECK";
+                            case ARConstantsEngine.GOTO -> "GOTO";
+                            case ARConstantsEngine.IF -> "IF";
+                            case ARConstantsEngine.ELSE -> "ELSE";
+                            case ARConstantsEngine.ENDIF -> "ENDIF";
+                            case ARConstantsEngine.SCREEN -> "SCREENSHOT";
+                            case ARConstantsEngine.PAUSE -> "PAUSE";
+                            case ARConstantsEngine.NEXT_ENTER -> "NEXT_ENTER";
+                            case ARConstantsEngine.SWIPE_UP -> "SWIPE_UP";
+                            case ARConstantsEngine.SWIPE_DOWN -> "SWIPE_DOWN";
+                            case ARConstantsEngine.IGNORE -> "IGNORE";
+                            case ARConstantsEngine.EXIT -> "EXIT";
+                            case ARConstantsEngine.BY_PASS -> "BY_PASS";
+                            case ARConstantsEngine.EXCEL_BLOCK_HEADER -> "EXCEL_BLOCK_HEADER";
+                            case ARConstantsEngine.NEXT_ROW -> "EXCEL DATA NEXT ROW";
                             default -> "Unsupported action";
                         };
                 String value = "";
                 String keyAction = msgLoop.getKey();
 
-                if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
                     String reference = actions[2];
                     value = data.get(reference);
-                } else if (actions[0].equals(ARConstants.INSERT)) {
+                } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
                     String reference = actions[1];
                     value = data.get(reference);
                 }
 
-                if (actions.length == 2 && actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+                if (actions.length == 2 && actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
                     value = msgLoop.getValue();
                 }
 
-                if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+                if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ROW)) {
                     keyAction = msgLoop.getKey();
                     value = msgLoop.getValue();
-                } else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GOTO)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
@@ -254,7 +261,7 @@ public class ExcelWriter {
                         }
                         value = String.format("GO TO Remains %s times", msgLoop.getValue());
                     }
-                } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
@@ -264,7 +271,7 @@ public class ExcelWriter {
                                 "Jump To Parent \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                         value = String.format("Loop Remains %s times", msgLoop.getValue());
                     }
-                } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_ONLY)) {
                     String[] msgParent = msgLoop.getKey().split(":");
                     if (msgParent.length == 1) {
                         keyAction = "Refresh for Web Page";
@@ -274,13 +281,13 @@ public class ExcelWriter {
                                 "Refresh for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                     }
 
-                } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_HOLD)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_HOLD)) {
                     String[] msgParent = msgLoop.getKey().split(":");
                     String[] msgValue = msgLoop.getValue().split(":");
                     keyAction =
                             String.format("Wait for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                     value = String.format("Wait %s seconds", msgValue[0]);
-                } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                     if (msgLoop.getValue().equals("Unknown")) {
                         keyAction = msgLoop.getKey();
                         value = msgLoop.getValue();
@@ -290,27 +297,27 @@ public class ExcelWriter {
                                 "Jump To \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                         value = String.format("Loop Remains %s times", msgLoop.getValue());
                     }
-                } else if (actions[0].equalsIgnoreCase(ARConstants.HOLD)) {
+                } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.HOLD)) {
                     value = "";
                 } else if (operations.length == 2
-                        && (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
-                                || actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
+                        && (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
+                                || actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
                     keyAction = operations[0];
                     value = operations[1];
                 } else if (operations.length == 3) {
                     value = operations[1] + " " + operations[2];
                 }
 
-                boolean byPassError = currentCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
-                        || currentCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)
-                        || currentCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)
-                        || currentCondition.equals(ARConstants.ConditionStatus.BY_PASS);
+                boolean byPassError = currentCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
+                        || currentCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)
+                        || currentCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED)
+                        || currentCondition.equals(ARExecution.ConditionStatus.BY_PASS);
 
-                String blockCondition = currentCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
+                String blockCondition = currentCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
                         ? "{IF}"
-                        : currentCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)
+                        : currentCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)
                                 ? "{ELSEIF}"
-                                : currentCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
+                                : currentCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
 
                 if (action.equals("EXCEL_BLOCK_HEADER")) {
                     ManagedExcelAction act = managedExcel
@@ -351,7 +358,7 @@ public class ExcelWriter {
                                 .setCellFontStyleOfColumnsOfLastRow(
                                         0, 4, // Apply styles to the first 5 columns (0 to 4)
                                         false, false, false, backColor, fontColor);
-                        act.insertScreenshotAfterLastRowOfColumn(0, webDriver);
+                        act.insertScreenshotAfterLastRowOfColumn(0);
                     }
                 } else { // add screenshot
                     ManagedExcelAction act = managedExcel
@@ -364,14 +371,14 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(success ? "success" : "error")
                             .setCellFontStyleOfColumnOfLastRow(
                                     4, true, false, false, null, success ? null : IndexedColors.RED)
-                            .insertScreenshotAfterLastRowOfColumn(0, webDriver);
+                            .insertScreenshotAfterLastRowOfColumn(0);
                 }
                 managedExcel.save();
                 return true;
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
+
+                log.error(
+                        String.format("InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
                 return false;
             }
         }
@@ -398,16 +405,7 @@ public class ExcelWriter {
     static class ManagedExcel {
         private final XSSFWorkbook excelWorkbook;
         private final FileManager fileManager;
-
-        public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
-            if (!isFullPath) {
-                String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName
-                        + ARConstants.FILE_FORMAT_EXCEL;
-                return new FileManager(fullPath).getFile().exists();
-            } else {
-                return new FileManager(fileName).getFile().exists();
-            }
-        }
+        private boolean closed;
 
         public ManagedExcel(String fileName, String purpose, boolean create, boolean isFullPath) {
             ARPropertyEnum property =
@@ -421,13 +419,23 @@ public class ExcelWriter {
             String fullPath = "";
 
             if (!isFullPath) {
-                fileNamePath = "\\" + fileName + ARConstants.FILE_FORMAT_EXCEL;
+                fileNamePath = "\\" + fileName + ARConstantsEngine.FILE_FORMAT_EXCEL;
                 fullPath = arPropertyManager.getProperty(property) + fileNamePath;
             } else {
                 fullPath = fileName;
             }
             this.fileManager = new FileManager(fullPath);
             this.excelWorkbook = manageExcelFile(create, purpose);
+        }
+
+        public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
+            if (!isFullPath) {
+                String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName
+                        + ARConstantsEngine.FILE_FORMAT_EXCEL;
+                return new FileManager(fullPath).getFile().exists();
+            } else {
+                return new FileManager(fileName).getFile().exists();
+            }
         }
 
         private XSSFWorkbook manageExcelFile(boolean newExcel, String purpose) {
@@ -454,13 +462,47 @@ public class ExcelWriter {
         }
 
         public void save() {
-            File excelFile = fileManager.deleteFileOnDisk().createFileOnDisk().getFile();
+            if (closed) throw new IllegalStateException("Excel workbook is already closed");
+            Path target = fileManager.getFile().toPath().toAbsolutePath().normalize();
+            Path parent = target.getParent();
+            if (parent == null) throw new IllegalStateException("Excel output folder is required");
+            Path temporary = null;
             try {
-                FileOutputStream fileOutputStream = new FileOutputStream(excelFile);
-                excelWorkbook.write(fileOutputStream);
-                fileOutputStream.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                Files.createDirectories(parent);
+                temporary = Files.createTempFile(parent, ".arweb-workbook-", ".tmp");
+                try (OutputStream output = Files.newOutputStream(temporary)) {
+                    excelWorkbook.write(output);
+                }
+                try {
+                    Files.move(
+                            temporary,
+                            target,
+                            StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException unsupported) {
+                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+                temporary = null;
+            } catch (IOException error) {
+                throw new IllegalStateException("Unable to save Excel workbook: " + target, error);
+            } finally {
+                if (temporary != null) {
+                    try {
+                        Files.deleteIfExists(temporary);
+                    } catch (IOException ignored) {
+                        // The incomplete workbook was never published as the configured destination.
+                    }
+                }
+            }
+        }
+
+        public void close() {
+            if (closed) return;
+            closed = true;
+            try {
+                excelWorkbook.close();
+            } catch (IOException error) {
+                throw new IllegalStateException("Unable to close Excel workbook", error);
             }
         }
     }
@@ -563,34 +605,46 @@ public class ExcelWriter {
                 // Save the Excel after modification
 
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
+
+                log.error(String.format("Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
             }
         }
 
-        public void insertCSVContentIntoExcel(List<String> columnsCSV, List<List<String>> rowsCSV, int exportIndex) {
+        public void insertCSVContentIntoExcel(List<String> columnsCSV, CsvTable tableCSV, int exportIndex) {
             try {
-                // Create header row: KEY | column1 | column2 | ...
-                Row headerRow = getOrCreateRow(exportIndex);
+                // Header row: KEY | col1 | col2 | ...
+                getOrCreateRow(exportIndex);
                 insertValueAtCoordinates("KEY", exportIndex, 0);
+
                 for (int i = 0; i < columnsCSV.size(); i++) {
                     insertValueAtCoordinates(columnsCSV.get(i), exportIndex, i + 1);
                 }
 
-                // Write each row: EXTERNAL_1 | val1 | val2 | ...
-                for (int i = 0; i < rowsCSV.size(); i++) {
-                    Row row = getOrCreateRow(exportIndex + 1 + i);
-                    insertValueAtCoordinates("EXTERNAL_" + (i + 1), exportIndex + 1 + i, 0);
-                    List<String> rowData = rowsCSV.get(i);
-                    for (int j = 0; j < rowData.size(); j++) {
-                        insertValueAtCoordinates(rowData.get(j), exportIndex + 1 + i, j + 1);
+                int rowCount = tableCSV.getRows().size();
+
+                // Data rows: EXTERNAL or EXTERNAL_1..N | values...
+                for (int i = 0; i < rowCount; i++) {
+                    int excelRowIndex = exportIndex + 1 + i;
+                    getOrCreateRow(excelRowIndex);
+
+                    // EXACT output rule:
+                    // - if only 1 row: EXTERNAL
+                    // - if more than 1 row: EXTERNAL_1, EXTERNAL_2, ...
+                    String key = (rowCount == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
+
+                    insertValueAtCoordinates(key, excelRowIndex, 0);
+
+                    // Write values in header order
+                    for (int j = 0; j < columnsCSV.size(); j++) {
+                        String colName = columnsCSV.get(j);
+                        String value = tableCSV.get(i, colName); // "" if missing
+                        insertValueAtCoordinates(value, excelRowIndex, j + 1);
                     }
                 }
 
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format("Excel Writer insertCSVContentIntoExcel: \nError - %s", ex.getMessage()));
+                log.error("Excel Writer insertCSVContentIntoExcel error", ex);
+                throw new IllegalStateException("Unable to build Excel export content", ex);
             }
         }
 
@@ -599,46 +653,19 @@ public class ExcelWriter {
             return this;
         }
 
-        public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex, WebDriver webDriver) {
+        public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex) {
             int afterLastRowIndex = sheet.getLastRowNum() + 1;
-            return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex, webDriver);
+            return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex);
         }
 
         public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex) {
-            Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
             try {
-                BufferedImage capture = new Robot().createScreenCapture(screenRect);
-                File tempFile = File.createTempFile("screenshot", ".png");
-                ImageIO.write(capture, "png", tempFile);
-                FileInputStream fis = new FileInputStream(tempFile);
-                byte[] bytes = IOUtils.toByteArray(fis);
-                int pictureIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);
-                fis.close();
-                CreationHelper helper = workbook.getCreationHelper();
-                ClientAnchor imageAnchor = helper.createClientAnchor();
-                imageAnchor.setCol1(columnIndex);
-                imageAnchor.setRow1(rowIndex);
-                imageAnchor.setCol2(columnIndex + 8);
-                imageAnchor.setRow2(rowIndex + 1);
-                Drawing drawing = sheet.createDrawingPatriarch();
-                Picture pict = drawing.createPicture(imageAnchor, pictureIdx);
-                // pict.resize();
-                Row row = getOrCreateRow(rowIndex);
-                getOrCreateColumnCell(row, columnIndex);
-                row.setHeightInPoints(300);
-            } catch (IOException | AWTException e) {
-                System.out.println(e.getMessage());
-            }
-            return this;
-        }
-
-        public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex, WebDriver driver) {
-            try {
-                // Capture screenshot using WebDriver's TakesScreenshot interface
-                File screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-
-                // Read the screenshot file into byte array
-                byte[] bytes = Files.readAllBytes(screenshot.toPath());
+                ARPlaywrightDriver playwrightDriver = ARWebDriver.getInstance().currentPlaywrightDriver();
+                if (playwrightDriver == null || !playwrightDriver.isOpen()) {
+                    log.warn("Skipping report screenshot: no Playwright page is available");
+                    return this;
+                }
+                byte[] bytes = playwrightDriver.screenshot(false);
 
                 // Add picture to workbook
                 int pictureIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);
@@ -659,8 +686,9 @@ public class ExcelWriter {
                 Row row = getOrCreateRow(rowIndex);
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
-            } catch (IOException e) {
-                System.out.println(e.getMessage());
+            } catch (Exception e) {
+                // A diagnostic screenshot must never change the instruction result or abort a job.
+                log.warn("Could not add report screenshot: {}", e.getMessage());
             }
             return this;
         }

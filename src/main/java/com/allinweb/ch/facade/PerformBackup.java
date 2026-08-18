@@ -1,0 +1,5384 @@
+package com.allinweb.ch.facade;
+
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ErrorMessage;
+import com.google.common.base.Strings;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class PerformBackup {
+    protected static volatile PerformBackup instance;
+
+    @Getter
+    @Setter
+    public Connection conn = null;
+
+    private TreeMap<Integer, Integer> homeBankMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> homeUrlMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> botJobMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrParentBlockMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrParentIdMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
+    private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> useCaseMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> flowMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> requirementMap = new TreeMap<>();
+    private final BotJobRuntimeVariableService botJobRuntimeVariables =
+            new BotJobRuntimeVariableService();
+
+    // Private constructor to prevent instantiation
+    private PerformBackup() {}
+
+    public static PerformBackup getInstance() {
+        if (instance == null) {
+            synchronized (PerformBackup.class) {
+                if (instance == null) {
+                    instance = new PerformBackup();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize(Connection conn) {
+        this.conn = conn;
+    }
+
+    private String escapeSql(String input) {
+        if (input == null) {
+            return null;
+        }
+        return input.replace("'", "''");
+    }
+
+    public ErrorMessage backupHomeBanking(Connection conn, String backupFilePath, Integer homeBankId) {
+
+        StringBuilder query = new StringBuilder(
+                """
+                SELECT id, url, name, priority, search_config, options_config,
+                       cookies, driver_session, username, password
+                FROM home_banking
+                WHERE 1=1
+                """);
+
+        List<Object> parameters = new ArrayList<>();
+
+        if (homeBankId != null) {
+            query.append(" AND id = ?");
+            parameters.add(homeBankId);
+        }
+
+        query.append(" ORDER BY id ASC");
+
+        File sqlFile = new File(backupFilePath);
+
+        try (PreparedStatement pstmt = conn.prepareStatement(query.toString());
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            // Set parameters dynamically
+            for (int i = 0; i < parameters.size(); i++) {
+                pstmt.setObject(i + 1, parameters.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String url = toSqlValue(rs.getString("url"));
+                    String name = toSqlValue(rs.getString("name"));
+                    String priority = toSqlValue(rs.getString("priority"));
+                    String searchConfig = toSqlValue(rs.getString("search_config"));
+                    String optionsConfig = toSqlValue(rs.getString("options_config"));
+                    String cookies = toSqlValue(rs.getString("cookies"));
+                    String driverSession = toSqlValue(rs.getString("driver_session"));
+                    String username = toSqlValue(rs.getString("username"));
+                    String password = toSqlValue(rs.getString("password"));
+
+                    String insert = String.format(
+                            "INSERT INTO home_banking (id, url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
+                                    + "VALUES (%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
+                            id,
+                            url,
+                            name,
+                            priority,
+                            searchConfig,
+                            optionsConfig,
+                            cookies,
+                            driverSession,
+                            username,
+                            password);
+
+                    writer.write(insert);
+                    writer.newLine();
+                }
+
+                writer.flush();
+                log.info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
+                return null;
+            }
+
+        } catch (Exception error) {
+            log.error("Error during home_banking backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during home_banking backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupHomeUrl(Connection conn, String backupFilePath) {
+        String query =
+                """
+                        SELECT id, name, url, home_banking_id
+                        FROM home_url
+                        ORDER BY id ASC
+                        """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery();
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = toSqlValue(defaultEnvironmentName(rs.getString("name")));
+                String url = toSqlValue(rs.getString("url"));
+
+                int homeBankingId = rs.getInt("home_banking_id");
+                boolean homeBankingIdWasNull = rs.wasNull();
+
+                // Compose SQL insert
+                String insert = String.format(
+                        "INSERT INTO home_url (id, name, url, home_banking_id) VALUES (%d, '%s', '%s', %s);",
+                        id, name, url, homeBankingIdWasNull ? "NULL" : homeBankingId);
+
+                writer.write(insert + System.lineSeparator());
+            }
+            writer.flush();
+
+            log.info("Home URL backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+            log.error("Error during home_url backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during home_url backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupBotJob(Connection conn, String backupFilePath, Integer homeBankingId, Integer botJobId) {
+
+        StringBuilder query = new StringBuilder(
+                """
+            SELECT id, name, description, priority,
+                   home_banking_id, home_url_id, active
+            FROM bot_job
+            WHERE 1=1
+            """);
+
+        List<Object> parameters = new ArrayList<>();
+
+        if (botJobId != null) {
+            query.append(" AND id = ?");
+            parameters.add(botJobId);
+        }
+
+        if (homeBankingId != null) {
+            query.append(" AND home_banking_id = ?");
+            parameters.add(homeBankingId);
+        }
+
+        query.append(" ORDER BY id ASC");
+
+        File sqlFile = new File(backupFilePath);
+
+        try (PreparedStatement pstmt = conn.prepareStatement(query.toString());
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            // Set parameters dynamically
+            for (int i = 0; i < parameters.size(); i++) {
+                pstmt.setObject(i + 1, parameters.get(i));
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String name = toSqlValue(rs.getString("name"));
+                    String description = toSqlValue(rs.getString("description"));
+                    String priority = toSqlValue(rs.getString("priority"));
+
+                    int hbId = rs.getInt("home_banking_id");
+                    boolean hbIdWasNull = rs.wasNull();
+
+                    int homeUrlId = rs.getInt("home_url_id");
+                    boolean homeUrlIdWasNull = rs.wasNull();
+
+                    boolean active = rs.getBoolean("active");
+
+                    String insert = String.format(
+                            "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
+                                    + "VALUES (%d, '%s', '%s', '%s', %s, %s, %d);",
+                            id,
+                            name,
+                            description,
+                            priority,
+                            hbIdWasNull ? "NULL" : hbId,
+                            homeUrlIdWasNull ? "NULL" : homeUrlId,
+                            active ? 1 : 0);
+
+                    writer.write(insert);
+                    writer.newLine();
+                }
+
+                writer.flush();
+                log.info("Bot_job backup completed at: " + sqlFile.getAbsolutePath());
+                return null;
+            }
+
+        } catch (Exception error) {
+            log.error("Error during bot_job backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during bot_job backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupInstruction(Connection conn, String backupFilePath, Integer botJobIdFilter) {
+        String query =
+                """
+                        SELECT id, instruction_order_number, actions, name, xpath, coordinates,
+                               force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                               css_selector, description, operation, optional, block_marked, default_value,
+                               action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr,
+                               active, block_id, variable_id, parent_block_id, parent_id, bot_job_id,
+                               client_named
+                        FROM instruction
+                        """
+                        + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
+                        + """
+                                ORDER BY id ASC
+                                """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            if (botJobIdFilter != null) {
+                pstmt.setInt(1, botJobIdFilter);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) { // <-- moved ResultSet into try (no logic removed)
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    int order = rs.getInt("instruction_order_number");
+                    String actions = toSqlValue(rs.getString("actions"));
+                    String name = toSqlValue(rs.getString("name"));
+                    String xpath = toSqlValue(rs.getString("xpath"));
+                    String coordinates = toSqlValue(rs.getString("coordinates"));
+                    String forceCoordinates = toSqlValue(rs.getString("force_coordinates"));
+                    String iframeXpath = toSqlValue(rs.getString("iframe_xpath"));
+                    String tagName = toSqlValue(rs.getString("tag_name"));
+                    String shadowHost = toSqlValue(rs.getString("shadow_host"));
+                    String shadowRoot = toSqlValue(rs.getString("shadow_root"));
+                    String cssSelector = toSqlValue(rs.getString("css_selector"));
+                    String description = toSqlValue(rs.getString("description"));
+                    String operation = toSqlValue(rs.getString("operation"));
+                    boolean optional = rs.getBoolean("optional");
+                    boolean optionalWasNull = rs.wasNull();
+                    boolean blockMarked = rs.getBoolean("block_marked");
+                    boolean blockMarkedWasNull = rs.wasNull();
+                    String defaultValue = toSqlValue(rs.getString("default_value"));
+                    int maxWait = rs.getInt("action_custom_max_wait_sec");
+                    boolean maxWaitWasNull = rs.wasNull();
+                    int holdSec = rs.getInt("on_hold_seconds");
+                    boolean holdSecWasNull = rs.wasNull();
+                    boolean codified = rs.getBoolean("codified");
+                    boolean codifiedWasNull = rs.wasNull();
+                    boolean exportToAbr = rs.getBoolean("export_to_abr");
+                    boolean exportToAbrWasNull = rs.wasNull();
+                    boolean active = rs.getBoolean("active");
+                    int blockId = rs.getInt("block_id");
+                    boolean blockIdWasNull = rs.wasNull();
+                    int variableId = rs.getInt("variable_id");
+                    boolean variableIdWasNull = rs.wasNull();
+                    int parentBlockId = rs.getInt("parent_block_id");
+                    boolean parentBlockIdWasNull = rs.wasNull();
+                    int parentId = rs.getInt("parent_id");
+                    boolean parentIdWasNull = rs.wasNull();
+                    int botJobId = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+                    String clientNamed = toSqlValue(rs.getString("client_named"));
+
+                    String insert = String.format(
+                            "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id, client_named) "
+                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, '%s');",
+                            id,
+                            order,
+                            actions,
+                            name,
+                            xpath,
+                            coordinates,
+                            forceCoordinates,
+                            iframeXpath,
+                            tagName,
+                            shadowHost,
+                            shadowRoot,
+                            cssSelector,
+                            description,
+                            operation,
+                            optionalWasNull ? "NULL" : (optional ? "1" : "0"),
+                            blockMarkedWasNull ? "NULL" : (blockMarked ? "1" : "0"),
+                            defaultValue,
+                            maxWaitWasNull ? "NULL" : maxWait,
+                            holdSecWasNull ? "NULL" : holdSec,
+                            codifiedWasNull ? "NULL" : (codified ? "1" : "0"),
+                            exportToAbrWasNull ? "NULL" : (exportToAbr ? "1" : "0"),
+                            active ? 1 : 0,
+                            blockIdWasNull ? "NULL" : blockId,
+                            variableIdWasNull ? "NULL" : variableId,
+                            parentBlockIdWasNull ? "NULL" : parentBlockId,
+                            parentIdWasNull ? "NULL" : parentId,
+                            botJobIdWasNull ? "NULL" : botJobId,
+                            clientNamed);
+
+                    writer.write(insert + System.lineSeparator());
+                }
+            }
+
+            writer.flush();
+
+            log.info("Instruction backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+
+            log.error("Error during instruction backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during instruction backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupVariable(Connection conn, String backupFilePath, Integer botJobIdFilter) {
+        if (durableVariableDefinitionsEnabled()) {
+            return backupDurableVariableSnapshot(
+                    conn, backupFilePath, botJobIdFilter);
+        }
+        String query =
+                """
+                        SELECT id, type, name, value, instruction_id, bot_job_id, local_format, delimiter
+                        FROM variable
+                        """
+                        + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
+                        + """
+                                ORDER BY id ASC
+                                """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            if (botJobIdFilter != null) {
+                pstmt.setInt(1, botJobIdFilter);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) { // moved inside try (same as previous pattern)
+
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String type = toSqlValue(rs.getString("type"));
+                    String name = toSqlValue(rs.getString("name"));
+                    String value = toSqlValue(rs.getString("value"));
+                    int instructionId = rs.getInt("instruction_id");
+                    boolean instructionIdWasNull = rs.wasNull();
+                    int botJobId = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+                    String localFormat = toSqlValue(rs.getString("local_format"));
+                    String delimiter = toSqlValue(rs.getString("delimiter"));
+
+                    String insert = String.format(
+                            "INSERT INTO variable (id, type, name, value, instruction_id, bot_job_id, local_format, delimiter) "
+                                    + "VALUES (%d, '%s', '%s', '%s', %s, %s, '%s', '%s');",
+                            id,
+                            type,
+                            name,
+                            value,
+                            instructionIdWasNull ? "NULL" : instructionId,
+                            botJobIdWasNull ? "NULL" : botJobId,
+                            localFormat,
+                            delimiter);
+
+                    writer.write(insert + System.lineSeparator());
+                }
+            }
+
+            writer.flush();
+
+            log.info("Variable backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+            log.error("Error during variable backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during variable backup", error.getMessage());
+        }
+    }
+
+    private ErrorMessage backupDurableVariableSnapshot(
+            Connection connection,
+            String backupFilePath,
+            Integer botJobIdFilter) {
+        BackupTableSpec definitions = new BackupTableSpec(
+                "bot_job_variable_definition",
+                List.of(
+                        "home_banking_id",
+                        "bot_job_id",
+                        "id",
+                        "variable_type",
+                        "name",
+                        "configured_value",
+                        "local_format",
+                        "delimiter",
+                        "producer_instruction_id",
+                        "created_at",
+                        "updated_at"),
+                "home_banking_id,bot_job_id,id");
+        BackupTableSpec memory = new BackupTableSpec(
+                "bot_job_runtime_memory",
+                List.of(
+                        "home_banking_id",
+                        "bot_job_id",
+                        "runtime_revision",
+                        "reset_generation",
+                        "next_variable_id",
+                        "created_at",
+                        "updated_at"),
+                "home_banking_id,bot_job_id");
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(backupFilePath), Charset.forName("windows-1252")))) {
+            dumpDurableTableToWriter(
+                    connection, writer, definitions, botJobIdFilter);
+            dumpDurableTableToWriter(
+                    connection, writer, memory, botJobIdFilter);
+            dumpRuntimeValuesToWriter(
+                    connection, writer, botJobIdFilter);
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Error in backup process",
+                    "Durable Bot Job variable backup failed",
+                    failure.getMessage());
+        }
+    }
+
+    private long dumpDurableTableToWriter(
+            Connection connection,
+            BufferedWriter writer,
+            BackupTableSpec spec,
+            Integer botJobIdFilter)
+            throws Exception {
+        String select = "SELECT " + String.join(", ", spec.columns)
+                + " FROM " + spec.tableName
+                + (botJobIdFilter == null ? "" : " WHERE bot_job_id=?")
+                + " ORDER BY " + spec.orderBy;
+        String insertPrefix = "INSERT INTO " + spec.tableName + " ("
+                + String.join(", ", spec.columns) + ") VALUES (";
+        writer.write("-- TABLE: " + spec.tableName);
+        writer.write(System.lineSeparator());
+        long count = 0L;
+        try (PreparedStatement statement = connection.prepareStatement(select)) {
+            if (botJobIdFilter != null) {
+                statement.setInt(1, botJobIdFilter);
+            }
+            try (ResultSet rows = statement.executeQuery()) {
+                ResultSetMetaData metadata = rows.getMetaData();
+                while (rows.next()) {
+                    StringBuilder line = new StringBuilder(insertPrefix);
+                    for (int index = 0; index < spec.columns.size(); index++) {
+                        if (index > 0) {
+                            line.append(", ");
+                        }
+                        line.append(renderValueForBackup(
+                                rows, metadata, index + 1));
+                    }
+                    writer.write(line.append(");").toString());
+                    writer.write(System.lineSeparator());
+                    count++;
+                }
+            }
+        }
+        writer.write(System.lineSeparator());
+        return count;
+    }
+
+    public ErrorMessage backupReference(Connection conn, String backupFilePath, Integer botJobIdFilter) {
+        String query =
+                """
+                        SELECT id, reference_type, value, instruction_id, bot_job_id
+                        FROM reference
+                        """
+                        + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
+                        + """
+                                ORDER BY id ASC
+                                """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            if (botJobIdFilter != null) {
+                pstmt.setInt(1, botJobIdFilter);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) { // moved inside try (same safe pattern)
+
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String referenceType = toSqlValue(rs.getString("reference_type"));
+                    String value = toSqlValue(rs.getString("value"));
+                    int instructionId = rs.getInt("instruction_id"); // NOT NULL, no check needed
+                    int botJobId = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+
+                    String insert = String.format(
+                            "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) "
+                                    + "VALUES (%d, '%s', '%s', %d, %s);",
+                            id, referenceType, value, instructionId, botJobIdWasNull ? "NULL" : botJobId);
+
+                    writer.write(insert + System.lineSeparator());
+                }
+            }
+
+            writer.flush();
+
+            log.info("Reference backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+            log.error("Error during reference backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during reference backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupBlock(Connection conn, String backupFilePath, Integer botJobId) {
+
+        StringBuilder query = new StringBuilder(
+                """
+            SELECT id, block_order_number, name, description,
+                   type_id, export_file, active, wait, bot_job_id
+            FROM block
+            WHERE 1=1
+            """);
+
+        if (botJobId != null) {
+            query.append(" AND bot_job_id = ?");
+        }
+
+        query.append(" ORDER BY id ASC");
+
+        File sqlFile = new File(backupFilePath);
+
+        try (PreparedStatement pstmt = conn.prepareStatement(query.toString());
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            if (botJobId != null) {
+                pstmt.setInt(1, botJobId);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                while (rs.next()) {
+
+                    int id = rs.getInt("id");
+                    int orderNumber = rs.getInt("block_order_number");
+
+                    String name = toSqlValue(rs.getString("name"));
+                    String description = toSqlValue(rs.getString("description"));
+
+                    int typeId = rs.getInt("type_id");
+                    boolean typeIdWasNull = rs.wasNull();
+
+                    String exportFile = toSqlValue(rs.getString("export_file"));
+
+                    boolean active = rs.getBoolean("active");
+
+                    int wait = rs.getInt("wait");
+                    boolean waitWasNull = rs.wasNull();
+
+                    int botJobIdValue = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+
+                    String insert = String.format(
+                            "INSERT INTO block (id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                                    + "VALUES (%d, %d, '%s', '%s', %s, '%s', %d, %s, %s);",
+                            id,
+                            orderNumber,
+                            name,
+                            description,
+                            typeIdWasNull ? "NULL" : typeId,
+                            exportFile,
+                            active ? 1 : 0,
+                            waitWasNull ? "NULL" : wait,
+                            botJobIdWasNull ? "NULL" : botJobIdValue);
+
+                    writer.write(insert);
+                    writer.newLine();
+                }
+
+                writer.flush();
+                log.info("Block backup completed at: " + sqlFile.getAbsolutePath());
+                return null;
+            }
+
+        } catch (Exception error) {
+            log.error("Error during block backup: " + error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during block backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupComponentBlock(Connection conn, String backupFilePath) {
+        String query =
+                """
+                        SELECT id, home_banking_id, block_order_number, name, description, type_id,
+                               export_file, active, wait
+                        FROM component_block
+                        ORDER BY id ASC
+                        """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery();
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+
+                int homeBankingId = rs.getInt("home_banking_id");
+                boolean homeBankingIdWasNull = rs.wasNull();
+
+                int orderNumber = rs.getInt("block_order_number");
+
+                String name = toSqlValue(rs.getString("name"));
+                String description = toSqlValue(rs.getString("description"));
+
+                int typeId = rs.getInt("type_id");
+                boolean typeIdWasNull = rs.wasNull();
+
+                String exportFile = toSqlValue(rs.getString("export_file"));
+
+                boolean active = rs.getBoolean("active");
+                boolean activeWasNull = rs.wasNull();
+
+                int wait = rs.getInt("wait");
+                boolean waitWasNull = rs.wasNull();
+
+                String insert = String.format(
+                        "INSERT INTO component_block (id, home_banking_id, block_order_number, name, description, type_id, export_file, active, wait) "
+                                + "VALUES (%d, %s, %d, '%s', '%s', %s, '%s', %s, %s);",
+                        id,
+                        homeBankingIdWasNull ? "NULL" : homeBankingId,
+                        orderNumber,
+                        name,
+                        description,
+                        typeIdWasNull ? "NULL" : typeId,
+                        exportFile,
+                        activeWasNull ? "NULL" : (active ? "1" : "0"),
+                        waitWasNull ? "NULL" : wait);
+
+                writer.write(insert + System.lineSeparator());
+            }
+
+            writer.flush();
+
+            log.info("ComponentBlock backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+
+            log.error("Error during component_block backup: " + error.getMessage());
+            return new ErrorMessage(
+                    "Error in backup process", "Error during component_block backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupComponentInstruction(Connection conn, String backupFilePath) {
+        String query =
+                """
+                        SELECT id, instruction_order_number, actions, name, xpath, coordinates,
+                               force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                               css_selector, description, operation, optional, block_marked,
+                               default_value, action_custom_max_wait_sec, on_hold_seconds,
+                               codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
+                               home_banking_id, client_named
+                        FROM component_instruction
+                        ORDER BY id ASC
+                        """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery();
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                int orderNumber = rs.getInt("instruction_order_number");
+
+                String actions = toSqlValue(rs.getString("actions"));
+                String name = toSqlValue(rs.getString("name"));
+                String xpath = toSqlValue(rs.getString("xpath"));
+                String coordinates = toSqlValue(rs.getString("coordinates"));
+
+                String forceCoordinatesRaw = rs.getString("force_coordinates");
+                boolean forceCoordinatesWasNull = rs.wasNull();
+
+                String iframeXpath = toSqlValue(rs.getString("iframe_xpath"));
+                String tagName = toSqlValue(rs.getString("tag_name"));
+                String shadowHost = toSqlValue(rs.getString("shadow_host"));
+                String shadowRoot = toSqlValue(rs.getString("shadow_root"));
+                String cssSelector = toSqlValue(rs.getString("css_selector"));
+                String description = toSqlValue(rs.getString("description"));
+                String operation = toSqlValue(rs.getString("operation"));
+
+                Boolean optional = rs.getBoolean("optional");
+                boolean optionalWasNull = rs.wasNull();
+
+                Boolean blockMarked = rs.getBoolean("block_marked");
+                boolean blockMarkedWasNull = rs.wasNull();
+
+                String defaultValue = toSqlValue(rs.getString("default_value"));
+
+                int waitSec = rs.getInt("action_custom_max_wait_sec");
+                boolean waitSecWasNull = rs.wasNull();
+
+                int onHoldSec = rs.getInt("on_hold_seconds");
+                boolean onHoldWasNull = rs.wasNull();
+
+                Boolean codified = rs.getBoolean("codified");
+                boolean codifiedWasNull = rs.wasNull();
+
+                Boolean exportToAbr = rs.getBoolean("export_to_abr");
+                boolean exportToAbrWasNull = rs.wasNull();
+
+                boolean active = rs.getBoolean("active");
+
+                int blockId = rs.getInt("block_id");
+                boolean blockIdWasNull = rs.wasNull();
+
+                int variableId = rs.getInt("variable_id");
+                boolean variableIdWasNull = rs.wasNull();
+
+                int parentBlockId = rs.getInt("parent_block_id");
+                boolean parentBlockIdWasNull = rs.wasNull();
+
+                int parentId = rs.getInt("parent_id");
+                boolean parentIdWasNull = rs.wasNull();
+
+                int homeBankingId = rs.getInt("home_banking_id");
+                boolean homeBankingIdWasNull = rs.wasNull();
+                String clientNamed = toSqlValue(rs.getString("client_named"));
+
+                String insert = String.format(
+                        "INSERT INTO component_instruction ("
+                                + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, "
+                                + "tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, "
+                                + "default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, "
+                                + "block_id, variable_id, parent_block_id, parent_id, home_banking_id, client_named"
+                                + ") VALUES (%d, %d, '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, '%s');",
+                        id,
+                        orderNumber,
+                        actions,
+                        name,
+                        xpath,
+                        coordinates,
+                        forceCoordinatesWasNull
+                                ? "NULL"
+                                : ("'" + (forceCoordinatesRaw == null ? "" : forceCoordinatesRaw) + "'"),
+                        iframeXpath,
+                        tagName,
+                        shadowHost,
+                        shadowRoot,
+                        cssSelector,
+                        description,
+                        operation,
+                        optionalWasNull ? "NULL" : (optional ? "1" : "0"),
+                        blockMarkedWasNull ? "NULL" : (blockMarked ? "1" : "0"),
+                        defaultValue,
+                        waitSecWasNull ? "NULL" : waitSec,
+                        onHoldWasNull ? "NULL" : onHoldSec,
+                        codifiedWasNull ? "NULL" : (codified ? "1" : "0"),
+                        exportToAbrWasNull ? "NULL" : (exportToAbr ? "1" : "0"),
+                        active ? 1 : 0,
+                        blockIdWasNull ? "NULL" : blockId,
+                        variableIdWasNull ? "NULL" : variableId,
+                        parentBlockIdWasNull ? "NULL" : parentBlockId,
+                        parentIdWasNull ? "NULL" : parentId,
+                        homeBankingIdWasNull ? "NULL" : homeBankingId,
+                        clientNamed);
+
+                writer.write(insert + System.lineSeparator());
+            }
+
+            writer.flush();
+
+            log.info("ComponentInstruction backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+
+            log.error("Error during component_instruction backup: " + error.getMessage());
+            return new ErrorMessage(
+                    "Error in backup process", "Error during component_instruction backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupComponentVariable(Connection conn, String backupFilePath) {
+        String query =
+                """
+                        SELECT id, type, name, value, instruction_id, home_banking_id, local_format, delimiter
+                        FROM component_variable
+                        ORDER BY id ASC
+                        """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery();
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+
+                String type = toSqlValue(rs.getString("type"));
+                String name = toSqlValue(rs.getString("name"));
+                String value = toSqlValue(rs.getString("value"));
+
+                int instructionId = rs.getInt("instruction_id");
+                boolean instructionIdWasNull = rs.wasNull();
+
+                int homeBankingId = rs.getInt("home_banking_id");
+                boolean homeBankingIdWasNull = rs.wasNull();
+
+                String localFormat = toSqlValue(rs.getString("local_format"));
+                String delimiter = toSqlValue(rs.getString("delimiter"));
+
+                String insert = String.format(
+                        "INSERT INTO component_variable (id, type, name, value, instruction_id, home_banking_id, local_format, delimiter) "
+                                + "VALUES (%d, '%s', '%s', '%s', %s, %s, '%s', '%s');",
+                        id,
+                        type,
+                        name,
+                        value,
+                        instructionIdWasNull ? "NULL" : instructionId,
+                        homeBankingIdWasNull ? "NULL" : homeBankingId,
+                        localFormat,
+                        delimiter);
+
+                writer.write(insert + System.lineSeparator());
+            }
+
+            writer.flush();
+
+            log.info("ComponentVariable backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+
+            log.error("Error during component_variable backup: " + error.getMessage());
+            return new ErrorMessage(
+                    "Error in backup process", "Error during component_variable backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage backupComponentReference(Connection conn, String backupFilePath) {
+        String query =
+                """
+                        SELECT id, reference_type, value, instruction_id, home_banking_id
+                        FROM component_reference
+                        ORDER BY id ASC
+                        """;
+
+        File sqlFile = new File(backupFilePath);
+        try (PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery();
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+
+                String referenceType = toSqlValue(rs.getString("reference_type"));
+                String value = toSqlValue(rs.getString("value"));
+
+                int instructionId = rs.getInt("instruction_id"); // NOT NULL, so no null check needed
+
+                int homeBankingId = rs.getInt("home_banking_id");
+                boolean homeBankingIdWasNull = rs.wasNull();
+
+                String insert = String.format(
+                        "INSERT INTO component_reference (id, reference_type, value, instruction_id, home_banking_id) "
+                                + "VALUES (%d, '%s', '%s', %d, %s);",
+                        id, referenceType, value, instructionId, homeBankingIdWasNull ? "NULL" : homeBankingId);
+
+                writer.write(insert + System.lineSeparator());
+            }
+
+            writer.flush();
+
+            log.info("ComponentReference backup completed at: " + sqlFile.getAbsolutePath());
+            return null;
+
+        } catch (Exception error) {
+
+            log.error("Error during component_reference backup: " + error.getMessage());
+            return new ErrorMessage(
+                    "Error in backup process", "Error during component_reference backup", error.getMessage());
+        }
+    }
+
+    public ErrorMessage getHomeBankingNameFromFile(String sqlFilePath, String currentOrganization) {
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")))) {
+
+            StringBuilder currentInsert = new StringBuilder();
+            String line;
+
+            String oldName = null;
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+
+                if (line.endsWith(";")) {
+                    String insertSql = currentInsert.toString();
+                    currentInsert.setLength(0);
+
+                    List<String> values = extractValuesFromInsert(insertSql);
+
+                    if (values.size() != 10) {
+                        continue;
+                    }
+
+                    oldName = values.get(2); // name is index 2
+
+                    // Normalize if needed (optional trim)
+                    if (oldName != null) {
+                        oldName = oldName.trim();
+                    }
+
+                    if (currentOrganization != null && currentOrganization.equalsIgnoreCase(oldName)) {
+
+                        // Organization matches → OK
+                        return null;
+                    }
+                }
+            }
+
+            // No match found
+            return new ErrorMessage(
+                    "Import Failed: Different organizations!",
+                    "Attempt to import from: " + oldName + " to " + currentOrganization,
+                    "You cannot import a Bot Job between different organizations.");
+
+        } catch (Exception e) {
+
+            log.error("Failed reading home_banking name from file: " + e.getMessage());
+
+            return new ErrorMessage(
+                    "Import Failed: File Not Found",
+                    "Import attempt failed: " + sqlFilePath,
+                    "The file was not found. Please execute the Export Bot Job first or select the correct directory.");
+        }
+    }
+
+    // RESTORE
+    public ErrorMessage restoreHomeBanking(Connection conn, String sqlFilePath) {
+        return restoreHomeBanking(conn, sqlFilePath, () -> {});
+    }
+
+    public ErrorMessage restoreHomeBanking(
+            Connection conn, String sqlFilePath, Runnable destructiveCommitObserver) {
+        String insertQuery =
+                """
+                        INSERT INTO home_banking (
+                            url, name, priority, search_config, options_config,
+                            cookies, driver_session, username, password
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectHomeBankingIdsSQL = "SELECT id FROM home_banking ORDER BY id";
+        PageScanSnapshotArtifactLifecycle snapshotArtifacts =
+                PageScanSnapshotArtifactLifecycle.configured();
+        PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
+                PageScanSnapshotArtifactLifecycle.Plan.none();
+        boolean destructiveCommitCompleted = false;
+        boolean destructiveCommitAttempted = false;
+        boolean destructiveTransactionStarted = false;
+        boolean destructiveOutcomeUnknown = false;
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement();
+                Statement deleteStmt = conn.createStatement()) {
+            synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                if (!conn.getAutoCommit()) {
+                    throw new SQLException(
+                            "Home Banking restore requires a fresh autocommit connection for lifecycle recovery.");
+                }
+                PageScanSnapshotLifecycleCoordinator.reconcileAll(conn);
+                conn.setAutoCommit(false);
+                destructiveTransactionStarted = true;
+                artifactPlan = snapshotArtifacts.stageAll(conn);
+
+            // 🔹 Step 0: Delete in correct order
+            //            deleteStmt.execute("PRAGMA foreign_keys = ON");
+            deleteStmt.executeUpdate("DELETE FROM component_reference");
+            deleteStmt.executeUpdate("DELETE FROM component_variable");
+            deleteStmt.executeUpdate("DELETE FROM component_instruction");
+            deleteStmt.executeUpdate("DELETE FROM component_block");
+
+            deleteStmt.executeUpdate("DELETE FROM reference");
+            deleteIfTableExists(conn, deleteStmt, "page_scan_snapshot");
+            deleteIfTableExists(conn, deleteStmt, "scanned_element");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_runtime_variable_value");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_variable_definition");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_runtime_memory");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_variable_migration_note");
+            deleteStmt.executeUpdate("DELETE FROM variable");
+            deleteStmt.executeUpdate("DELETE FROM instruction");
+            deleteStmt.executeUpdate("DELETE FROM block");
+            deleteStmt.executeUpdate("DELETE FROM requirement_flow");
+            deleteStmt.executeUpdate("DELETE FROM requirement_use_case");
+            deleteStmt.executeUpdate("DELETE FROM requirement");
+            deleteStmt.executeUpdate("DELETE FROM flow_step");
+            deleteStmt.executeUpdate("DELETE FROM flow");
+            deleteStmt.executeUpdate("DELETE FROM use_case_field_mapping");
+            deleteStmt.executeUpdate("DELETE FROM use_case");
+            deleteStmt.executeUpdate("DELETE FROM bot_job");
+            deleteStmt.executeUpdate("DELETE FROM home_url");
+            deleteStmt.executeUpdate("DELETE FROM home_banking");
+            destructiveCommitAttempted = true;
+            conn.commit();
+            destructiveCommitCompleted = true;
+            }
+            notifyDestructiveCommit(destructiveCommitObserver);
+            try {
+                synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                    snapshotArtifacts.purge(artifactPlan);
+                }
+            } catch (IOException cleanupFailure) {
+                // Active owner paths are already gone. Startup reconciliation retries the
+                // journal without changing the completed database restore transaction.
+                log.error("Home Banking restore committed its cleanup, but pending Page Scanner "
+                                + "artifacts could not be removed: {}",
+                        cleanupFailure.getMessage(), cleanupFailure);
+            }
+
+            // Step 1: Get current home_banking IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectHomeBankingIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: Read SQL file and prepare batch
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            homeBankMap.clear();
+            List<Integer> insertedOldIds = new ArrayList<>();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 10) {
+                        return new ErrorMessage("Parse Error", "Expected 10 values", currentInsert.toString());
+                    }
+
+                    for (int i = 1; i < values.size(); i++) { // start from 1 to skip old ID
+                        String val = values.get(i);
+                        switch (i) {
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // url
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // search_config
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // options_config
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // cookies
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // driver_session
+                            case 8 -> setSafeParam(pstmt, 8, val, Types.VARCHAR); // username
+                            case 9 -> setSafeParam(pstmt, 9, val, Types.VARCHAR); // password
+                            default -> log.error("Unexpected value index: " + i);
+                        }
+                    }
+
+                    // Track old ID for mapping later
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        homeBankMap.put(oldId, -1); // initially set to -1
+                    } catch (Exception ex) {
+                        log.info("Error parsing homeBankMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0); // reset buffer
+                    batchReady = true;
+                }
+            }
+
+            // Step 3: Execute batch
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 4: Get home_banking IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectHomeBankingIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            // Step 5: Compute new IDs
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                homeBankMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("HomeBankMap populated: " + homeBankMap);
+
+            return null;
+
+        } catch (Exception error) {
+            if (destructiveTransactionStarted && !destructiveCommitAttempted) {
+                synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                    try {
+                        conn.rollback();
+                    } catch (SQLException rollbackFailure) {
+                        error.addSuppressed(rollbackFailure);
+                    }
+                    try {
+                        snapshotArtifacts.restore(artifactPlan);
+                    } catch (IOException restoreFailure) {
+                        error.addSuppressed(restoreFailure);
+                    }
+                }
+            } else if (destructiveTransactionStarted
+                    && destructiveCommitAttempted
+                    && !destructiveCommitCompleted) {
+                destructiveOutcomeUnknown = true;
+                log.error(
+                        "Home Banking replacement commit outcome is unknown; artifact journal retained",
+                        error);
+                PageScanSnapshotStorageHealth.markUnhealthy(error);
+                notifyDestructiveCommit(destructiveCommitObserver);
+            }
+            return new ErrorMessage(
+                    destructiveOutcomeUnknown ? "Restore Outcome Unknown" : "Restore Failed",
+                    destructiveOutcomeUnknown
+                            ? "The database replacement outcome is unknown. Restart and reload before continuing."
+                            : "Failed to load home_banking data",
+                    error.getMessage());
+        }
+    }
+
+    private static void notifyDestructiveCommit(Runnable observer) {
+        if (observer == null) return;
+        try {
+            observer.run();
+        } catch (RuntimeException notificationFailure) {
+            // The database replacement is already committed and cannot be rolled back here.
+            // Keep the restore moving while making the lifecycle failure operationally visible.
+            log.error(
+                    "The database replacement committed, but detached workspace invalidation failed",
+                    notificationFailure);
+        }
+    }
+
+    private void deleteIfTableExists(Connection connection, Statement statement, String table)
+            throws SQLException {
+        try (ResultSet tables = connection.getMetaData()
+                .getTables(null, null, null, new String[] {"TABLE"})) {
+            while (tables.next()) {
+                if (table.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                    statement.executeUpdate("DELETE FROM " + table);
+                    return;
+                }
+            }
+        }
+    }
+
+    private List<String> extractValuesFromInsert(String insert) {
+        int start = insert.indexOf("VALUES (") + 8;
+        int end = insert.lastIndexOf(");");
+        String valuesString = insert.substring(start, end);
+
+        List<String> values = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean insideQuotes = false;
+        boolean quotedValue = false;
+
+        for (int i = 0; i < valuesString.length(); i++) {
+            char c = valuesString.charAt(i);
+            if (c == '\'') {
+                if (insideQuotes && i + 1 < valuesString.length() && valuesString.charAt(i + 1) == '\'') {
+                    // SQL represents one literal apostrophe inside a string as two apostrophes.
+                    sb.append('\'');
+                    i++;
+                } else {
+                    insideQuotes = !insideQuotes;
+                    if (insideQuotes) {
+                        quotedValue = true;
+                        if (sb.toString().isBlank()) sb.setLength(0);
+                    }
+                }
+            } else if (c == ',' && !insideQuotes) {
+                values.add(quotedValue ? sb.toString() : sb.toString().trim());
+                sb.setLength(0);
+                quotedValue = false;
+            } else {
+                // Ignore formatting whitespace after a closing quote, but preserve every
+                // character (including leading/trailing spaces) inside the quoted value.
+                if (insideQuotes || !quotedValue || !Character.isWhitespace(c)) {
+                    sb.append(c);
+                }
+            }
+        }
+        values.add(quotedValue ? sb.toString() : sb.toString().trim()); // add last value
+
+        return values;
+    }
+
+    public ErrorMessage restoreHomeUrl(Connection conn, String sqlFilePath) {
+        String insertQuery =
+                """
+                        INSERT INTO home_url (
+                            name, url, home_banking_id
+                        ) VALUES (?, ?, ?);
+                        """;
+
+        String selectHomeUrlIdsSQL = "SELECT id FROM home_url ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            // Step 1: get current home_url IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectHomeUrlIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            homeUrlMap.clear();
+            List<Integer> insertedOldIds = new ArrayList<>();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 3 && values.size() != 4) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 3 or 4 values for home_url", currentInsert.toString());
+                    }
+
+                    int nameIndex = values.size() == 4 ? 1 : -1;
+                    int urlIndex = values.size() == 4 ? 2 : 1;
+                    int homeBankIndex = values.size() == 4 ? 3 : 2;
+
+                    // Extract old home_banking_id.
+                    Integer oldHomeBankId = null;
+                    try {
+                        String oldHomeBankIdStr = values.get(homeBankIndex);
+                        oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid home_banking_id format: " + values.get(homeBankIndex));
+                    }
+
+                    // Lookup newHomeBankId from homeBankMap
+                    Integer newHomeBankId = null;
+                    if (oldHomeBankId != null) {
+                        newHomeBankId = homeBankMap.get(oldHomeBankId);
+                    }
+
+                    if (newHomeBankId == null) {
+                        log.info("Skipped home_url with unknown home_banking_id: " + oldHomeBankId);
+                        currentInsert.setLength(0); // reset buffer
+                        continue; // skip this row
+                    }
+
+                    String name = nameIndex > 0 ? values.get(nameIndex) : "TEST";
+                    setSafeParam(pstmt, 1, defaultEnvironmentName(name), Types.VARCHAR);
+                    setSafeParam(pstmt, 2, values.get(urlIndex), Types.VARCHAR);
+                    pstmt.setInt(3, newHomeBankId);
+
+                    // Track old ID for mapping later (id is values.get(0))
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        homeUrlMap.put(oldId, -1); // initialize mapping to -1
+                    } catch (Exception ex) {
+                        log.info("Error parsing homeUrlMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Get IDs after insert and update map like before...
+
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectHomeUrlIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                homeUrlMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("homeUrlMap populated: " + homeUrlMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load home_url data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreBotJob(
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported) {
+        String insertQuery =
+                """
+                        INSERT INTO bot_job (
+                            name, description, priority, home_banking_id, home_url_id, active
+                        ) VALUES (?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            // Step 1: get current bot_job IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectBotJobIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            String timeStamp = null;
+            if (homeBankIdImported != null && homeBankIdImported > 0 && homeUrlIdImported != null) {
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd HHmmss");
+                timeStamp = LocalDateTime.now().format(formatter);
+
+                homeBankMap.clear();
+                homeBankMap.put(homeBankIdImported, homeBankIdImported);
+                homeUrlMap.clear();
+                homeUrlMap.put(homeUrlIdImported, homeUrlIdImported);
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            botJobMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 7) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 7 values for bot_job", currentInsert.toString());
+                    }
+
+                    // Extract old home_banking_id (index 4)
+                    Integer oldHomeBankId = null;
+                    try {
+                        oldHomeBankId = homeBankIdImported == null
+                                ? parseIntSafe(values.get(4))
+                                : homeBankIdImported; // The Passed homeBankIdImported will be the key
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid home_banking_id format: " + values.get(4));
+                    }
+
+                    // Extract old home_url_id (index 5)
+                    Integer oldHomeUrlId = null;
+                    try {
+                        oldHomeUrlId = homeUrlIdImported == null
+                                ? parseIntSafe(values.get(5))
+                                : homeUrlIdImported; // The Passed homeUrlIdImported will be the key
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid home_url_id format: " + values.get(5));
+                    }
+
+                    // Lookup newHomeBankId and newHomeUrlId from maps
+                    Integer newHomeBankId = null;
+                    Integer newHomeUrlId = null;
+                    if (oldHomeBankId != null) {
+                        newHomeBankId = homeBankMap.get(oldHomeBankId);
+                    }
+                    if (oldHomeUrlId != null) {
+                        newHomeUrlId = homeUrlMap.get(oldHomeUrlId);
+                    }
+
+                    if (newHomeBankId == null) {
+                        log.info("Skipped bot_job with unknown home_banking_id: " + oldHomeBankId);
+                        currentInsert.setLength(0);
+
+                        if (homeBankIdImported != null) {
+                            return new ErrorMessage(
+                                    "Import Failed: Different organizations!",
+                                    "Import attempt failed",
+                                    "You cannot import a Bot Job between different organizations.");
+                        }
+                        continue; // skip this row
+                    }
+
+                    if (newHomeUrlId == null) {
+                        log.info("Skipped bot_job with unknown home_url_id: " + oldHomeUrlId);
+                        currentInsert.setLength(0);
+                        continue; // skip this row
+                    }
+
+                    // Now set parameters
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> {
+                                if (!Strings.isNullOrEmpty(timeStamp)) {
+                                    setSafeParam(pstmt, 1, val + " " + timeStamp, Types.VARCHAR);
+                                } else {
+                                    setSafeParam(pstmt, 1, val, Types.VARCHAR);
+                                }
+                            } // name
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // description
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
+                            case 4 -> pstmt.setInt(4, newHomeBankId); // home_banking_id (mapped)
+                            case 5 -> pstmt.setInt(5, newHomeUrlId); // home_url_id (mapped)
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
+                        }
+                    }
+
+                    // Track old ID for mapping later
+                    Integer oldId = null;
+                    try {
+                        oldId = botJobIdImported == null
+                                ? parseIntSafe(values.get(0))
+                                : botJobIdImported; // The Passed botJobId will be the key
+                        insertedOldIds.add(oldId);
+                        botJobMap.put(oldId, -1); // initialize mapping
+                    } catch (NumberFormatException ex) {
+                        log.info("Error parsing botJobMap entry: {}", ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get bot_job IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectBotJobIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                botJobMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("botJobMap populated: " + botJobMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load bot_job data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath, Integer botJobIdImported) {
+        String insertQuery =
+                """
+                        INSERT INTO block (
+                            block_order_number, name, description, type_id,
+                            export_file, active, wait, bot_job_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectBlockIdsSQL = "SELECT id FROM block ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectBlockIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import blocks data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
+
+        selectBlockIdsSQL += " ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            // Step 1: get current block IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectBlockIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            blockMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 9) {
+                        return new ErrorMessage("Parse Error", "Expected 9 values for block", currentInsert.toString());
+                    }
+
+                    // Extract old bot_job_id (index 8)
+                    Integer oldBotJobId = null;
+                    try {
+                        oldBotJobId = botJobIdImported == null
+                                ? parseIntSafe(values.get(8))
+                                : botJobIdImported; // The Passed botJobId will be the key
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid bot_job_id format: " + values.get(8));
+                    }
+
+                    // Lookup newBotJobId from botJobMap
+                    Integer newBotJobId = null;
+                    if (oldBotJobId != null) {
+                        newBotJobId = botJobMap.get(oldBotJobId);
+                    }
+
+                    if (newBotJobId == null) {
+                        log.info("Skipped block with unknown bot_job_id: " + oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue; // skip this row
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // block_order_number
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // description
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.INTEGER); // type_id
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // export_file
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // wait
+                            case 8 -> pstmt.setInt(8, newBotJobId); // bot_job_id (already mapped)
+                        }
+                    }
+
+                    // Track old ID for mapping later
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        blockMap.put(oldId, -1); // initialize mapping
+                    } catch (Exception ex) {
+                        log.info("Error parsing blockMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get block IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectBlockIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                blockMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("blockMap populated: " + blockMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load block data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreInstruction(Connection conn, String sqlFilePath, Integer botJobIdImported) {
+        String insertQuery =
+                """
+                        INSERT INTO instruction (
+                            instruction_order_number, actions, name, xpath, coordinates,
+                            force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                            css_selector, description, operation, optional, block_marked,
+                            default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
+                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id,
+                            client_named
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectInstructionIdsSQL = "SELECT id FROM instruction ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectInstructionIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import instructions data", "New Bot Job
+        // Not found");
+        //            }
+        //        }
+
+        selectInstructionIdsSQL += " ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectInstructionIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            List<Integer> insertedOldIds = new ArrayList<>();
+            instructionMap.clear();
+            instrVariablesMap.clear();
+            instrParentBlockMap.clear();
+            instrParentIdMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 26 && values.size() != 27 && values.size() != 28) {
+                        return new ErrorMessage(
+                                "Parse Error",
+                                "Expected 26, 27, or 28 values for instruction, but got " + values.size(),
+                                currentInsert.toString());
+                    }
+
+                    // Extract old block_id (index 22) and bot_job_id (index 25 / index 26)
+                    Integer oldBlockId = parseIntSafe(values.get(22));
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? parseIntSafe(values.get(values.size() == 26 ? 25 : 26)) // index depends on 26/27 cols
+                            : botJobIdImported; // The Passed botJobId will be the key
+
+                    Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+
+                    if (newBlockId == null) {
+                        log.info("Skipped instruction with unknown block_id: " + oldBlockId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    if (newBotJobId == null) {
+                        log.info("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                    String action = values.get(2);
+                    boolean isGoto = "GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action);
+
+                    Integer parentBlockId = null;
+                    Integer parentId = null;
+
+                    // Both the 27-column format and the current 28-column format (which adds
+                    // client_named) carry parent_block_id and parent_id as separate values.
+                    boolean hasSeparateParentColumns = values.size() >= 27;
+
+                    if (hasSeparateParentColumns) {
+                        // 27/28 values: parent_block_id = 24, parent_id = 25
+                        String parBlockValue = values.get(24);
+                        String parIdValue = values.get(25);
+
+                        if (parBlockValue != null
+                                && !parBlockValue.isBlank()
+                                && !parBlockValue.equalsIgnoreCase("null")
+                                && !parBlockValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentBlockId = Integer.valueOf(parBlockValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+
+                        if (parIdValue != null
+                                && !parIdValue.isBlank()
+                                && !parIdValue.equalsIgnoreCase("null")
+                                && !parIdValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentId = Integer.valueOf(parIdValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    } else {
+                        // values.size() == 26: parent_block_id may not exist
+                        String parValue = values.get(24);
+
+                        if (parValue != null
+                                && !parValue.isBlank()
+                                && !parValue.equalsIgnoreCase("null")
+                                && !parValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                if (isGoto) {
+                                    parentBlockId = Integer.valueOf(parValue.trim());
+                                } else {
+                                    parentId = Integer.valueOf(parValue.trim());
+                                }
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    }
+
+                    // Map the values if instructionId exists
+                    if (instructionId != null) {
+                        if (parentBlockId != null) instrParentBlockMap.put(instructionId, parentBlockId);
+                        if (parentId != null) instrParentIdMap.put(instructionId, parentId);
+                    }
+
+                    // Set prepared statement params to null for insert (new table always has parent_block_id)
+                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
+                    setSafeParam(pstmt, 26, String.valueOf(newBotJobId), Types.INTEGER);
+                    // client_named — Roadmap 3 Phase 3d. Pre-migration backups have 26/27 values; only the
+                    // 28-value format includes client_named at index 27. Treat the legacy "[null]" / "null"
+                    // sentinel produced by toSqlValue as a real NULL.
+                    setSafeParam(pstmt, 27, values.size() >= 28 ? values.get(27) : null, Types.VARCHAR);
+
+                    for (int i = 1; i < values.size(); i++) {
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, values.get(0),
+                                // Types.INTEGER); // id
+                            case 1 -> setSafeParam(pstmt, 1, values.get(1), Types.INTEGER); // instruction_order_number
+                            case 2 -> setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // actions
+                            case 3 -> {
+                                String val = values.get(3);
+                                setSafeParam(pstmt, 3, val, Types.VARCHAR);
+                            } // name
+                            case 4 -> setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // xpath
+                            case 5 -> setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // coordinates
+                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // force_coordinates
+                            case 7 -> setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // iframe_xpath
+                            case 8 -> setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // tag_name
+                            case 9 -> setSafeParam(pstmt, 9, values.get(9), Types.VARCHAR); // shadow_host
+                            case 10 -> setSafeParam(pstmt, 10, values.get(10), Types.VARCHAR); // shadow_root
+                            case 11 -> setSafeParam(pstmt, 11, values.get(11), Types.VARCHAR); // css_selector
+                            case 12 -> setSafeParam(pstmt, 12, values.get(12), Types.VARCHAR); // description
+                            case 13 -> setSafeParam(pstmt, 13, values.get(13), Types.VARCHAR); // operation
+                            case 14 -> setSafeParam(pstmt, 14, values.get(14), Types.INTEGER); // optional
+                            case 15 -> setSafeParam(pstmt, 15, values.get(15), Types.INTEGER); // block_marked
+                            case 16 -> setSafeParam(pstmt, 16, values.get(16), Types.VARCHAR); // default_value
+                            case 17 -> setSafeParam(
+                                    pstmt, 17, values.get(17), Types.INTEGER); // action_custom_max_wait_sec
+                            case 18 -> setSafeParam(pstmt, 18, values.get(18), Types.INTEGER); // on_hold_seconds
+                            case 19 -> setSafeParam(pstmt, 19, values.get(19), Types.INTEGER); // codified
+                            case 20 -> setSafeParam(pstmt, 20, values.get(20), Types.INTEGER); // export_to_abr
+                            case 21 -> setSafeParam(pstmt, 21, values.get(21), Types.INTEGER); // active
+
+                            case 22 -> {
+                                // block_id replaced with newBlockId
+                                setSafeParam(
+                                        pstmt,
+                                        22,
+                                        String.valueOf(newBlockId),
+                                        Types.INTEGER); // block_id already mapped
+                            }
+                            case 23 -> {
+                                // variable_id + tracking
+                                String varValue = values.get(23);
+                                Integer variableId = null;
+                                if (varValue != null
+                                        && !varValue.isBlank()
+                                        && !varValue.equalsIgnoreCase("null")
+                                        && !varValue.equalsIgnoreCase("[null]")) {
+                                    try {
+                                        variableId = Integer.valueOf(varValue.trim());
+                                    } catch (NumberFormatException e) {
+                                        // Ignore parsing errors and keep variableId as null
+                                    }
+                                }
+
+                                if (instructionId != null && variableId != null) {
+                                    instrVariablesMap.put(instructionId, variableId);
+                                }
+
+                                // Firts to Be mapped after INSERTS into Variable TABLE
+                                setSafeParam(pstmt, 23, null, Types.INTEGER);
+                            }
+                            case 24, 25, 26, 27 -> {}
+                            default -> throw new IllegalArgumentException("Unexpected column index: " + i);
+                        }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        instructionMap.put(oldId, -1);
+                    } catch (Exception ex) {
+                        log.info("Error parsing instructionMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectInstructionIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                instructionMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("instructionMap populated: " + instructionMap);
+            return null;
+
+        } catch (Exception error) {
+            return new ErrorMessage("Restore Failed", "Failed to load instruction data", error.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreVariable(Connection conn, String sqlFilePath, Integer botJobIdImported) {
+        if (durableVariableDefinitionsEnabled()) {
+            return restoreVariableBackupIntoDurableStorage(
+                    conn, sqlFilePath, botJobIdImported);
+        }
+        String insertQuery =
+                """
+                        INSERT INTO variable (
+                            type, name, value, instruction_id, bot_job_id, local_format, delimiter
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectVariableIdsSQL = "SELECT id FROM variable ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectVariableIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import variables data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
+
+        selectVariableIdsSQL += " ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            // Step 1: get current variable IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectVariableIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            variableMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 8) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 8 values for variable", currentInsert.toString());
+                    }
+
+                    // Extract old instruction_id (index 4) and bot_job_id (index 5)
+                    Integer oldInstructionId = null;
+                    try {
+                        oldInstructionId = Integer.parseInt(values.get(4));
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid instruction_id format: " + values.get(4));
+                    }
+                    Integer oldBotJobId = null;
+                    try {
+                        oldBotJobId = botJobIdImported == null
+                                ? parseIntSafe(values.get(5))
+                                : botJobIdImported; // The Passed botJobId will be the key
+
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid bot_job_id format: " + values.get(5));
+                    }
+
+                    // Lookup new IDs
+                    Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+
+                    if (newInstructionId == null) {
+                        log.info("Skipped variable with unknown instruction_id: " + oldInstructionId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    if (newBotJobId == null) {
+                        log.info("Skipped variable with unknown bot_job_id: " + oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER);
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
+                            case 4 -> {
+                                // instruction_id replaced with newInstructionId
+                                setSafeParam(pstmt, 4, String.valueOf(newInstructionId), Types.INTEGER);
+                            }
+                            case 5 -> {
+                                // bot_job_id replaced with newBotJobId
+                                setSafeParam(pstmt, 5, String.valueOf(newBotJobId), Types.INTEGER);
+                            }
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // local_format
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // delimiter
+                            default -> throw new IllegalArgumentException("Unexpected column index: " + i);
+                        }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        variableMap.put(oldId, -1);
+                    } catch (Exception ex) {
+                        log.info("Error parsing variableMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get variable IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectVariableIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                variableMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("variableMap populated: " + variableMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load variable data", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreVariableBackupIntoDurableStorage(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        Path tempDirectory = null;
+        try {
+            File backupFile = new File(sqlFilePath);
+            boolean durableSnapshot;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    new FileInputStream(backupFile), Charset.forName("windows-1252")))) {
+                durableSnapshot = reader.lines().anyMatch(line ->
+                        line.trim().equalsIgnoreCase(
+                                "-- TABLE: bot_job_variable_definition"));
+            }
+            if (!durableSnapshot) {
+                return restoreLegacyVariableIntoDurableStorage(
+                        connection, sqlFilePath, botJobIdImported);
+            }
+            tempDirectory = Files.createTempDirectory("ar-variable-restore-");
+            Map<String, Path> sections =
+                    splitSingleFileByTable(backupFile, tempDirectory);
+            ErrorMessage error = restoreDurableVariableDefinitions(
+                    connection,
+                    pathOrEmpty(sections, "bot_job_variable_definition"),
+                    botJobIdImported);
+            if (error != null) {
+                return error;
+            }
+            error = restoreDurableRuntimeMemory(
+                    connection,
+                    pathOrEmpty(sections, "bot_job_runtime_memory"),
+                    botJobIdImported);
+            if (error != null) {
+                return error;
+            }
+            return restoreDurableRuntimeValues(
+                    connection,
+                    pathOrEmpty(sections, "bot_job_runtime_variable_value"),
+                    botJobIdImported);
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to read durable variable backup",
+                    failure.getMessage());
+        } finally {
+            if (tempDirectory != null) {
+                deleteRecursively(tempDirectory);
+            }
+        }
+    }
+
+    private ErrorMessage restoreLegacyVariableIntoDurableStorage(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        try {
+            List<List<String>> rows = readBackupRows(sqlFilePath, 8);
+            variableMap.clear();
+            Map<String, Integer> retainedByProducer = new HashMap<>();
+            for (List<String> values : rows) {
+                int oldVariableId = requiredPositiveInt(values.get(0), "legacy variable id");
+                Integer oldBotJobId = botJobIdImported == null
+                        ? nullableInteger(values.get(5))
+                        : botJobIdImported;
+                RestoredOwner restored = resolveRestoredOwner(
+                        connection, oldBotJobId, botJobIdImported);
+                Integer oldProducer = nullableInteger(values.get(4));
+                Integer newProducer = oldProducer == null
+                        ? null
+                        : instructionMap.get(oldProducer);
+                if (oldProducer != null && newProducer == null) {
+                    log.warn(
+                            "Skipping legacy variable {} because producer {} was not restored",
+                            oldVariableId,
+                            oldProducer);
+                    continue;
+                }
+                String producerKey = restored.owner().homeBankingId()
+                        + ":" + restored.owner().botJobId() + ":" + newProducer;
+                if (newProducer != null && retainedByProducer.containsKey(producerKey)) {
+                    variableMap.put(oldVariableId, retainedByProducer.get(producerKey));
+                    continue;
+                }
+                String name = nullableBackupText(values.get(2));
+                if (name == null || name.isBlank()) {
+                    name = "Variable " + oldVariableId;
+                }
+                MutationResult created = botJobRuntimeVariables.createDefinition(
+                        connection,
+                        restored.owner(),
+                        new DefinitionDraft(
+                                nullableBackupText(values.get(1)),
+                                name,
+                                nullableBackupText(values.get(3)),
+                                nullableBackupText(values.get(6)),
+                                nullableBackupText(values.get(7)),
+                                newProducer == null ? null : newProducer.longValue(),
+                                ValueState.VOID,
+                                null),
+                        null);
+                if (!created.applied() || created.definition() == null) {
+                    throw new SQLException(created.message());
+                }
+                int newVariableId = Math.toIntExact(created.definition().id());
+                variableMap.put(oldVariableId, newVariableId);
+                if (newProducer != null) {
+                    retainedByProducer.put(producerKey, newVariableId);
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to migrate legacy variable backup into durable storage",
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreDurableVariableDefinitions(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        String insert = "INSERT INTO bot_job_variable_definition"
+                + " (home_banking_id,bot_job_id,id,variable_type,name,configured_value,"
+                + "local_format,delimiter,producer_instruction_id,created_at,updated_at)"
+                + " VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+        try {
+            List<List<String>> rows = readBackupRows(sqlFilePath, 11);
+            variableMap.clear();
+            try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                for (List<String> values : rows) {
+                    int oldVariableId =
+                            requiredPositiveInt(values.get(2), "variable definition id");
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? nullableInteger(values.get(1))
+                            : botJobIdImported;
+                    RestoredOwner restored = resolveRestoredOwner(
+                            connection, oldBotJobId, botJobIdImported);
+                    Integer oldProducer = nullableInteger(values.get(8));
+                    Integer newProducer = oldProducer == null
+                            ? null
+                            : instructionMap.get(oldProducer);
+                    if (oldProducer != null && newProducer == null) {
+                        throw new SQLException(
+                                "Variable producer " + oldProducer + " was not restored.");
+                    }
+                    statement.setInt(1, restored.owner().homeBankingId());
+                    statement.setInt(2, restored.owner().botJobId());
+                    statement.setInt(3, oldVariableId);
+                    setBackupText(statement, 4, values.get(3));
+                    String name = nullableBackupText(values.get(4));
+                    statement.setString(
+                            5,
+                            name == null || name.isBlank()
+                                    ? "Variable " + oldVariableId
+                                    : name);
+                    setBackupText(statement, 6, values.get(5));
+                    setBackupText(statement, 7, values.get(6));
+                    setBackupText(statement, 8, values.get(7));
+                    if (newProducer == null) {
+                        statement.setNull(9, Types.BIGINT);
+                    } else {
+                        statement.setInt(9, newProducer);
+                    }
+                    setBackupTimestamp(statement, 10, values.get(9));
+                    setBackupTimestamp(statement, 11, values.get(10));
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Variable definition was not restored exactly once.");
+                    }
+                    variableMap.put(oldVariableId, oldVariableId);
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to restore durable variable definitions",
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreDurableRuntimeMemory(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            return null;
+        }
+        String insert = "INSERT INTO bot_job_runtime_memory"
+                + " (home_banking_id,bot_job_id,runtime_revision,reset_generation,"
+                + "next_variable_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)";
+        try {
+            for (List<String> values : readBackupRows(sqlFilePath, 7)) {
+                Integer oldBotJobId = botJobIdImported == null
+                        ? nullableInteger(values.get(1))
+                        : botJobIdImported;
+                RestoredOwner restored = resolveRestoredOwner(
+                        connection, oldBotJobId, botJobIdImported);
+                long nextVariableId = Math.max(
+                        requiredNonNegativeLong(values.get(4), "next variable id"),
+                        maxRestoredVariableId(connection, restored.owner()) + 1L);
+                try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                    statement.setInt(1, restored.owner().homeBankingId());
+                    statement.setInt(2, restored.owner().botJobId());
+                    statement.setLong(
+                            3,
+                            requiredNonNegativeLong(
+                                    values.get(2), "runtime revision"));
+                    statement.setLong(
+                            4,
+                            requiredNonNegativeLong(
+                                    values.get(3), "reset generation"));
+                    statement.setLong(5, Math.max(1L, nextVariableId));
+                    setBackupTimestamp(statement, 6, values.get(5));
+                    setBackupTimestamp(statement, 7, values.get(6));
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Runtime memory was not restored exactly once.");
+                    }
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to restore durable runtime-memory metadata",
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreDurableRuntimeValues(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            return null;
+        }
+        String insert = "INSERT INTO bot_job_runtime_variable_value"
+                + " (home_banking_id,bot_job_id,variable_id,value_state,raw_value,"
+                + "void_reason,value_source,entry_revision,last_execution_id,updated_at)"
+                + " VALUES (?,?,?,?,?,?,?,?,?,?)";
+        try {
+            for (List<String> values : readBackupRows(sqlFilePath, 10)) {
+                Integer oldBotJobId = botJobIdImported == null
+                        ? nullableInteger(values.get(1))
+                        : botJobIdImported;
+                RestoredOwner restored = resolveRestoredOwner(
+                        connection, oldBotJobId, botJobIdImported);
+                int oldVariableId =
+                        requiredPositiveInt(values.get(2), "runtime variable id");
+                Integer newVariableId = variableMap.get(oldVariableId);
+                if (newVariableId == null) {
+                    throw new SQLException(
+                            "Runtime variable " + oldVariableId + " has no restored definition.");
+                }
+                String state = nullableBackupText(values.get(3));
+                String encodedRaw = nullableBackupText(values.get(4));
+                String rawValue = encodedRaw == null
+                        ? null
+                        : new String(
+                                Base64.getDecoder().decode(encodedRaw),
+                                StandardCharsets.UTF_8);
+                if ("VALUE".equals(state) && rawValue == null) {
+                    throw new SQLException("VALUE runtime state requires raw text.");
+                }
+                if ("VOID".equals(state) && rawValue != null) {
+                    throw new SQLException("VOID runtime state cannot carry raw text.");
+                }
+                try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                    statement.setInt(1, restored.owner().homeBankingId());
+                    statement.setInt(2, restored.owner().botJobId());
+                    statement.setInt(3, newVariableId);
+                    statement.setString(4, state);
+                    statement.setString(5, rawValue);
+                    setBackupText(statement, 6, values.get(5));
+                    setBackupText(statement, 7, values.get(6));
+                    statement.setLong(
+                            8,
+                            requiredNonNegativeLong(
+                                    values.get(7), "entry revision"));
+                    Long executionId = nullableLong(values.get(8));
+                    if (executionId == null) {
+                        statement.setNull(9, Types.BIGINT);
+                    } else {
+                        statement.setLong(9, executionId);
+                    }
+                    setBackupTimestamp(statement, 10, values.get(9));
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Runtime value was not restored exactly once.");
+                    }
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to restore durable runtime values",
+                    failure.getMessage());
+        }
+    }
+
+    private List<List<String>> readBackupRows(String sqlFilePath, int expectedValues)
+            throws IOException {
+        List<List<String>> rows = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(sqlFilePath), Charset.forName("windows-1252")))) {
+            StringBuilder insert = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("--")) {
+                    continue;
+                }
+                insert.append(trimmed);
+                if (!trimmed.endsWith(";")) {
+                    continue;
+                }
+                List<String> values = extractValuesFromInsert(insert.toString());
+                if (values.size() != expectedValues) {
+                    throw new IOException(
+                            "Expected " + expectedValues + " values but found "
+                                    + values.size() + ": " + insert);
+                }
+                rows.add(List.copyOf(values));
+                insert.setLength(0);
+            }
+            if (!insert.isEmpty()) {
+                throw new IOException("Incomplete variable backup INSERT.");
+            }
+        }
+        return List.copyOf(rows);
+    }
+
+    private RestoredOwner resolveRestoredOwner(
+            Connection connection,
+            Integer oldBotJobId,
+            Integer botJobIdImported)
+            throws SQLException {
+        if (oldBotJobId == null) {
+            throw new SQLException("Variable backup is missing bot_job_id.");
+        }
+        Integer mappedBotJobId = botJobMap.get(
+                botJobIdImported == null ? oldBotJobId : botJobIdImported);
+        if (mappedBotJobId == null) {
+            mappedBotJobId = botJobMap.get(oldBotJobId);
+        }
+        if (mappedBotJobId == null) {
+            throw new SQLException(
+                    "Restored Bot Job mapping was not found for " + oldBotJobId + ".");
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT home_banking_id FROM bot_job WHERE id=?")) {
+            statement.setInt(1, mappedBotJobId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    throw new SQLException(
+                            "Restored Bot Job " + mappedBotJobId + " was not found.");
+                }
+                return new RestoredOwner(
+                        new OwnerKey(result.getInt(1), mappedBotJobId));
+            }
+        }
+    }
+
+    private long maxRestoredVariableId(Connection connection, OwnerKey owner)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT MAX(id) FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id=? AND bot_job_id=?")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.botJobId());
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return 0L;
+                }
+                long value = result.getLong(1);
+                return result.wasNull() ? 0L : value;
+            }
+        }
+    }
+
+    private void setBackupText(
+            PreparedStatement statement, int parameter, String value)
+            throws SQLException {
+        String text = nullableBackupText(value);
+        if (text == null) {
+            statement.setNull(parameter, Types.VARCHAR);
+        } else {
+            statement.setString(parameter, text);
+        }
+    }
+
+    private void setBackupTimestamp(
+            PreparedStatement statement, int parameter, String value)
+            throws SQLException {
+        String text = nullableBackupText(value);
+        if (text == null) {
+            statement.setNull(parameter, Types.TIMESTAMP);
+            return;
+        }
+        try {
+            statement.setTimestamp(parameter, Timestamp.valueOf(text));
+        } catch (IllegalArgumentException invalidJdbcTimestamp) {
+            try {
+                statement.setTimestamp(
+                        parameter, Timestamp.from(java.time.Instant.parse(text)));
+            } catch (RuntimeException invalidTimestamp) {
+                throw new SQLException("Invalid backup timestamp: " + text, invalidTimestamp);
+            }
+        }
+    }
+
+    private String nullableBackupText(String value) {
+        return value == null
+                        || value.equalsIgnoreCase("NULL")
+                        || value.equalsIgnoreCase("[null]")
+                ? null
+                : value;
+    }
+
+    private Integer nullableInteger(String value) {
+        Long number = nullableLong(value);
+        return number == null ? null : Math.toIntExact(number);
+    }
+
+    private Long nullableLong(String value) {
+        String text = nullableBackupText(value);
+        return text == null ? null : Long.parseLong(text.trim());
+    }
+
+    private int requiredPositiveInt(String value, String field) throws SQLException {
+        Long parsed = nullableLong(value);
+        if (parsed == null || parsed <= 0L || parsed > Integer.MAX_VALUE) {
+            throw new SQLException(field + " must be a positive integer.");
+        }
+        return parsed.intValue();
+    }
+
+    private long requiredNonNegativeLong(String value, String field)
+            throws SQLException {
+        Long parsed = nullableLong(value);
+        if (parsed == null || parsed < 0L) {
+            throw new SQLException(field + " must be non-negative.");
+        }
+        return parsed;
+    }
+
+    private static boolean durableVariableDefinitionsEnabled() {
+        return true;
+    }
+
+    private record RestoredOwner(OwnerKey owner) {}
+
+    public ErrorMessage restoreUpdateInstruction(Connection conn, Integer botJobIdImported) {
+        final int BATCH_SIZE = 100;
+
+        instrNewInverted.clear();
+
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
+        if (instrNewInverted.isEmpty()) {
+            return null;
+        }
+
+        try (Statement connStmt = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id, bot_job_id "
+                    + "FROM instruction WHERE (parent_id IS NULL OR variable_id IS NULL OR parent_block_id IS NULL)";
+
+            if (botJobIdImported != null) {
+                Integer newBotJob = botJobMap.get(botJobIdImported);
+                if (newBotJob != null) {
+                    selectAccessSQL += " AND bot_job_id = " + newBotJob;
+                } else {
+                    return new ErrorMessage(
+                            "Import Failed", "Failed to update instruction data", "New Bot Job Not found");
+                }
+            }
+
+            selectAccessSQL += " ORDER BY id";
+
+            try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
+
+                String updateSQL =
+                        "UPDATE instruction SET variable_id = ?, parent_id = ?, parent_block_id = ? WHERE id = ?";
+
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
+                    int count = 0;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+
+                        // ---- variable_id ----
+                        Integer originalOldID = instrNewInverted.get(id);
+
+                        Integer originalVarId = null;
+                        Integer originalParBlockId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        if (originalOldID != null) {
+                            originalParBlockId = instrParentBlockMap.get(originalOldID);
+                        }
+
+                        Integer originalOldParentID = null;
+                        if (originalOldID != null) {
+                            originalOldParentID = instrParentIdMap.get(originalOldID);
+                        }
+
+                        Integer newVariableId = null;
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
+                        }
+                        setSafeParam(
+                                updateStmt,
+                                1,
+                                newVariableId != null ? String.valueOf(newVariableId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- parent_id ----
+                        Integer newParentId = null;
+                        if (originalOldParentID != null) {
+                            newParentId = instructionMap.get(originalOldParentID);
+                        }
+
+                        setSafeParam(
+                                updateStmt,
+                                2,
+                                newParentId != null ? String.valueOf(newParentId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- parent_block_id ----
+                        Integer newParentBlockId = null;
+                        if (originalParBlockId != null) {
+                            newParentBlockId = blockMap.get(originalParBlockId);
+                        }
+                        setSafeParam(
+                                updateStmt,
+                                3,
+                                newParentBlockId != null ? String.valueOf(newParentBlockId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- WHERE id = ? ----
+
+                        updateStmt.setInt(4, id);
+                        updateStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            updateStmt.executeBatch();
+                            conn.commit();
+                            log.info("Updated batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        updateStmt.executeBatch();
+                        conn.commit();
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
+                    }
+
+                    log.info("Updated instruction records: " + count);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException e) {
+            log.error("Failed to update instructions: " + e.getMessage());
+            return new ErrorMessage("Restore Failed", "Failed to update instruction data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreReference(Connection conn, String sqlFilePath, Integer botJobIdImported) {
+        String insertQuery =
+                """
+                        INSERT INTO reference (
+                            reference_type, value, instruction_id, bot_job_id
+                        ) VALUES (?, ?, ?, ?);
+                        """;
+
+        String selectReferenceIdsSQL = "SELECT id FROM reference ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectReferenceIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import references data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
+
+        selectReferenceIdsSQL += " ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectReferenceIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            List<Integer> insertedOldIds = new ArrayList<>();
+            referenceMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 5) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 5 values for reference", currentInsert.toString());
+                    }
+
+                    // Parse old instruction ID and bot job ID
+                    Integer oldInstructionId = parseIntSafe(values.get(3));
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? parseIntSafe(values.get(4))
+                            : botJobIdImported; // The Passed botJobId will be the key
+
+                    Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+
+                    if (newInstructionId == null || newBotJobId == null) {
+                        log.info("Skipped reference due to unknown instruction or bot_job ID: " + "instr="
+                                + oldInstructionId + ", botJob=" + oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // reference_type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // value
+                            case 3 -> setSafeParam(
+                                    pstmt, 3, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
+                            case 4 -> setSafeParam(pstmt, 4, String.valueOf(newBotJobId), Types.INTEGER); // bot_job_id
+                            default -> throw new IllegalArgumentException("Unexpected column index: " + i);
+                        }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        referenceMap.put(oldId, -1); // mark for replacement
+                    } catch (Exception ex) {
+                        log.info("Error parsing referenceMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectReferenceIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                referenceMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("referenceMap populated: " + referenceMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load reference data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreComponentBlock(Connection conn, String sqlFilePath) {
+        String insertQuery =
+                """
+                        INSERT INTO component_block (
+                            home_banking_id, block_order_number, name, description,
+                            type_id, export_file, active, wait
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectCompBlockIdsSQL = "SELECT id FROM component_block ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectCompBlockIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            // Assuming you have a componentBlockMap similar to blockMap to track IDs
+            blockMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 9) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 9 values for component_block", currentInsert.toString());
+                    }
+
+                    // Extract old bot_job_id (index 8)
+                    Integer oldHomeBankId = null;
+                    try {
+                        String oldHomeBankIdStr = values.get(1);
+                        oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid home_banking_id format: " + values.get(1));
+                    }
+
+                    // Lookup newBotJobId from botJobMap
+                    Integer newHomeBankId = null;
+                    if (oldHomeBankId != null) {
+                        newHomeBankId = homeBankMap.get(oldHomeBankId);
+                    }
+
+                    if (newHomeBankId == null) {
+                        log.info("Skipped block with unknown home_banking_id: " + oldHomeBankId);
+                        currentInsert.setLength(0);
+                        continue; // skip this row
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> pstmt.setInt(1, newHomeBankId); // home_banking_id (already mapped)
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.INTEGER); // block_order_number
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // name
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // description
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.INTEGER); // type_id
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // export_file
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // active
+                            case 8 -> setSafeParam(pstmt, 8, val, Types.INTEGER); // wait
+                        }
+                    }
+
+                    // Track old ID for mapping later
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        blockMap.put(oldId, -1); // initialize mapping
+                    } catch (Exception ex) {
+                        log.info("Error parsing componentBlockMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get component_block IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectCompBlockIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                blockMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("componentBlockMap populated: " + blockMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load component_block data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreComponentInstruction(Connection conn, String sqlFilePath) {
+        String insertQuery =
+                """
+                        INSERT INTO component_instruction (
+                            instruction_order_number, actions, name, xpath, coordinates,
+                            force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                            css_selector, description, operation, optional, block_marked,
+                            default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
+                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id,
+                            client_named
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectInstructionIdsSQL = "SELECT id FROM component_instruction ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectInstructionIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            List<Integer> insertedOldIds = new ArrayList<>();
+            instructionMap.clear();
+            instrVariablesMap.clear();
+            instrParentBlockMap.clear();
+            instrParentIdMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 26 && values.size() != 27 && values.size() != 28) {
+                        return new ErrorMessage(
+                                "Parse Error",
+                                "Expected 26, 27, or 28 values for instruction, but got " + values.size(),
+                                currentInsert.toString());
+                    }
+
+                    // Extract old block_id (index 22) and bot_job_id (index 25 / index 26)
+                    Integer oldBlockId = parseIntSafe(values.get(22));
+                    Integer oldHomeBankId =
+                            parseIntSafe(values.get(values.size() == 26 ? 25 : 26)); // index depends on 26/27 cols
+
+                    Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
+                    Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
+
+                    if (newBlockId == null) {
+                        log.info("Skipped component_instruction with unknown block_id: " + oldBlockId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    if (newHomeBankId == null) {
+                        log.info("Skipped instruction with unknown home_banking_id: " + oldHomeBankId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                    String action = values.get(2);
+                    boolean isGoto = "GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action);
+
+                    Integer parentBlockId = null;
+                    Integer parentId = null;
+
+                    // Both the 27-column format and the current 28-column format (which adds
+                    // client_named) carry parent_block_id and parent_id as separate values.
+                    boolean hasSeparateParentColumns = values.size() >= 27;
+
+                    if (hasSeparateParentColumns) {
+                        // 27/28 values: parent_block_id = 24, parent_id = 25
+                        String parBlockValue = values.get(24);
+                        String parIdValue = values.get(25);
+
+                        if (parBlockValue != null
+                                && !parBlockValue.isBlank()
+                                && !parBlockValue.equalsIgnoreCase("null")
+                                && !parBlockValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentBlockId = Integer.valueOf(parBlockValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+
+                        if (parIdValue != null
+                                && !parIdValue.isBlank()
+                                && !parIdValue.equalsIgnoreCase("null")
+                                && !parIdValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentId = Integer.valueOf(parIdValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    } else {
+                        // values.size() == 26: parent_block_id may not exist
+                        String parValue = values.get(24);
+
+                        if (parValue != null
+                                && !parValue.isBlank()
+                                && !parValue.equalsIgnoreCase("null")
+                                && !parValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                if (isGoto) {
+                                    parentBlockId = Integer.valueOf(parValue.trim());
+                                } else {
+                                    parentId = Integer.valueOf(parValue.trim());
+                                }
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    }
+
+                    // Map the values if instructionId exists
+                    if (instructionId != null) {
+                        if (parentBlockId != null) instrParentBlockMap.put(instructionId, parentBlockId);
+                        if (parentId != null) instrParentIdMap.put(instructionId, parentId);
+                    }
+
+                    // Set prepared statement params to null for insert (new table always has parent_block_id)
+                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
+                    setSafeParam(pstmt, 26, String.valueOf(newHomeBankId), Types.INTEGER);
+                    // client_named — Roadmap 3 Phase 3d. Pre-migration backups have 26/27 values; only the
+                    // 28-value format includes client_named at index 27.
+                    setSafeParam(pstmt, 27, values.size() >= 28 ? values.get(27) : null, Types.VARCHAR);
+
+                    for (int i = 1; i < values.size(); i++) {
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, values.get(0),
+                                // Types.INTEGER); // id
+                            case 1 -> setSafeParam(pstmt, 1, values.get(1), Types.INTEGER); // instruction_order_number
+                            case 2 -> setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // actions
+                            case 3 -> {
+                                String val = values.get(3);
+                                setSafeParam(pstmt, 3, val, Types.VARCHAR);
+                            } // name
+                            case 4 -> setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // xpath
+                            case 5 -> setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // coordinates
+                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // force_coordinates
+                            case 7 -> setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // iframe_xpath
+                            case 8 -> setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // tag_name
+                            case 9 -> setSafeParam(pstmt, 9, values.get(9), Types.VARCHAR); // shadow_host
+                            case 10 -> setSafeParam(pstmt, 10, values.get(10), Types.VARCHAR); // shadow_root
+                            case 11 -> setSafeParam(pstmt, 11, values.get(11), Types.VARCHAR); // css_selector
+                            case 12 -> setSafeParam(pstmt, 12, values.get(12), Types.VARCHAR); // description
+                            case 13 -> setSafeParam(pstmt, 13, values.get(13), Types.VARCHAR); // operation
+                            case 14 -> setSafeParam(pstmt, 14, values.get(14), Types.INTEGER); // optional
+                            case 15 -> setSafeParam(pstmt, 15, values.get(15), Types.INTEGER); // block_marked
+                            case 16 -> setSafeParam(pstmt, 16, values.get(16), Types.VARCHAR); // default_value
+                            case 17 -> setSafeParam(
+                                    pstmt, 17, values.get(17), Types.INTEGER); // action_custom_max_wait_sec
+                            case 18 -> setSafeParam(pstmt, 18, values.get(18), Types.INTEGER); // on_hold_seconds
+                            case 19 -> setSafeParam(pstmt, 19, values.get(19), Types.INTEGER); // codified
+                            case 20 -> setSafeParam(pstmt, 20, values.get(20), Types.INTEGER); // export_to_abr
+                            case 21 -> setSafeParam(pstmt, 21, values.get(21), Types.INTEGER); // active
+
+                            case 22 -> {
+                                // block_id replaced with newBlockId
+                                setSafeParam(
+                                        pstmt,
+                                        22,
+                                        String.valueOf(newBlockId),
+                                        Types.INTEGER); // block_id already mapped
+                            }
+                            case 23 -> {
+                                // variable_id + tracking
+                                String varValue = values.get(23);
+                                Integer variableId = null;
+                                if (varValue != null
+                                        && !varValue.isBlank()
+                                        && !varValue.equalsIgnoreCase("null")
+                                        && !varValue.equalsIgnoreCase("[null]")) {
+                                    try {
+                                        variableId = Integer.valueOf(varValue.trim());
+                                    } catch (NumberFormatException e) {
+                                        // Ignore parsing errors and keep variableId as null
+                                    }
+                                }
+
+                                if (instructionId != null && variableId != null) {
+                                    instrVariablesMap.put(instructionId, variableId);
+                                }
+
+                                // Firts to Be mapped after INSERTS into Variable TABLE
+                                setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
+                            }
+                            case 24, 25, 26, 27 -> {}
+                            default -> throw new IllegalArgumentException("Unexpected column index: " + i);
+                        }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        instructionMap.put(oldId, -1);
+                    } catch (Exception ex) {
+                        log.info("Error parsing instructionMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectInstructionIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                instructionMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("instructionMap populated: " + instructionMap);
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load component_instruction data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreComponentVariable(Connection conn, String sqlFilePath) {
+        String insertQuery =
+                """
+                        INSERT INTO component_variable (
+                            type, name, value, instruction_id, home_banking_id, local_format, delimiter
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectVariableIdsSQL = "SELECT id FROM component_variable ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current variable IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectVariableIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            variableMap.clear(); // Map<Integer,Integer>
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 8) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 8 values for component_variable", currentInsert.toString());
+                    }
+
+                    // Extract old instruction_id (index 4) and home_banking_id (index 5)
+                    Integer oldInstructionId = parseIntSafe(values.get(4));
+                    Integer oldHomeBankingId = parseIntSafe(values.get(5));
+
+                    // Lookup new IDs
+                    Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
+                    Integer newHomeBankingId = oldHomeBankingId != null ? homeBankMap.get(oldHomeBankingId) : null;
+
+                    if (newInstructionId == null) {
+                        log.info("Skipped variable with unknown instruction_id: " + oldInstructionId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    if (newHomeBankingId == null) {
+                        log.info("Skipped variable with unknown home_banking_id: " + oldHomeBankingId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER);
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
+                            case 4 -> setSafeParam(
+                                    pstmt,
+                                    4,
+                                    String.valueOf(newInstructionId),
+                                    Types.INTEGER); // instruction_id replaced
+                            case 5 -> setSafeParam(
+                                    pstmt,
+                                    5,
+                                    String.valueOf(newHomeBankingId),
+                                    Types.INTEGER); // home_banking_id replaced
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // local_format
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // delimiter
+                            default -> throw new IllegalArgumentException("Unexpected column index: " + i);
+                        }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        variableMap.put(oldId, -1);
+                    } catch (Exception ex) {
+                        log.info("Error parsing variableMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get variable IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectVariableIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                variableMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("variableMap populated: " + variableMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load component_variable data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreComponentUpdateInstruction(Connection conn) {
+        final int BATCH_SIZE = 100;
+
+        instrNewInverted.clear();
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
+        try (Statement connStmt = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id "
+                    + "FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL ORDER BY id";
+
+            try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
+
+                String updateSQL =
+                        "UPDATE component_instruction SET variable_id = ?, parent_id = ?, parent_block_id = ? WHERE id = ?";
+
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
+                    int count = 0;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+
+                        // ---- variable_id ----
+                        Integer originalOldID = instrNewInverted.get(id);
+
+                        Integer originalVarId = null;
+                        Integer originalParBlockId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        if (originalOldID != null) {
+                            originalParBlockId = instrParentBlockMap.get(originalOldID);
+                        }
+
+                        Integer originalOldParentID = null;
+                        if (originalOldID != null) {
+                            originalOldParentID = instrParentIdMap.get(originalOldID);
+                        }
+
+                        Integer newVariableId = null;
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
+                        }
+                        setSafeParam(
+                                updateStmt,
+                                1,
+                                newVariableId != null ? String.valueOf(newVariableId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- parent_id ----
+                        Integer newParentId = null;
+                        if (originalOldParentID != null) {
+                            newParentId = instructionMap.get(originalOldParentID);
+                        }
+
+                        setSafeParam(
+                                updateStmt,
+                                2,
+                                newParentId != null ? String.valueOf(newParentId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- parent_block_id ----
+                        Integer newParentBlockId = null;
+                        if (originalParBlockId != null) {
+                            newParentBlockId = blockMap.get(originalParBlockId);
+                        }
+                        setSafeParam(
+                                updateStmt,
+                                3,
+                                newParentBlockId != null ? String.valueOf(newParentBlockId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- WHERE id = ? ----
+                        updateStmt.setInt(4, id);
+
+                        updateStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            updateStmt.executeBatch();
+                            conn.commit();
+                            log.info("Updated batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        updateStmt.executeBatch();
+                        conn.commit();
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
+                    }
+
+                    log.info("Updated component_instruction records: " + count);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+
+            log.error("Failed to update component_instruction: " + error.getMessage());
+            return new ErrorMessage(
+                    "Restore Failed", "Failed to update component_instruction data", error.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreComponentReference(Connection conn, String sqlFilePath) {
+        String insertQuery =
+                """
+                        INSERT INTO component_reference (
+                            reference_type, value, instruction_id, home_banking_id
+                        ) VALUES (?, ?, ?, ?);
+                        """;
+
+        String selectReferenceIdsSQL = "SELECT id FROM component_reference ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectReferenceIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            List<Integer> insertedOldIds = new ArrayList<>();
+            referenceMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 5) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 5 values for component_reference", currentInsert.toString());
+                    }
+
+                    // Parse old instruction ID and bot job ID
+                    Integer oldInstructionId = parseIntSafe(values.get(3));
+                    Integer oldHomeBankId = parseIntSafe(values.get(4));
+
+                    Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
+                    Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
+
+                    if (newInstructionId == null || newHomeBankId == null) {
+                        log.info("Skipped component_reference due to unknown instruction or home_bank ID: " + "instr="
+                                + oldInstructionId + ", homeBankId=" + oldHomeBankId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // reference_type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // value
+                            case 3 -> setSafeParam(
+                                    pstmt, 3, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
+                            case 4 -> setSafeParam(
+                                    pstmt, 4, String.valueOf(newHomeBankId), Types.INTEGER); // home_banking_id
+                            default -> throw new IllegalArgumentException("Unexpected column index: " + i);
+                        }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        referenceMap.put(oldId, -1); // mark for replacement
+                    } catch (Exception ex) {
+                        log.info("Error parsing referenceMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectReferenceIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                referenceMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("referenceMap populated: " + referenceMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load component_reference data", e.getMessage());
+        }
+    }
+
+    private void writeScopedTableSection(
+            Connection conn,
+            BufferedWriter writer,
+            String tableName,
+            List<String> columns,
+            String orderBy,
+            String whereClause,
+            Object... params)
+            throws Exception {
+        String select = "SELECT " + String.join(", ", columns)
+                + " FROM " + tableName
+                + (whereClause != null && !whereClause.isBlank() ? " WHERE " + whereClause : "")
+                + " ORDER BY " + orderBy;
+        String insertPrefix = "INSERT INTO " + tableName + " (" + String.join(", ", columns) + ") VALUES (";
+        writer.write("-- TABLE: " + tableName + System.lineSeparator());
+        try (PreparedStatement ps = conn.prepareStatement(select)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData md = rs.getMetaData();
+                while (rs.next()) {
+                    StringBuilder sb = new StringBuilder(insertPrefix);
+                    for (int i = 0; i < columns.size(); i++) {
+                        if (i > 0) sb.append(", ");
+                        sb.append(renderValueForBackup(rs, md, i + 1));
+                    }
+                    sb.append(");");
+                    writer.write(sb.toString());
+                    writer.write(System.lineSeparator());
+                }
+            }
+        }
+        writer.write(System.lineSeparator());
+    }
+
+    private void setSafeParam(PreparedStatement pstmt, int index, String val, int sqlType) throws SQLException {
+        if (val == null || val.equalsIgnoreCase("null") || val.equalsIgnoreCase("[null]")) {
+            pstmt.setNull(index, sqlType);
+            return;
+        }
+        if (val.isBlank() && sqlType != Types.VARCHAR) {
+            pstmt.setNull(index, sqlType);
+            return;
+        }
+        if (sqlType == Types.INTEGER) {
+            try {
+                pstmt.setInt(index, Integer.parseInt(val.trim()));
+            } catch (NumberFormatException e) {
+                // Fallback: if expected integer is malformed, save as string but log warning
+                System.err.printf(
+                        "Warning: Expected integer but got '%s' at index %d. Saving as string.%n", val, index);
+                pstmt.setString(index, val);
+            }
+        } else if (sqlType == Types.VARCHAR) {
+            pstmt.setString(index, val);
+        } else {
+            // Optionally handle other types here (e.g., DATE, BOOLEAN, etc.)
+            pstmt.setObject(index, val);
+        }
+    }
+
+    private Integer parseIntSafe(String val) {
+        try {
+            return Integer.parseInt(val);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String toSqlValue(String val) {
+        if (val == null) {
+            return "[null]";
+        }
+        return escapeSql(val);
+    }
+
+    private String sqlQuotedOrNull(String value) {
+        return value == null ? "NULL" : "'" + escapeSql(value) + "'";
+    }
+
+    private String nullableLongSql(ResultSet rows, String column) throws SQLException {
+        long value = rows.getLong(column);
+        return rows.wasNull() ? "NULL" : Long.toString(value);
+    }
+
+    private String defaultEnvironmentName(String name) {
+        return name == null || name.trim().isEmpty() || name.equalsIgnoreCase("[null]") ? "TEST" : name.trim();
+    }
+
+    private ErrorMessage restoreUseCase(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreUseCase — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO use_case (bot_job_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
+        String selectIdsSQL = "SELECT id FROM use_case ORDER BY id";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+            useCaseMap.clear();
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) idsBefore.add(rsBefore.getInt("id"));
+            }
+            List<Integer> insertedOldIds = new ArrayList<>();
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, name, description, created_at, updated_at → 6 values
+                    if (values.size() != 6) {
+                        log.warn("restoreUseCase — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreUseCase — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // name
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // description
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // updated_at
+                    Integer oldId = parseIntSafe(values.get(0));
+                    if (oldId != null) insertedOldIds.add(oldId);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) idsAfter.add(rsAfter.getInt("id"));
+            }
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                useCaseMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+            log.info("restoreUseCase — complete: {}", useCaseMap);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore use_case", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreFlow(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreFlow — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO flow (bot_job_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
+        String selectIdsSQL = "SELECT id FROM flow ORDER BY id";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+            flowMap.clear();
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) idsBefore.add(rsBefore.getInt("id"));
+            }
+            List<Integer> insertedOldIds = new ArrayList<>();
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, name, description, created_at, updated_at → 6 values
+                    if (values.size() != 6) {
+                        log.warn("restoreFlow — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreFlow — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // name
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // description
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // updated_at
+                    Integer oldId = parseIntSafe(values.get(0));
+                    if (oldId != null) insertedOldIds.add(oldId);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) idsAfter.add(rsAfter.getInt("id"));
+            }
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                flowMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+            log.info("restoreFlow — complete: {}", flowMap);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore flow", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreRequirement(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreRequirement — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO requirement (bot_job_id, external_ref, title, description, priority, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String selectIdsSQL = "SELECT id FROM requirement ORDER BY id";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+            requirementMap.clear();
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) idsBefore.add(rsBefore.getInt("id"));
+            }
+            List<Integer> insertedOldIds = new ArrayList<>();
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, external_ref, title, description, priority, status, created_at, updated_at → 9
+                    // values
+                    if (values.size() != 9) {
+                        log.warn("restoreRequirement — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreRequirement — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // external_ref
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // title
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // description
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // priority
+                    setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // status
+                    setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // updated_at
+                    Integer oldId = parseIntSafe(values.get(0));
+                    if (oldId != null) insertedOldIds.add(oldId);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) idsAfter.add(rsAfter.getInt("id"));
+            }
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                requirementMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+            log.info("restoreRequirement — complete: {}", requirementMap);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore requirement", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreUseCaseFieldMapping(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreUseCaseFieldMapping — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO use_case_field_mapping (bot_job_id, api_key, api_spec_file, api_field_name, bot_instruction_id, use_case_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            conn.setAutoCommit(false);
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, api_key, api_spec_file, api_field_name, bot_instruction_id, use_case_id,
+                    // created_at, updated_at → 9 values
+                    if (values.size() != 9) {
+                        log.warn(
+                                "restoreUseCaseFieldMapping — unexpected value count {}: {}",
+                                values.size(),
+                                currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreUseCaseFieldMapping — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldInstrId = parseIntSafe(values.get(5));
+                    Integer newInstrId = oldInstrId != null ? instructionMap.get(oldInstrId) : null;
+                    Integer oldUseCaseId = parseIntSafe(values.get(6));
+                    Integer newUseCaseId = oldUseCaseId != null ? useCaseMap.get(oldUseCaseId) : null;
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // api_key
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // api_spec_file
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // api_field_name
+                    if (newInstrId != null) pstmt.setInt(5, newInstrId);
+                    else pstmt.setNull(5, Types.INTEGER);
+                    if (newUseCaseId != null) pstmt.setInt(6, newUseCaseId);
+                    else pstmt.setNull(6, Types.INTEGER);
+                    setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // updated_at
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            log.info("restoreUseCaseFieldMapping — complete");
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore use_case_field_mapping", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreFlowStep(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreFlowStep — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO flow_step (flow_id, step_order, name, step_type, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            conn.setAutoCommit(false);
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, flow_id, step_order, name, step_type, payload_json, created_at, updated_at → 8 values
+                    if (values.size() != 8) {
+                        log.warn("restoreFlowStep — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldFlowId = parseIntSafe(values.get(1));
+                    Integer newFlowId = oldFlowId != null ? flowMap.get(oldFlowId) : null;
+                    if (newFlowId == null) {
+                        log.warn("restoreFlowStep — unknown flow_id {}, skipping", oldFlowId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newFlowId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.INTEGER); // step_order
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // name
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // step_type
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // payload_json
+                    setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // updated_at
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            log.info("restoreFlowStep — complete");
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore flow_step", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreRequirementLinkTable(
+            Connection conn,
+            String sqlFilePath,
+            String tableName,
+            TreeMap<Integer, Integer> leftMap,
+            String leftCol,
+            TreeMap<Integer, Integer> rightMap,
+            String rightCol) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restore{} — no file, skipping", tableName);
+            return null;
+        }
+        String insertQuery = "INSERT INTO " + tableName + " (" + leftCol + ", " + rightCol + ") VALUES (?, ?)";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            conn.setAutoCommit(false);
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    if (values.size() != 2) {
+                        log.warn("restore{} — unexpected value count {}: {}", tableName, values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldLeft = parseIntSafe(values.get(0));
+                    Integer newLeft = oldLeft != null ? leftMap.get(oldLeft) : null;
+                    Integer oldRight = parseIntSafe(values.get(1));
+                    Integer newRight = oldRight != null ? rightMap.get(oldRight) : null;
+                    if (newLeft == null || newRight == null) {
+                        log.warn(
+                                "restore{} — unmapped FK ({}->{}, {}->{}), skipping",
+                                tableName,
+                                oldLeft,
+                                newLeft,
+                                oldRight,
+                                newRight);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newLeft);
+                    pstmt.setInt(2, newRight);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            log.info("restore{} — complete", tableName);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore " + tableName, e.getMessage());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  One-file backup / restore (added 2026-04).
+    //
+    //  These two methods write and read a single .sql file that carries every row
+    //  of every table, in FK-safe dependency order, using the same INSERT format
+    //  as the legacy per-table backup files:
+    //   - strings wrapped in '…' with '' to escape single-quotes; NULL strings
+    //     serialised as the literal '[null]' (matching the legacy toSqlValue quirk)
+    //   - integers written raw; NULL integers written as the bare keyword NULL
+    //   - booleans written as 0 / 1 (schema stores them as INTEGER across all
+    //     three dialects: Access, SQLite, Postgres)
+    //   - one INSERT statement per row, terminated by ';' + line separator
+    //
+    //  The file is therefore a concatenation of the legacy backup_<table>.sql
+    //  outputs; a legacy reader that only knows per-table files could still
+    //  scan this file line-by-line.
+    //
+    //  IDs are preserved verbatim — every INSERT names the id column explicitly,
+    //  so variable_id / block_id / parent_id / parent_block_id / bot_job_id /
+    //  home_banking_id references stay valid after restore.
+    //
+    //  The existing per-table backupX / restoreX methods are left in place for
+    //  callers that still rely on them; these new methods are purely additive.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Descriptor for one table in the backup. The column order here defines the
+     * column order written into every INSERT for that table and must match the
+     * order used by the legacy per-table backup methods (so that existing backup
+     * files remain format-compatible with this unified format).
+     */
+    private static final class BackupTableSpec {
+        final String tableName;
+        final List<String> columns;
+        final String orderBy;
+
+        BackupTableSpec(String tableName, List<String> columns) {
+            this(tableName, columns, "id ASC");
+        }
+
+        BackupTableSpec(String tableName, List<String> columns, String orderBy) {
+            this.tableName = tableName;
+            this.columns = columns;
+            this.orderBy = orderBy;
+        }
+    }
+
+    /**
+     * Insert order: parents first. Respects every declared FK in the SQLite and
+     * Postgres schemas. {@code variable} sits AFTER {@code instruction} because
+     * its {@code instruction_id} column has a FK to instruction(id);
+     * {@code instruction.variable_id} has no FK declared (on purpose — breaks the
+     * would-be cycle), so there is nothing to patch up in a second pass.
+     */
+    private static final List<BackupTableSpec> BACKUP_TABLES_IN_ORDER = List.of(
+            new BackupTableSpec(
+                    "home_banking",
+                    List.of(
+                            "id",
+                            "url",
+                            "name",
+                            "priority",
+                            "search_config",
+                            "options_config",
+                            "cookies",
+                            "driver_session",
+                            "username",
+                            "password")),
+            new BackupTableSpec("home_url", List.of("id", "name", "url", "home_banking_id")),
+            new BackupTableSpec(
+                    "bot_job",
+                    List.of("id", "name", "description", "priority", "home_banking_id", "home_url_id", "active")),
+            new BackupTableSpec(
+                    "block",
+                    List.of(
+                            "id",
+                            "block_order_number",
+                            "name",
+                            "description",
+                            "type_id",
+                            "export_file",
+                            "active",
+                            "wait",
+                            "bot_job_id")),
+            new BackupTableSpec(
+                    "instruction",
+                    List.of(
+                            "id",
+                            "instruction_order_number",
+                            "actions",
+                            "name",
+                            "xpath",
+                            "coordinates",
+                            "force_coordinates",
+                            "iframe_xpath",
+                            "tag_name",
+                            "shadow_host",
+                            "shadow_root",
+                            "css_selector",
+                            "description",
+                            "operation",
+                            "optional",
+                            "block_marked",
+                            "default_value",
+                            "action_custom_max_wait_sec",
+                            "on_hold_seconds",
+                            "codified",
+                            "export_to_abr",
+                            "active",
+                            "block_id",
+                            "variable_id",
+                            "parent_block_id",
+                            "parent_id",
+                            "bot_job_id",
+                            "client_named")),
+            new BackupTableSpec("reference", List.of("id", "reference_type", "value", "instruction_id", "bot_job_id")),
+            new BackupTableSpec(
+                    "bot_job_variable_definition",
+                    List.of(
+                            "home_banking_id",
+                            "bot_job_id",
+                            "id",
+                            "variable_type",
+                            "name",
+                            "configured_value",
+                            "local_format",
+                            "delimiter",
+                            "producer_instruction_id",
+                            "created_at",
+                            "updated_at"),
+                    "home_banking_id ASC, bot_job_id ASC, id ASC"),
+            new BackupTableSpec(
+                    "bot_job_runtime_memory",
+                    List.of(
+                            "home_banking_id",
+                            "bot_job_id",
+                            "runtime_revision",
+                            "reset_generation",
+                            "next_variable_id",
+                            "created_at",
+                            "updated_at"),
+                    "home_banking_id ASC, bot_job_id ASC"),
+            // ─── component_* tables: these reference home_banking_id (not bot_job_id) ──
+            new BackupTableSpec(
+                    "component_block",
+                    List.of(
+                            "id",
+                            "home_banking_id",
+                            "block_order_number",
+                            "name",
+                            "description",
+                            "type_id",
+                            "export_file",
+                            "active",
+                            "wait")),
+            new BackupTableSpec(
+                    "component_instruction",
+                    List.of(
+                            "id",
+                            "instruction_order_number",
+                            "actions",
+                            "name",
+                            "xpath",
+                            "coordinates",
+                            "force_coordinates",
+                            "iframe_xpath",
+                            "tag_name",
+                            "shadow_host",
+                            "shadow_root",
+                            "css_selector",
+                            "description",
+                            "operation",
+                            "optional",
+                            "block_marked",
+                            "default_value",
+                            "action_custom_max_wait_sec",
+                            "on_hold_seconds",
+                            "codified",
+                            "export_to_abr",
+                            "active",
+                            "block_id",
+                            "variable_id",
+                            "parent_block_id",
+                            "parent_id",
+                            "home_banking_id",
+                            "client_named")),
+            new BackupTableSpec(
+                    "component_reference",
+                    List.of("id", "reference_type", "value", "instruction_id", "home_banking_id")),
+            new BackupTableSpec(
+                    "component_variable",
+                    List.of(
+                            "id",
+                            "type",
+                            "name",
+                            "value",
+                            "instruction_id",
+                            "home_banking_id",
+                            "local_format",
+                            "delimiter")),
+            // ─── new feature tables (M20260510-M20260513) ───────────────────────────────
+            new BackupTableSpec(
+                    "use_case", List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at")),
+            new BackupTableSpec(
+                    "use_case_field_mapping",
+                    List.of(
+                            "id",
+                            "bot_job_id",
+                            "api_key",
+                            "api_spec_file",
+                            "api_field_name",
+                            "bot_instruction_id",
+                            "use_case_id",
+                            "created_at",
+                            "updated_at")),
+            new BackupTableSpec("flow", List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at")),
+            new BackupTableSpec(
+                    "flow_step",
+                    List.of(
+                            "id",
+                            "flow_id",
+                            "step_order",
+                            "name",
+                            "step_type",
+                            "payload_json",
+                            "created_at",
+                            "updated_at")),
+            new BackupTableSpec(
+                    "requirement",
+                    List.of(
+                            "id",
+                            "bot_job_id",
+                            "external_ref",
+                            "title",
+                            "description",
+                            "priority",
+                            "status",
+                            "created_at",
+                            "updated_at")),
+            new BackupTableSpec(
+                    "requirement_use_case",
+                    List.of("requirement_id", "use_case_id"),
+                    "requirement_id ASC, use_case_id ASC"),
+            new BackupTableSpec(
+                    "requirement_flow", List.of("requirement_id", "flow_id"), "requirement_id ASC, flow_id ASC"));
+
+    /** Dialect detection for the three supported engines. */
+    private enum BackupDialect {
+        POSTGRES,
+        SQLITE,
+        ACCESS;
+
+        static BackupDialect detect() {
+            String t = com.allinweb.ch.util.ARPropertyManager.getInstance()
+                    .getProperty(com.allinweb.ch.util.ARPropertyEnum.DATABASE_TYPE);
+            if (t == null) return ACCESS;
+            if ("Postgres".equalsIgnoreCase(t)) return POSTGRES;
+            if ("TEXT".equalsIgnoreCase(t)) return SQLITE;
+            return ACCESS;
+        }
+    }
+
+    /**
+     * Dump every row of every backed-up table into a single SQL file. FK-safe
+     * insertion order. Format is byte-compatible with the legacy per-table
+     * backup files (same quoting, same {@code [null]} placeholder for null
+     * strings, same {@code 0/1} booleans, same {@code NULL} for null integers).
+     *
+     * @return {@code null} on success, {@link ErrorMessage} on failure
+     */
+    public ErrorMessage dumpAllToSingleFile(Connection conn, String backupFilePath) {
+        File sqlFile = new File(backupFilePath);
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            String header = "-- AR-WEB SNAPSHOT v1 — "
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    + System.lineSeparator()
+                    + "-- dialect (informational): " + BackupDialect.detect().name()
+                    + System.lineSeparator();
+            writer.write(header);
+            writer.write(System.lineSeparator());
+
+            for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                long rows = dumpOneTableToWriter(conn, writer, spec);
+                if ("bot_job_runtime_memory".equals(spec.tableName)) {
+                    long runtimeRows =
+                            dumpRuntimeValuesToWriter(conn, writer, null);
+                    log.info(
+                            "dumpAllToSingleFile runtime-value section: {} row(s)",
+                            runtimeRows);
+                }
+                log.info("dumpAllToSingleFile — {}: {} row(s)", spec.tableName, rows);
+            }
+
+            writer.flush();
+            log.info("dumpAllToSingleFile — complete: {}", sqlFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("dumpAllToSingleFile — failed: {}", error.getMessage(), error);
+            return new ErrorMessage("Error in backup process", "Error during single-file backup", error.getMessage());
+        }
+    }
+
+    private long dumpOneTableToWriter(Connection conn, BufferedWriter writer, BackupTableSpec spec) throws Exception {
+        String select =
+                "SELECT " + String.join(", ", spec.columns) + " FROM " + spec.tableName + " ORDER BY " + spec.orderBy;
+        String insertPrefix = "INSERT INTO " + spec.tableName + " (" + String.join(", ", spec.columns) + ") VALUES (";
+
+        long count = 0;
+        writer.write("-- TABLE: " + spec.tableName + System.lineSeparator());
+        try (Statement st = conn.createStatement();
+                ResultSet rs = st.executeQuery(select)) {
+            ResultSetMetaData md = rs.getMetaData();
+            while (rs.next()) {
+                StringBuilder line = new StringBuilder(insertPrefix);
+                for (int i = 0; i < spec.columns.size(); i++) {
+                    if (i > 0) line.append(", ");
+                    line.append(renderValueForBackup(rs, md, i + 1));
+                }
+                line.append(");");
+                writer.write(line.toString());
+                writer.write(System.lineSeparator());
+                count++;
+            }
+        }
+        writer.write(System.lineSeparator());
+        return count;
+    }
+
+    /**
+     * Writes current runtime values with canonical raw text encoded as UTF-8 Base64.
+     *
+     * <p>The virtual {@code raw_value_base64} field makes SQL NULL ({@code VOID}), the legitimate
+     * empty value {@code VALUE("")}, and literal text such as {@code NULL} unambiguous.
+     */
+    private long dumpRuntimeValuesToWriter(
+            Connection conn, BufferedWriter writer, Integer botJobIdFilter)
+            throws Exception {
+        return dumpRuntimeValuesToWriter(conn, writer, botJobIdFilter, true);
+    }
+
+    private long dumpRuntimeValuesToWriter(
+            Connection conn,
+            BufferedWriter writer,
+            Integer botJobIdFilter,
+            boolean writeSectionMarker)
+            throws Exception {
+        String query = "SELECT home_banking_id,bot_job_id,variable_id,value_state,raw_value,"
+                + "void_reason,value_source,entry_revision,last_execution_id,updated_at"
+                + " FROM bot_job_runtime_variable_value"
+                + (botJobIdFilter == null ? "" : " WHERE bot_job_id=?")
+                + " ORDER BY home_banking_id,bot_job_id,variable_id";
+        if (writeSectionMarker) {
+            writer.write("-- TABLE: bot_job_runtime_variable_value");
+            writer.write(System.lineSeparator());
+        }
+        long count = 0L;
+        try (PreparedStatement statement = conn.prepareStatement(query)) {
+            if (botJobIdFilter != null) {
+                statement.setInt(1, botJobIdFilter);
+            }
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    String rawValue = rows.getString("raw_value");
+                    String encodedRaw = rawValue == null
+                            ? "NULL"
+                            : "'" + Base64.getEncoder().encodeToString(
+                                    rawValue.getBytes(StandardCharsets.UTF_8)) + "'";
+                    String line = "INSERT INTO bot_job_runtime_variable_value_backup "
+                            + "(home_banking_id,bot_job_id,variable_id,value_state,"
+                            + "raw_value_base64,void_reason,value_source,entry_revision,"
+                            + "last_execution_id,updated_at) VALUES ("
+                            + rows.getLong("home_banking_id") + ", "
+                            + rows.getLong("bot_job_id") + ", "
+                            + rows.getLong("variable_id") + ", "
+                            + sqlQuotedOrNull(rows.getString("value_state")) + ", "
+                            + encodedRaw + ", "
+                            + sqlQuotedOrNull(rows.getString("void_reason")) + ", "
+                            + sqlQuotedOrNull(rows.getString("value_source")) + ", "
+                            + rows.getLong("entry_revision") + ", "
+                            + nullableLongSql(rows, "last_execution_id") + ", "
+                            + sqlQuotedOrNull(rows.getString("updated_at")) + ");";
+                    writer.write(line);
+                    writer.write(System.lineSeparator());
+                    count++;
+                }
+            }
+        }
+        writer.write(System.lineSeparator());
+        return count;
+    }
+
+    private ErrorMessage backupDurableVariableTable(
+            Connection conn,
+            String backupFilePath,
+            BackupTableSpec spec,
+            int botJobId) {
+        String select = "SELECT " + String.join(", ", spec.columns)
+                + " FROM " + spec.tableName
+                + " WHERE bot_job_id=? ORDER BY " + spec.orderBy;
+        String insertPrefix = "INSERT INTO " + spec.tableName + " ("
+                + String.join(", ", spec.columns) + ") VALUES (";
+        File output = new File(backupFilePath);
+        try (PreparedStatement statement = conn.prepareStatement(select);
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                        new FileOutputStream(output), Charset.forName("windows-1252")))) {
+            statement.setInt(1, botJobId);
+            try (ResultSet rows = statement.executeQuery()) {
+                ResultSetMetaData metadata = rows.getMetaData();
+                while (rows.next()) {
+                    StringBuilder line = new StringBuilder(insertPrefix);
+                    for (int index = 0; index < spec.columns.size(); index++) {
+                        if (index > 0) {
+                            line.append(", ");
+                        }
+                        line.append(renderValueForBackup(rows, metadata, index + 1));
+                    }
+                    writer.write(line.append(");").toString());
+                    writer.write(System.lineSeparator());
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Error in backup process",
+                    "Durable variable backup failed for " + spec.tableName,
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage backupDurableRuntimeValues(
+            Connection conn, String backupFilePath, int botJobId) {
+        File output = new File(backupFilePath);
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(output), Charset.forName("windows-1252")))) {
+            dumpRuntimeValuesToWriter(conn, writer, botJobId, false);
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Error in backup process",
+                    "Durable runtime-value backup failed",
+                    failure.getMessage());
+        }
+    }
+
+    /**
+     * Render one column value of the current row using the legacy format. Integer
+     * columns become either the raw number or the bare {@code NULL} keyword;
+     * anything else is treated as a string — quoted, single-quotes escaped as
+     * {@code ''}, and null/blank values written as the literal {@code '[null]'}
+     * exactly like {@link #toSqlValue(String)} does.
+     */
+    private String renderValueForBackup(ResultSet rs, ResultSetMetaData md, int index) throws SQLException {
+        int type = md.getColumnType(index);
+        switch (type) {
+            case Types.INTEGER:
+            case Types.SMALLINT:
+            case Types.TINYINT:
+            case Types.BIGINT:
+            case Types.BIT:
+            case Types.BOOLEAN: {
+                long v = rs.getLong(index);
+                if (rs.wasNull()) return "NULL";
+                // BIT / BOOLEAN normalise to 0/1 (Postgres BOOLEAN columns map here too).
+                if (type == Types.BIT || type == Types.BOOLEAN) return v == 0 ? "0" : "1";
+                return Long.toString(v);
+            }
+            default: {
+                String s = rs.getString(index);
+                if (s == null) return "'[null]'";
+                return "'" + s.replace("'", "''") + "'";
+            }
+        }
+    }
+
+    /**
+     * Single-file restore that works uniformly across Access, SQLite and
+     * Postgres. Every backed-up table is wiped, the per-dialect identity
+     * counter is reset to 1, then the per-table restore methods replay the
+     * INSERTs without their original ids — the database assigns fresh ids
+     * starting at 1 on each table, and FK columns on children are rewritten
+     * using the old&nbsp;→&nbsp;new id maps ({@link #homeBankMap},
+     * {@link #botJobMap}, {@link #blockMap}, etc.) captured as each parent
+     * table is loaded.
+     *
+     * <p>Counter reset is dialect-specific:
+     * <ul>
+     *   <li><b>SQLite</b>: {@code DELETE FROM sqlite_sequence} for each
+     *       backed-up table so the first INSERT seeds the counter at 1.</li>
+     *   <li><b>Postgres</b>: {@code setval(pg_get_serial_sequence('t','id'), 1, false)}
+     *       so {@code nextval()} returns 1 on the first INSERT.</li>
+     *   <li><b>Access</b>: no-op — ucanaccess's COUNTER naturally restarts
+     *       after the per-table wipe that {@link #restoreHomeBanking} performs
+     *       at the head of the chain.</li>
+     * </ul>
+     *
+     * <p>The calling sequence mirrors
+     * {@code ARConfigurationPane.runLegacyPerTableRestore} exactly — including
+     * the two map-only "update" passes that patch
+     * {@code instruction.parent_id} / {@code instruction.variable_id} and the
+     * {@code component_instruction} equivalents after their targets exist.
+     *
+     * @param conn an open JDBC connection to the current database
+     * @param sqlFilePath path to the single-file {@code .sql} dump
+     * @return {@code null} on success, {@link ErrorMessage} on any failure
+     */
+    public ErrorMessage restoreWithRemap(Connection conn, String sqlFilePath) {
+        return restoreWithRemap(conn, sqlFilePath, () -> {});
+    }
+
+    public ErrorMessage restoreWithRemap(
+            Connection conn, String sqlFilePath, Runnable destructiveCommitObserver) {
+        File sqlFile = new File(sqlFilePath);
+        if (!sqlFile.exists()) {
+            return new ErrorMessage(
+                    "Restore file not found", "Single-file backup not present on disk", sqlFile.getAbsolutePath());
+        }
+
+        Path tempDir = null;
+        try {
+            BackupDialect dialect = BackupDialect.detect();
+            resetIdentityCountersToOne(conn, dialect);
+
+            tempDir = Files.createTempDirectory("ar-restore-");
+            Map<String, Path> perTableFiles = splitSingleFileByTable(sqlFile, tempDir);
+
+            // Chain the legacy per-table restore methods in the same FK-safe
+            // order runLegacyPerTableRestore uses. Every method populates its
+            // remap TreeMap (homeBankMap, botJobMap, ...) which the later calls
+            // consult when rewriting FK columns on their own rows.
+            ErrorMessage error = restoreHomeBanking(
+                    conn,
+                    pathOrEmpty(perTableFiles, "home_banking"),
+                    destructiveCommitObserver);
+            if (error != null) return error;
+
+            error = restoreHomeUrl(conn, pathOrEmpty(perTableFiles, "home_url"));
+            if (error != null) return error;
+
+            error = restoreBotJob(conn, pathOrEmpty(perTableFiles, "bot_job"), null, null, null);
+            if (error != null) return error;
+
+            error = restoreBlock(conn, pathOrEmpty(perTableFiles, "block"), null);
+            if (error != null) return error;
+
+            error = restoreInstruction(conn, pathOrEmpty(perTableFiles, "instruction"), null);
+            if (error != null) return error;
+
+            error = restoreVariableSections(conn, perTableFiles, null);
+            if (error != null) return error;
+
+            // Map-only pass: rewrites instruction.parent_id / variable_id to the
+            // new ids captured by the two calls above. No file input.
+            error = restoreUpdateInstruction(conn, null);
+            if (error != null) return error;
+
+            error = restoreReference(conn, pathOrEmpty(perTableFiles, "reference"), null);
+            if (error != null) return error;
+
+            error = restoreUseCase(conn, pathOrEmpty(perTableFiles, "use_case"));
+            if (error != null) return error;
+
+            error = restoreFlow(conn, pathOrEmpty(perTableFiles, "flow"));
+            if (error != null) return error;
+
+            error = restoreRequirement(conn, pathOrEmpty(perTableFiles, "requirement"));
+            if (error != null) return error;
+
+            error = restoreUseCaseFieldMapping(conn, pathOrEmpty(perTableFiles, "use_case_field_mapping"));
+            if (error != null) return error;
+
+            error = restoreFlowStep(conn, pathOrEmpty(perTableFiles, "flow_step"));
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_use_case"),
+                    "requirement_use_case",
+                    requirementMap,
+                    "requirement_id",
+                    useCaseMap,
+                    "use_case_id");
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_flow"),
+                    "requirement_flow",
+                    requirementMap,
+                    "requirement_id",
+                    flowMap,
+                    "flow_id");
+            if (error != null) return error;
+
+            error = restoreComponentBlock(conn, pathOrEmpty(perTableFiles, "component_block"));
+            if (error != null) return error;
+
+            error = restoreComponentInstruction(conn, pathOrEmpty(perTableFiles, "component_instruction"));
+            if (error != null) return error;
+
+            error = restoreComponentVariable(conn, pathOrEmpty(perTableFiles, "component_variable"));
+            if (error != null) return error;
+
+            error = restoreComponentUpdateInstruction(conn);
+            if (error != null) return error;
+
+            error = restoreComponentReference(conn, pathOrEmpty(perTableFiles, "component_reference"));
+            if (error != null) return error;
+
+            log.info("restoreWithRemap — complete: {}", sqlFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("restoreWithRemap — failed: {}", error.getMessage(), error);
+            return new ErrorMessage("Error in restore process", "Error during single-file restore", error.getMessage());
+        } finally {
+            if (tempDir != null) {
+                deleteRecursively(tempDir);
+            }
+        }
+    }
+
+    /**
+     * Reset the identity counter for every backed-up table so the next INSERT
+     * (done with no explicit id by the per-table restore methods) starts at 1.
+     *
+     * <p>For SQLite this is {@code DELETE FROM sqlite_sequence WHERE name = ?};
+     * the counter row is re-created by SQLite the first time a row is inserted
+     * into an AUTOINCREMENT column, with seed 1. For Postgres we call
+     * {@code setval(pg_get_serial_sequence(...), 1, false)} so the next
+     * {@code nextval()} returns 1. For Access we do nothing — ucanaccess's
+     * COUNTER column naturally restarts at 1 after the table is emptied by
+     * {@link #restoreHomeBanking}'s opening {@code DELETE FROM} cascade.
+     */
+    private void resetIdentityCountersToOne(Connection conn, BackupDialect dialect) {
+        if (dialect == BackupDialect.ACCESS) {
+            return;
+        }
+        if (dialect == BackupDialect.SQLITE) {
+            try (Statement st = conn.createStatement()) {
+                for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                    try {
+                        int n = st.executeUpdate("DELETE FROM sqlite_sequence WHERE name = '" + spec.tableName + "'");
+                        log.info("resetIdentityCountersToOne — SQLite {} ({} sequence row cleared)", spec.tableName, n);
+                    } catch (SQLException seqEx) {
+                        // sqlite_sequence only exists once a row has been inserted into
+                        // any AUTOINCREMENT column. On a pristine DB it's missing — that
+                        // is already "next id will be 1", so the miss is harmless.
+                        log.warn(
+                                "resetIdentityCountersToOne — SQLite reset skipped for {}: {}",
+                                spec.tableName,
+                                seqEx.getMessage());
+                        return;
+                    }
+                }
+            } catch (SQLException e) {
+                log.warn("resetIdentityCountersToOne — SQLite statement open failed: {}", e.getMessage());
+            }
+            return;
+        }
+        if (dialect == BackupDialect.POSTGRES) {
+            for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                try (Statement st = conn.createStatement()) {
+                    st.executeUpdate("SELECT setval(pg_get_serial_sequence('" + spec.tableName + "', 'id'), 1, false)");
+                    log.info("resetIdentityCountersToOne — Postgres {} seq -> 1", spec.tableName);
+                } catch (SQLException e) {
+                    // Table with no declared sequence shouldn't exist in this list,
+                    // but tolerate it so one missing sequence doesn't block the rest.
+                    log.warn(
+                            "resetIdentityCountersToOne — Postgres reset skipped for {}: {}",
+                            spec.tableName,
+                            e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Walk the single-file dump and bucket every INSERT into its table's own
+     * file using the {@code -- TABLE: <name>} markers written by
+     * {@link #dumpOneTableToWriter}. Comment lines ({@code --}) are dropped —
+     * the legacy per-table restore parsers don't skip them.
+     */
+    private Map<String, Path> splitSingleFileByTable(File sqlFile, Path tempDir) throws IOException {
+        Map<String, Path> perTable = new java.util.LinkedHashMap<>();
+        Map<String, BufferedWriter> writers = new java.util.LinkedHashMap<>();
+        String currentTable = null;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(sqlFile), Charset.forName("windows-1252")))) {
+            String raw;
+            while ((raw = reader.readLine()) != null) {
+                String line = raw;
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) continue;
+                if (trimmed.startsWith("-- TABLE:")) {
+                    currentTable = trimmed.substring("-- TABLE:".length()).trim();
+                    perTable.computeIfAbsent(currentTable, t -> tempDir.resolve("backup_" + t + "_all.sql"));
+                    writers.computeIfAbsent(currentTable, t -> {
+                        try {
+                            return new BufferedWriter(new OutputStreamWriter(
+                                    new FileOutputStream(perTable.get(t).toFile()), Charset.forName("windows-1252")));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+                    continue;
+                }
+                if (trimmed.startsWith("--")) continue;
+                if (currentTable == null) continue;
+                BufferedWriter w = writers.get(currentTable);
+                w.write(line);
+                w.write(System.lineSeparator());
+            }
+        } finally {
+            for (BufferedWriter w : writers.values()) {
+                try {
+                    w.flush();
+                    w.close();
+                } catch (IOException ignore) {
+                    // best-effort close
+                }
+            }
+        }
+        return perTable;
+    }
+
+    private String pathOrEmpty(Map<String, Path> perTable, String table) {
+        Path p = perTable.get(table);
+        return p == null ? "" : p.toAbsolutePath().toString();
+    }
+
+    private ErrorMessage restoreVariableSections(
+            Connection connection,
+            Map<String, Path> perTableFiles,
+            Integer botJobIdImported) {
+        if (!perTableFiles.containsKey("bot_job_variable_definition")) {
+            return restoreVariable(
+                    connection,
+                    pathOrEmpty(perTableFiles, "variable"),
+                    botJobIdImported);
+        }
+        ErrorMessage error = restoreDurableVariableDefinitions(
+                connection,
+                pathOrEmpty(perTableFiles, "bot_job_variable_definition"),
+                botJobIdImported);
+        if (error != null) {
+            return error;
+        }
+        error = restoreDurableRuntimeMemory(
+                connection,
+                pathOrEmpty(perTableFiles, "bot_job_runtime_memory"),
+                botJobIdImported);
+        if (error != null) {
+            return error;
+        }
+        return restoreDurableRuntimeValues(
+                connection,
+                pathOrEmpty(perTableFiles, "bot_job_runtime_variable_value"),
+                botJobIdImported);
+    }
+
+    private void deleteRecursively(Path root) {
+        try {
+            if (!Files.exists(root)) return;
+            try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                    try {
+                        Files.deleteIfExists(p);
+                    } catch (IOException ignore) {
+                        // best-effort cleanup
+                    }
+                });
+            }
+        } catch (IOException e) {
+            log.warn("deleteRecursively — failed to clean temp dir {}: {}", root, e.getMessage());
+        }
+    }
+
+    /**
+     * Single-file export of one bot job + every row it transitively depends on.
+     * Writes a file in the same {@code -- TABLE: <name>} section format used by
+     * {@link #dumpAllToSingleFile}, but restricted to the six tables touched by
+     * a bot-job scoped backup: {@code home_banking}, {@code bot_job},
+     * {@code block}, {@code instruction}, {@code variable}, {@code reference}.
+     *
+     * <p>Under the hood the existing per-table backup methods
+     * ({@link #backupHomeBanking}, {@link #backupBotJob}, …) are invoked into
+     * temp files (preserving their exact WHERE filters and formatting) and
+     * then concatenated with section markers. This keeps row-byte output
+     * identical to the legacy 6-file format for a given table.
+     */
+    public ErrorMessage dumpBotJobToSingleFile(
+            Connection conn, String backupFilePath, int homeBankingId, int botJobId) {
+        Path tempDir = null;
+        try {
+            tempDir = Files.createTempDirectory("ar-export-botjob-");
+            Path hb = tempDir.resolve("home_banking.sql");
+            Path bj = tempDir.resolve("bot_job.sql");
+            Path bl = tempDir.resolve("block.sql");
+            Path in = tempDir.resolve("instruction.sql");
+            Path variableDefinitions = tempDir.resolve("bot_job_variable_definition.sql");
+            Path runtimeMemory = tempDir.resolve("bot_job_runtime_memory.sql");
+            Path runtimeValues = tempDir.resolve("bot_job_runtime_variable_value.sql");
+            Path rf = tempDir.resolve("reference.sql");
+
+            ErrorMessage err = backupHomeBanking(conn, hb.toString(), homeBankingId);
+            if (err != null) return err;
+            err = backupBotJob(conn, bj.toString(), homeBankingId, botJobId);
+            if (err != null) return err;
+            err = backupBlock(conn, bl.toString(), botJobId);
+            if (err != null) return err;
+            err = backupInstruction(conn, in.toString(), botJobId);
+            if (err != null) return err;
+            err = backupDurableVariableTable(
+                    conn,
+                    variableDefinitions.toString(),
+                    new BackupTableSpec(
+                            "bot_job_variable_definition",
+                            List.of(
+                                    "home_banking_id",
+                                    "bot_job_id",
+                                    "id",
+                                    "variable_type",
+                                    "name",
+                                    "configured_value",
+                                    "local_format",
+                                    "delimiter",
+                                    "producer_instruction_id",
+                                    "created_at",
+                                    "updated_at"),
+                            "home_banking_id,bot_job_id,id"),
+                    botJobId);
+            if (err != null) return err;
+            err = backupDurableVariableTable(
+                    conn,
+                    runtimeMemory.toString(),
+                    new BackupTableSpec(
+                            "bot_job_runtime_memory",
+                            List.of(
+                                    "home_banking_id",
+                                    "bot_job_id",
+                                    "runtime_revision",
+                                    "reset_generation",
+                                    "next_variable_id",
+                                    "created_at",
+                                    "updated_at"),
+                            "home_banking_id,bot_job_id"),
+                    botJobId);
+            if (err != null) return err;
+            err = backupDurableRuntimeValues(conn, runtimeValues.toString(), botJobId);
+            if (err != null) return err;
+            err = backupReference(conn, rf.toString(), botJobId);
+            if (err != null) return err;
+
+            Map<String, Path> sections = new java.util.LinkedHashMap<>();
+            sections.put("home_banking", hb);
+            sections.put("bot_job", bj);
+            sections.put("block", bl);
+            sections.put("instruction", in);
+            sections.put("bot_job_variable_definition", variableDefinitions);
+            sections.put("bot_job_runtime_memory", runtimeMemory);
+            sections.put("bot_job_runtime_variable_value", runtimeValues);
+            sections.put("reference", rf);
+
+            File outFile = new File(backupFilePath);
+            try (BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(new FileOutputStream(outFile), Charset.forName("windows-1252")))) {
+                writer.write("-- AR-WEB BOT JOB SNAPSHOT v1 — "
+                        + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                writer.write(System.lineSeparator());
+                writer.write(
+                        "-- dialect (informational): " + BackupDialect.detect().name());
+                writer.write(System.lineSeparator());
+                writer.write("-- home_banking_id: " + homeBankingId + ", bot_job_id: " + botJobId);
+                writer.write(System.lineSeparator());
+                writer.write(System.lineSeparator());
+
+                for (Map.Entry<String, Path> e : sections.entrySet()) {
+                    writer.write("-- TABLE: " + e.getKey());
+                    writer.write(System.lineSeparator());
+                    try (BufferedReader r = new BufferedReader(new InputStreamReader(
+                            new FileInputStream(e.getValue().toFile()), Charset.forName("windows-1252")))) {
+                        String line;
+                        while ((line = r.readLine()) != null) {
+                            writer.write(line);
+                            writer.write(System.lineSeparator());
+                        }
+                    }
+                    writer.write(System.lineSeparator());
+                }
+                // new feature tables scoped to this bot job (M20260510-M20260513)
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "use_case",
+                        List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "use_case_field_mapping",
+                        List.of(
+                                "id",
+                                "bot_job_id",
+                                "api_key",
+                                "api_spec_file",
+                                "api_field_name",
+                                "bot_instruction_id",
+                                "use_case_id",
+                                "created_at",
+                                "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "flow",
+                        List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "flow_step",
+                        List.of(
+                                "id",
+                                "flow_id",
+                                "step_order",
+                                "name",
+                                "step_type",
+                                "payload_json",
+                                "created_at",
+                                "updated_at"),
+                        "id ASC",
+                        "flow_id IN (SELECT id FROM flow WHERE bot_job_id = ?)",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "requirement",
+                        List.of(
+                                "id",
+                                "bot_job_id",
+                                "external_ref",
+                                "title",
+                                "description",
+                                "priority",
+                                "status",
+                                "created_at",
+                                "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "requirement_use_case",
+                        List.of("requirement_id", "use_case_id"),
+                        "requirement_id ASC, use_case_id ASC",
+                        "requirement_id IN (SELECT id FROM requirement WHERE bot_job_id = ?)",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "requirement_flow",
+                        List.of("requirement_id", "flow_id"),
+                        "requirement_id ASC, flow_id ASC",
+                        "requirement_id IN (SELECT id FROM requirement WHERE bot_job_id = ?)",
+                        botJobId);
+            }
+            log.info("dumpBotJobToSingleFile — complete: {}", outFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("dumpBotJobToSingleFile — failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Error in export process", "Error during bot job single-file export", error.getMessage());
+        } finally {
+            if (tempDir != null) {
+                deleteRecursively(tempDir);
+            }
+        }
+    }
+
+    /**
+     * Single-file import that restores one bot job into the currently-open DB,
+     * re-keying every FK so the job folds into the existing {@code home_banking}
+     * (and its {@code home_url}) row whose ids are passed in. The file is
+     * split into the six per-table sections produced by
+     * {@link #dumpBotJobToSingleFile} and each section is handed to its legacy
+     * restore method — which strips old ids, lets the engine assign fresh
+     * ones, and remaps child FK columns via {@link #botJobMap} /
+     * {@link #blockMap} / {@link #instructionMap} / {@link #variableMap}.
+     *
+     * <p>The {@code home_banking} section is NOT re-inserted — the caller's
+     * current home_banking row is reused. That section is only read to check
+     * the exported org name matches the target org (prevents cross-tenant
+     * imports), same as the legacy 6-file flow did.
+     */
+    public ErrorMessage restoreBotJobFromSingleFile(
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported,
+            String organizationName) {
+        if (conn == null) {
+            return new ErrorMessage(
+                    "Restore Failed", "Atomic Bot Job import failed", "Database connection is unavailable");
+        }
+
+        Boolean originalAutoCommit = null;
+        try {
+            originalAutoCommit = conn.getAutoCommit();
+            if (!originalAutoCommit) {
+                return new ErrorMessage(
+                        "Restore Failed",
+                        "Atomic Bot Job import failed",
+                        "Bot Job import requires a dedicated auto-commit database connection");
+            }
+            conn.setAutoCommit(false);
+
+            ErrorMessage error = restoreBotJobFromSingleFileStages(
+                    commitSuppressingConnection(conn),
+                    sqlFilePath,
+                    homeBankIdImported,
+                    homeUrlIdImported,
+                    botJobIdImported,
+                    organizationName);
+            if (error != null) {
+                try {
+                    conn.rollback();
+                    return error;
+                } catch (SQLException rollbackError) {
+                    log.error("restoreBotJobFromSingleFile — rollback failed", rollbackError);
+                    String detail = error.getErrorMessage() == null ? "Import stage failed" : error.getErrorMessage();
+                    return new ErrorMessage(
+                            "Restore Failed",
+                            "Atomic Bot Job rollback failed",
+                            detail + "; rollback failed: " + rollbackError.getMessage());
+                }
+            }
+
+            conn.commit();
+            return null;
+        } catch (Exception error) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackError) {
+                error.addSuppressed(rollbackError);
+                log.error("restoreBotJobFromSingleFile — rollback failed", rollbackError);
+            }
+            log.error("restoreBotJobFromSingleFile — atomic restore failed", error);
+            return new ErrorMessage(
+                    "Restore Failed", "Atomic Bot Job import failed", error.getMessage());
+        } finally {
+            if (originalAutoCommit != null) {
+                try {
+                    conn.setAutoCommit(originalAutoCommit);
+                } catch (SQLException restoreError) {
+                    log.error("restoreBotJobFromSingleFile — could not restore auto-commit", restoreError);
+                }
+            }
+        }
+    }
+
+    private ErrorMessage restoreBotJobFromSingleFileStages(
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported,
+            String organizationName) {
+        File sqlFile = new File(sqlFilePath);
+        if (!sqlFile.exists()) {
+            return new ErrorMessage(
+                    "Import Failed: File Not Found",
+                    "Import attempt failed: " + sqlFilePath,
+                    "The file was not found. Please execute the Export Bot Job first or select the correct directory.");
+        }
+
+        Path tempDir = null;
+        try {
+            tempDir = Files.createTempDirectory("ar-import-botjob-");
+            Map<String, Path> perTableFiles = splitSingleFileByTable(sqlFile, tempDir);
+
+            ErrorMessage error =
+                    getHomeBankingNameFromFile(pathOrEmpty(perTableFiles, "home_banking"), organizationName);
+            if (error != null) return error;
+
+            error = restoreBotJob(
+                    conn,
+                    pathOrEmpty(perTableFiles, "bot_job"),
+                    homeBankIdImported,
+                    homeUrlIdImported,
+                    botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreBlock(conn, pathOrEmpty(perTableFiles, "block"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreInstruction(conn, pathOrEmpty(perTableFiles, "instruction"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreVariableSections(
+                    conn, perTableFiles, botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreUpdateInstruction(conn, botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreReference(conn, pathOrEmpty(perTableFiles, "reference"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreUseCase(conn, pathOrEmpty(perTableFiles, "use_case"));
+            if (error != null) return error;
+
+            error = restoreFlow(conn, pathOrEmpty(perTableFiles, "flow"));
+            if (error != null) return error;
+
+            error = restoreRequirement(conn, pathOrEmpty(perTableFiles, "requirement"));
+            if (error != null) return error;
+
+            error = restoreUseCaseFieldMapping(conn, pathOrEmpty(perTableFiles, "use_case_field_mapping"));
+            if (error != null) return error;
+
+            error = restoreFlowStep(conn, pathOrEmpty(perTableFiles, "flow_step"));
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_use_case"),
+                    "requirement_use_case",
+                    requirementMap,
+                    "requirement_id",
+                    useCaseMap,
+                    "use_case_id");
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_flow"),
+                    "requirement_flow",
+                    requirementMap,
+                    "requirement_id",
+                    flowMap,
+                    "flow_id");
+            if (error != null) return error;
+
+            log.info("restoreBotJobFromSingleFile — complete: {}", sqlFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("restoreBotJobFromSingleFile — failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Error in import process", "Error during bot job single-file import", error.getMessage());
+        } finally {
+            if (tempDir != null) {
+                deleteRecursively(tempDir);
+            }
+        }
+    }
+
+    static Connection commitSuppressingConnection(Connection delegate) {
+        if (delegate == null) throw new IllegalArgumentException("Database connection is required");
+        return (Connection) Proxy.newProxyInstance(
+                PerformBackup.class.getClassLoader(),
+                new Class<?>[] {Connection.class},
+                (proxy, method, args) -> {
+                    if ("commit".equals(method.getName()) && method.getParameterCount() == 0) {
+                        return null;
+                    }
+                    if ("setAutoCommit".equals(method.getName())
+                            && args != null
+                            && args.length == 1
+                            && Boolean.TRUE.equals(args[0])) {
+                        throw new SQLException("A restore stage cannot finish the owning transaction");
+                    }
+                    try {
+                        return method.invoke(delegate, args);
+                    } catch (InvocationTargetException invocationError) {
+                        throw invocationError.getCause();
+                    }
+                });
+    }
+
+    /**
+     * At backup time, drop a timestamped binary copy of the current DB file
+     * into {@code destFolder} alongside the SQL dump. No-op for Postgres
+     * (server-managed storage) and any other non-file engine.
+     *
+     * <p>Naming:
+     * <ul>
+     *   <li>Access &rarr; {@code access_backup_YYYYMMDD_HHMMSS.mdb}</li>
+     *   <li>SQLite (TEXT) &rarr; {@code sqlite_backup_YYYYMMDD_HHMMSS.db}</li>
+     * </ul>
+     */
+    public ErrorMessage copyDbFileTo(String dataBaseType, String dbFolder, String destFolder) {
+        if (dataBaseType == null) return null;
+        String type = dataBaseType.trim();
+        boolean isAccess = "Access".equalsIgnoreCase(type);
+        boolean isSqlite = "TEXT".equalsIgnoreCase(type);
+        if (!isAccess && !isSqlite) {
+            log.info("copyDbFileTo — {} is not a file-backed DB, skipping", type);
+            return null;
+        }
+        if (dbFolder == null || dbFolder.isBlank() || destFolder == null || destFolder.isBlank()) {
+            return new ErrorMessage(
+                    "Backup copy failed",
+                    "Database folder or destination folder is empty",
+                    "dbFolder='" + dbFolder + "', destFolder='" + destFolder + "'");
+        }
+
+        String fileName = isAccess ? ARConstants.FILE_NAME_ACCESS : ARConstants.FILE_NAME_SQLITE;
+        File dbFile = new File(dbFolder + fileName);
+        if (!dbFile.exists()) {
+            log.info("copyDbFileTo — {} not found, nothing to copy", dbFile.getAbsolutePath());
+            return null;
+        }
+
+        String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String copyName = isAccess ? "/access_backup_" + ts + ".mdb" : "/sqlite_backup_" + ts + ".db";
+        File destFile = new File(destFolder + copyName);
+
+        try {
+            Files.copy(dbFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            log.info("copyDbFileTo — copied {} -> {}", dbFile.getAbsolutePath(), destFile.getAbsolutePath());
+            return null;
+        } catch (IOException e) {
+            log.error("copyDbFileTo — copy failed: {}", e.getMessage(), e);
+            return new ErrorMessage(
+                    "Backup copy failed", "Could not copy " + dbFile.getName() + " to backup folder", e.getMessage());
+        }
+    }
+}

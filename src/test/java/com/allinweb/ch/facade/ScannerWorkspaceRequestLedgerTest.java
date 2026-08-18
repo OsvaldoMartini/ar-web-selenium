@@ -1,0 +1,123 @@
+package com.allinweb.ch.facade;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.allinweb.ch.model.ScannerWorkspaceRequest;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
+import com.allinweb.ch.model.ScannerWorkspaceResponse;
+import com.google.gson.JsonObject;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+
+class ScannerWorkspaceRequestLedgerTest {
+
+    @Test
+    void duplicateRequestReturnsCachedResponseAndExecutesOnlyOnce() {
+        ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(4);
+        AtomicInteger executions = new AtomicInteger();
+        ScannerWorkspaceRequest request = request(scannerGridSession(), "same-id", 42, "REFRESH_STATE");
+
+        ScannerWorkspaceResponse first = ledger.executeOnce(
+                request, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(request, executions));
+        ScannerWorkspaceResponse duplicate = ledger.executeOnce(
+                request, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(request, executions));
+
+        assertSame(first, duplicate);
+        assertEquals(1, executions.get());
+        assertTrue(duplicate.ok());
+    }
+
+    @Test
+    void rejectsSameRequestIdWithDifferentBody() {
+        ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(4);
+        AtomicInteger executions = new AtomicInteger();
+        ScannerWorkspaceRequest first = request(scannerGridSession(), "same-id", 42, "REFRESH_STATE");
+        ScannerWorkspaceRequest conflicting = request(
+                scannerGridSession(), "same-id", 42, "CLEAR_GRID");
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
+
+        ScannerWorkspaceResponse response = ledger.executeOnce(
+                conflicting, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(conflicting, executions));
+
+        assertEquals(1, executions.get());
+        assertFalse(response.ok());
+        assertEquals("REQUEST_ID_REUSE", response.errorCode());
+        assertEquals("CLEAR_GRID", response.action());
+    }
+
+    @Test
+    void conflictingRequestWithMalformedActionDoesNotReportAction() {
+        ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(4);
+        AtomicInteger executions = new AtomicInteger();
+        ScannerWorkspaceRequest first = request(scannerGridSession(), "same-id", 42, "REFRESH_STATE");
+        JsonObject body = new JsonObject();
+        body.addProperty("requestId", "same-id");
+        body.addProperty("botJobId", 42);
+        body.add("action", new JsonObject());
+        ScannerWorkspaceRequest conflicting =
+                new ScannerWorkspaceRequest(scannerGridSession(), "same-id", 42, body);
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
+
+        ScannerWorkspaceResponse response = ledger.executeOnce(
+                conflicting, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(conflicting, executions));
+
+        assertEquals(1, executions.get());
+        assertFalse(response.ok());
+        assertEquals("REQUEST_ID_REUSE", response.errorCode());
+        assertEquals(null, response.action());
+    }
+
+    @Test
+    void scopesSameRequestIdBySessionAndOperation() {
+        ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(4);
+        AtomicInteger executions = new AtomicInteger();
+        ScannerWorkspaceRequest scanner = request(
+                scannerGridSession(), "shared-id", 42, "REFRESH_STATE");
+        ScannerWorkspaceRequest preScanner = request(
+                preScannerGridSession(), "shared-id", 42, "REFRESH_STATE");
+
+        ledger.executeOnce(scanner, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(scanner, executions));
+        ledger.executeOnce(preScanner, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(preScanner, executions));
+        ledger.executeOnce(scanner, ScannerWorkspaceOperations.BOOTSTRAP_RESPONSE, () -> success(scanner, executions));
+
+        assertEquals(3, executions.get());
+    }
+
+    @Test
+    void evictsOldestEntryWhenCapacityIsExceeded() {
+        ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(1);
+        AtomicInteger executions = new AtomicInteger();
+        ScannerWorkspaceRequest first = request(scannerGridSession(), "first", 42, "REFRESH_STATE");
+        ScannerWorkspaceRequest second = request(scannerGridSession(), "second", 42, "REFRESH_STATE");
+
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
+        ledger.executeOnce(second, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(second, executions));
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
+
+        assertEquals(3, executions.get());
+    }
+
+    private ScannerWorkspaceResponse success(ScannerWorkspaceRequest request, AtomicInteger executions) {
+        executions.incrementAndGet();
+        return ScannerWorkspaceResponse.success("ok", request, null);
+    }
+
+    private ScannerWorkspaceRequest request(String sessionId, String requestId, int botJobId, String action) {
+        JsonObject body = new JsonObject();
+        body.addProperty("requestId", requestId);
+        body.addProperty("botJobId", botJobId);
+        body.addProperty("action", action);
+        return new ScannerWorkspaceRequest(sessionId, requestId, botJobId, body);
+    }
+
+    private String scannerGridSession() {
+        return ScannerSearchRoute.standardPageScanner().destinationSessionId();
+    }
+
+    private String preScannerGridSession() {
+        return PreScannerGridRoute.standardSearchTerms().destinationSessionId();
+    }
+}

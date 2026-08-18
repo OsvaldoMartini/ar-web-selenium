@@ -1,0 +1,32 @@
+**Request: Full Codebase Analysis and AI-Assisted Test Flow Generation**
+
+Please perform a deep investigation and comprehensive analysis of the entire codebase.
+
+I am able to  load APIs, I can generate APIs to be visually highlighted (e.g., in green) so they can be clearly distinguished.
+
+I need assistance in creating test cases structured as execution flows based on dependencies. Some requests will require responses from previous steps, so the system must support chained or dependent API calls.
+
+Additionally, I want to integrate an AI assistant into the platform. This should include the ability to:
+
+* Add API keys for AI assistants or configure authorization
+* Connect to existing accounts (e.g., Claude, OpenAI, or other providers)
+* Send requests to one or multiple AI assistants simultaneously
+
+I also want to send selected cases or contextual data to the AI assistant. For example:
+
+* Select a test scenario or context, such as:
+
+  * "Generate Test Cases"
+  * "Analyze API Specs"
+  * "Explain Business Rules"
+* Send this information to the AI assistant for processing
+
+The AI assistant should be well-structured and include an **“Apply”** button. When clicked, this button should automatically generate properly formatted test cases and insert them into the API testing environment under a **“Ready to Test”** tab.
+
+This means I want to create test cases based on the AI response, making them available for export. Additionally, when importing from a JSON file, I want the option to automatically generate and populate the test cases into the **“Ready to Test”** section.
+
+It is essential that the files generated from AI responses are synchronized with the tests in this API tool.
+
+I am also providing a test case file named "capi_test_cases_pending_2026-03-18-02-15-53.csv".
+
+I need a way to generate test case flows from AI responses, or alternatively, to generate them directly from imported files (such as CSV or JSON), ensuring they are properly structured and automatically synchronized within the API testing environment.

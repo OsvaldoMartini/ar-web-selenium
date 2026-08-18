@@ -1,0 +1,611 @@
+Write(src\main\java\com\allinweb\ch\facade\ElementTextResolver.java)
+  ⎿  Wrote 316 lines to src\main\java\com\allinweb\ch\facade\ElementTextResolver.java
+       1 package com.allinweb.ch.facade;                                                  
+       2 
+       3 import com.allinweb.ch.model.AttributeData;                                                                                                                  
+       4 import com.allinweb.ch.model.ElementDTO;
+       5 import com.allinweb.ch.util.TextSimilarity;                                                                                                                  
+       6 import com.allinweb.ch.vision.OcrCorrelationResult;
+       7 import com.google.gson.Gson;
+       8 import java.io.Reader;
+       9 import java.nio.charset.StandardCharsets;
+      10 import java.nio.file.Files;
+     … +306 lines (ctrl+o to expand)
+
+● Now wiring resolver into SEARCH_TOOL. Reorder so OCR runs before DTO write, then resolver mutates DTOs, then write.
+                                                                                          
+  Read 1 file (ctrl+o to expand)    
+                                                                                                                                                                      
+● Update(src\main\java\com\allinweb\ch\socket\SimpleWebSocketServer.java)
+  ⎿  Added 33 lines, removed 12 lines                                                                                                                                 
+      457                      break;                                                     
+      458                  case "SEARCH_TOOL":
+      459                      if (sessionIdToSend.equals("scannerGrid")) {                                                                                           
+      460 +                        // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).                                        
+      461                          String jsonData = gson.toJson(splitDTO);                                                                                           
+      462                          webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
+      463  
+      463 -                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");                                                  
+      464                          String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+      465 +                                                                                                                                                    
+      466 +                        // 2. DOM rects (needed by OCR correlator).                                                                                 
+      467 +                        PageDiagnosticDumper.dumpRectsFromElements(                                                                                 
+      468 +                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");                              
+      469 +                                                                                                                                                    
+      470 +                        // 3. OCR pipeline writes ocr-correlation-HP.json that the resolver consumes.                                               
+      471 +                        PageOcrDumper.runAndDump(                                                                                                   
+      472 +                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");                              
+      473 +                                                                                                                                                    
+      474 +                        // 4. Resolve someText + definedName from DOM + OCR (mutates DTOs in place).                                                
+      475 +                        ElementTextResolver.resolveAll(                                                                                             
+      476 +                                splitDTO.getElementDetails(),                                                                                       
+      477 +                                java.nio.file.Paths.get(                                                                                            
+      478 +                                        jsonPath,                                                                                                   
+      479 +                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,                                                        
+      480 +                                        "ocr-correlation-HP.json"));                                                                                
+      481 +                                                                                                                                                    
+      482 +                        // 5. Persist enriched DTOs.                                                                                                
+      483 +                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");                                                  
+      484                          performMessage.outputJsonElementDTO(
+      485                                  splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
+      486                          excludeList = List.of(
+     ...
+      498                                  "attributeValue");
+      499                          performMessage.outputJsonElementDTO(
+      500                                  splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
+      501 +                    } else if (sessionIdToSend.equals("mobile-return-server")) {                                                                    
+      502 +                        String jsonData = gson.toJson(splitDTO);                                                                                    
+      503 +                        webSocketSessionManager.sendMessageJson(                                                                                    
+      504 +                                homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");                                                        
+      505  
+      506 +                        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);                                                    
+      507 +                                                                                                                                                    
+      508                          PageDiagnosticDumper.dumpRectsFromElements(
+      509                                  performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+      510  
+      511                          PageOcrDumper.runAndDump(
+      512                                  performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+      488 -                    } else if (sessionIdToSend.equals("mobile-return-server")) {                                                                    
+      489 -                        String jsonData = gson.toJson(splitDTO);                                                                                    
+      490 -                        webSocketSessionManager.sendMessageJson(                                                                                    
+      491 -                                homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");                                                        
+      513  
+      514 +                        ElementTextResolver.resolveAll(                                                                                             
+      515 +                                splitDTO.getElementDetails(),                                                                                       
+      516 +                                java.nio.file.Paths.get(                                                                                            
+      517 +                                        jsonPath,                                                                                                   
+      518 +                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,                                                        
+      519 +                                        "ocr-correlation-HP.json"));                                                                                
+      520 +                                                                                                                                                    
+      521                          List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+      494 -                        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);                                                    
+      522                          performMessage.outputJsonElementDTO(
+      523                                  splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
+      524                          excludeList = List.of(
+     ...
+      536                                  "attributeValue");
+      537                          performMessage.outputJsonElementDTO(
+      538                                  splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
+      512 -                                                                                                                                                    
+      513 -                        PageDiagnosticDumper.dumpRectsFromElements(                                                                                 
+      514 -                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");                              
+      515 -                                                                                                                                                    
+      516 -                        PageOcrDumper.runAndDump(                                                                                                   
+      517 -                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");                              
+      539                      }
+      540                      alreadySentMgsSocket = true;
+      541                      break;
+
+● Same reorder + resolver call in PerformListElements.runScan.
+
+  Read 1 file (ctrl+o to expand)    
+                                                                  
+● Update(src\main\java\com\allinweb\ch\facade\PerformListElements.java)
+  ⎿  Added 11 lines, removed 5 lines      
+      302              performLists.addMapElementsTarget(elements);                       
+      303  
+      304              // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):                                                                   
+      305 -            // persist the element list to disk as JSON for the UI / AI pipelines.                                                                  
+      305 +            // 1) rects → 2) OCR → 3) text resolver → 4) persist enriched DTOs.                                                                            
+      306              if (!elements.isEmpty()) {           
+      307                  try {
+      308                      ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
+      309                      String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
+      310                      PerformMessage performMessage = PerformMessage.getInstance();
+      311  
+      312 +                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");                                               
+      313 +                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");                                                                 
+      314 +                                                                                                                                                    
+      315 +                    ElementTextResolver.resolveAll(                                                                                                 
+      316 +                            asArray,                                                                                                                
+      317 +                            java.nio.file.Paths.get(                                                                                                
+      318 +                                    jsonPath,                                                                                                       
+      319 +                                    com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,                                                            
+      320 +                                    "ocr-correlation-HP.json"));                                                                                    
+      321 +                                                                                                                                                    
+      322                      List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+      323                      performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);
+      324  
+     ...
+      336                              "attributeType",
+      337                              "attributeValue");
+      338                      performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
+      329 -                                                                                                                                                    
+      330 -                    // Per-pick rects + OCR correlation — mirror the hoverPick SEARCH_TOOL pipeline.                                                
+      331 -                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");                                               
+      332 -                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");                                                                 
+      339                  } catch (Exception jsonError) {
+      340                      log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
+      341                  }
+
+● Updating the Roadmap 3 spec to mark Phase 3a delivered.
+
+● Update(specifications\ROADMAP_3_BEST_TEXT_DB_FALLBACK.md)
+  ⎿  Added 53 lines, removed 1 line                                                       
+       1  # ROADMAP 3 — Best-text extraction for `someText` / `definedName` + DB fallback mapping
+       2                                                                                                                                                              
+       3 -**Status:** draft — DB schema needs approval before build                                                                                            
+       3 +**Status:** ✅ Phase 3a delivered (text resolver, no DB). 📋 Phase 3b (locator tables) + Phase 3c (recovery on xPath drift) pending.                        
+       4  **Owner:** Osvaldo Martini                        
+       5  **Depends on:** Roadmaps 1 + 2 (OCR scores feed into candidate ranking)
+       6  
+       7 +## Phase 3a delivered (2026-04-26)                                                                                                                   
+       8 +                                                                                                                                                     
+       9 +- `com.allinweb.ch.util.TextSimilarity` — Levenshtein distance + ratio, token-set Jaccard ratio, `humanize` (camelCase / snake / kebab → "Title Case"
+         +), `slug`, `uniquify`.                                                                                                                               
+      10 +- `com.allinweb.ch.facade.ElementTextResolver.resolveAll(ElementDTO[], Path)` — gathers candidates from 7 sources, applies OCR-corroboration ×1.5 mul
+         +tiplier (Roadmap 2 reminder rule), picks the highest-scoring text, mutates `someText` and `definedName` in place.                                    
+      11 +                                                                                                                                                     
+      12 +### Sources implemented                                                                                                                              
+      13 +                                                                                                                                                     
+      14 +| # | Source | Score | Notes |                                                                                                                       
+      15 +|---|---|---|---|                                                                                                                                    
+      16 +| 1 | `<label for=this.id>` resolved within the same pick batch | 1.00 | Highest weight — canonical a11y pairing |                                   
+      17 +| 2a | `aria-label` attribute | 1.00 | |                                                                                                             
+      18 +| 2b | `aria-labelledby` resolved to target's `someText` within the batch | 0.95 | |                                                                 
+      19 +| 3 | Scanner-provided `someText` (whatever the JS scanner extracted) | 0.40 | Medium — defers to label / aria when present, but wins over the fallba
+         +ck humanizer when no other source applies |                                                                                                          
+      20 +| 4a | `placeholder` | 0.65 | |                                                                                                                      
+      21 +| 4b | `title` | 0.60 | |                                                                                                                            
+      22 +| 4c | `alt` | 0.60 | |                                                                                                                              
+      23 +| 4d | `value` (when an input has a default value) | 0.45 | |                                                                                        
+      24 +| 5a | Humanized `id` | 0.30 | "firstName" → "First Name" |                                                                                          
+      25 +| 5b | Humanized `name` | 0.30 | |                                                                                                                   
+      26 +| 7 | OCR `EXACT_CONTAIN` | 0.85 | From `ocr-correlation-HP.json` |                                                                                  
+      27 +| 8 | OCR `OVERLAP` | 0.70 | |                                                                                                                       
+      28 +| 9 | OCR `PROXIMITY` | 0.55 | |                                                                                                                     
+      29 +                                                                                                                                                     
+      30 +OCR `EXACT_CONTAIN` / `OVERLAP` / `PROXIMITY` text is also used as a corroborator: when its tokens / Levenshtein agree (≥ 0.85 ratio) with any non-OC
+         +R candidate, that candidate's score is multiplied by 1.5. This ensures DOM-derived "Password" beats raw OCR misreads like "password2" while still ben
+         +efiting from the visual confirmation.                                                                                                                
+      31 +                                                                                                                                                     
+      32 +### Sources deferred                                                                                                                                 
+      33 +                                                                                                                                                     
+      34 +- **6 — Preceding visible text node within N px**: requires a JS scanner extension to surface; not crucial when `<label for>` works.                 
+      35 +- **9 — Ancestor card/section title**: this is exactly the bleed-through we're fighting against in the BancaStato data; intentionally not a candidate
+         + source. The scanner-provided `someText` of card ancestors keeps showing through, but those ancestor elements aren't the user-facing pick targets.   
+      36 +                                                                                                                                                     
+      37 +### `definedName` generation                                                                                                                         
+      38 +                                                                                                                                                     
+      39 +After `someText` is resolved:                                                                                                                        
+      40 +1. `slug(someText)` → snake_case ASCII, max 64 chars (`"User Number"` → `"user_number"`).                                                            
+      41 +2. `uniquify` against an in-batch `Set<String>` to avoid collisions: `password`, `password_2`, `password_3`, …                                       
+      42 +3. When every candidate is empty (e.g. an unattributed `<div>`), fall back to `slug(tagName + "_" + id-or-name)` → e.g. `div_iamcontentcontainer`.   
+      43 +                                                                                                                                                     
+      44 +### Wire points                                                                                                                                      
+      45 +                                                                                                                                                     
+      46 +`SimpleWebSocketServer.SEARCH_TOOL` (both `scannerGrid` and `mobile-return-server` branches) and `PerformListElements.runScan` were reordered:       
+      47 +                                                                                                                                                     
+      48 +```                                                                                                                                                  
+      49 +1. webSocket.send(splitDTO)   // raw, fast — UI sees immediately                                                                                     
+      50 +2. PageDiagnosticDumper.dumpRectsFromElements                                                                                                        
+      51 +3. PageOcrDumper.runAndDump   // writes ocr-correlation-HP.json                                                                                      
+      52 +4. ElementTextResolver.resolveAll   // mutates DTOs in place                                                                                         
+      53 +5. outputJsonElementDTO("elementDTO-HP" | "elementDTO-PS")                                                                                           
+      54 +6. outputJsonElementDTO("AI-ElementDTO-HP" | "AI-ElementDTO-PS")                                                                                     
+      55 +```                                                                                                                                                  
+      56 +                                                                                                                                                     
+      57 +The persisted `elementDTO-*.json` and `AI-ElementDTO-*.json` files now reflect the resolver's output. The WebSocket message to the UI grid still uses
+         + the pre-resolution snapshot; updating the live UI grid would require a follow-up refresh message and is not in scope for 3a.                        
+      58 +                                                                                                                                                     
+      59  ## Goal
+      60  
+      61  Two tightly coupled capabilities:
+
+● Phase 3a shipped. Code changes — no mvn from me, you build when ready.
+                                                                                          
+  What landed
+                                                                                                                                                                      
+  New com.allinweb.ch.util.TextSimilarity — Levenshtein ratio, token-set Jaccard, humanize() for firstName/first_name/first-name → "First Name", slug(), uniquify().
+                                                                                                                                                                      
+  New com.allinweb.ch.facade.ElementTextResolver.resolveAll(ElementDTO[], Path ocrCorrelationFile):
+  - Gathers candidates from 7 sources (<label for=>, aria-label, aria-labelledby, scanner's someText, placeholder/title/alt/value, humanized id/name, OCR
+  EXACT_CONTAIN/OVERLAP/PROXIMITY).
+  - Applies the Roadmap 2 reminder rule: ×1.5 multiplier when OCR text fuzzy-matches a non-OCR candidate.
+  - Picks the highest-scoring text, mutates someText + generates a unique definedName slug.
+
+  Modified SimpleWebSocketServer.SEARCH_TOOL (both branches) and PerformListElements.runScan — reordered so OCR runs before DTO write, then resolver mutates the DTOs,
+   then they're persisted. The WebSocket UI message still goes out raw and fast (no UX delay); only the disk DTOs are enriched today.
+
+  Updated specifications/ROADMAP_3_BEST_TEXT_DB_FALLBACK.md with the Phase 3a details and per-source score table.
+
+  What you'll see on next pick
+
+  For your BancaStato login validation:
+
+  ┌─────────────────────────┬────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────┐
+  │         Element         │                             Before                             │                         After (expected)                          │
+  ├─────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ <input id="username">   │ someText: "User number" (already worked)                       │ unchanged, but now with definedName: "user_number"                │
+  ├─────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ <input id="password">   │ someText: "Password"                                           │ definedName: "password"                                           │
+  ├─────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ <button> Send           │ someText: "Send" (if OCR enabled)                              │ definedName: "send"                                               │
+  ├─────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ Ancestor <iam-card>     │ someText: "Access to InLinea Insert your credentials"          │ unchanged today — Phase 3a doesn't yet identify ancestors as      │
+  │ etc.                    │ (bleed-through)                                                │ bleed cases                                                       │
+  ├─────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ <a> "Forgotten          │ someText: "Forgotten password?"                                │ definedName: "forgotten_password"                                 │
+  │ password?"              │                                                                │                                                                   │
+  ├─────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ <a> "Access problems?"  │ someText: "Access problems?"                                   │ definedName: "access_problems"                                    │
+  └─────────────────────────┴────────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────────────┘
+
+  Inputs that previously inherited the card title bleed-through: their someText should now be the linked <label>'s text via source 1 (<label for=this.id>), which
+  scores higher than the bled-through scanner.someText (1.00 vs 0.40). Big win for the Engine matching ladder.
+
+  What's still pending in Roadmap 3
+
+  ┌───────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Phase │                                                                         Scope                                                                          │
+  ├───────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 3b    │ Migrations for element_locator + element_locator_rename tables. ElementLocatorRepository. Upsert at SEARCH_TOOL pick time.                             │
+  ├───────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 3c    │ ElementRecoveryService.findOrRecover(locator) — multi-strategy lookup when xPath drifts (xpath/cssSelector/attrib → fuzzy text match → OCR → coords).  │
+  │       │ Logs renames. Wired into bot-run resolution.                                                                                                           │
+  ├───────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 3d    │ Cross-repo: AR Web Engine consumes the recovery path. Different codebase.                                                                              │
+  └───────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Quick smoke test once you build
+
+  After the next Page Scanner run on BancaStato:
+
+  1. Look at <PATH_DB>/page_diagnostics/elementDTO-PS.json (or elementDTO-HP.json for hover-pick).
+  2. Check the <input id="username"> row → someText: "User number", definedName: "user_number".
+  3. Check the <input id="password"> row → someText: "Password", definedName: "password".
+  4. Confirm no definedName is duplicated across rows (suffixes like _2, _3 should appear when collisions happen).
+
+  Tell me what the post-resolve DTOs look like and we move to Phase 3b (DB persistence + locator history).
+
+✻ Churned for 6m 58s
+
+※ recap: We're hardening the OCR pipeline so banking scanners survive page changes; just shipped Roadmap 3 Phase 3a (best-text resolver enriching someText and        
+  definedName at pick time). Next: build the project and run Page Scanner on BancaStato to verify enriched DTOs.
+                                                                                                                                                                      
+❯ WHEN i click on tst in current page  what is producing ?                                                                                                            
+                                                           
+● What "Test On Current Page" produces right now                                                                                                                      
+                                                                                                                                                                      
+  Output: a single status line at the bottom of the modal. Format:                                                                                                    
+                                                                                                                                                                      
+  Test: 45 OCR words · 7 EXACT · 2 OVERLAP · 3 PROX · 9 NONE (profile not saved)                                                                                      
+                                                            
+  (blue text, in the same status spot as the SQL errors / NEW PARAMS DETECTED messages)                                                                               
+                                                                                                                                                                      
+  What it does behind the scenes
+                                                                                                                                                                      
+  ┌──────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Step │                                                                 What happens                                                                 │
+  ├──────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 1    │ Reads cached <PATH_DB>/page_diagnostics/page-HP.png (the last screenshot from your most recent Page Scanner / hover-pick run)                │
+  ├──────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 2    │ Builds an ephemeral OcrConfig from the current unsaved form values in the editor                                                             │
+  ├──────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 3    │ Runs WebPageOcrService.recognizeMultiPass(image, cfg) — raw OCR + optional CLAHE pass + optional red/blue/any button passes, with IoU dedupe │
+  ├──────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 4    │ Reads cached elementDTO-HP.json, page-HP-rects.json, page-HP-meta.json                                                                       │
+  ├──────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 5    │ Calls OcrDomCorrelator.correlate(...)                                                                                                        │
+  ├──────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 6    │ Counts the 4 quality tiers and writes the summary to the status label                                                                        │
+  └──────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  What it does NOT produce (today)
+
+  - ❌ No browser hit — Selenium is not touched, no new screenshot taken.
+  - ❌ No DB write — no profile is saved, no params persist anywhere.
+  - ❌ No file output — ocr-HP.json / ocr-correlation-HP.json from your last Page Scanner run remain untouched. The test results live only in the status label until
+  you click something else.
+  - ❌ No annotated PNG, even if output.save_annotated_png=true in the form. The annotated render only fires from the real PageOcrDumper.runAndDump path.
+  - ❌ No per-element detail — only the four counts.
+
+  Why so minimal
+
+  Phase 4c was scoped as a fast tuning loop — slide a value, click test, read the count, slide again. Disk I/O and per-element diffs were deferred. It's intentionally
+   a "did this knob improve the totals?" check, not a forensic tool.
+
+  If you want more, three add-ons we can wire (rank by usefulness)
+
+  1. Write ocr-test.json + ocr-correlation-test.json alongside the originals so you can diff in your editor. ~10 lines.
+  2. Render page-HP-annotated-test.png when output.save_annotated_png=true in the form. ~5 lines (just call AnnotatedImageRenderer.render after correlation).
+  3. Per-element diff table in the modal: a popup or side-panel comparing saved-profile vs. current-form correlation row-by-row, colored green/yellow/red for
+  improved/same/regressed. ~80 lines, biggest UX value.
+
+  Tell me which of (1)/(2)/(3) you want and I'll wire them. Or if the current summary is enough, we keep moving on Roadmap 3 Phase 3b/3c.
+
+✻ Baked for 30s
+
+❯ I understood what you are doing                                                                                                                                     
+                                                                                                                                                                      
+                                                                                                                                                                      
+    If you want more, three add-ons we can wire (rank by usefulness)                                                                                                  
+                                                                                                                                                                      
+    1. Write ocr-test.json + ocr-correlation-test.json alongside the originals so you can diff in your editor. ~10 lines.                                             
+    2. Render page-HP-annotated-test.png when output.save_annotated_png=true in the form. ~5 lines (just call AnnotatedImageRenderer.render after correlation).       
+    3. Per-element diff table in the modal: a popup or side-panel comparing saved-profile vs. current-form correlation row-by-row, colored green/yellow/red for       
+    improved/same/regressed. ~80 lines, biggest UX value.                                                                                                             
+                                                                                                                                                                      
+  I think 3 is the best                                                                                                                                               
+  mY GOAL IS                                                                                                                                                          
+                                                                                                                                                                      
+  iF I ACNA RAN THE test  get the blus incication and antone grid wiht these ressukte test  and I can see in a grid the best words from the lext what undestood and   
+  putting the rigr th good ones I can pick the image  and see in advance what i am gtting                                                                             
+                                                                                                                                                                      
+  why this...                                                                                                                                                         
+                                                                                                                                                                      
+  when isee lets say password  it was well resolved                                                                                                                   
+                                                                                                                                                                      
+  and click ath at end and togle this as done   and good to go to say that it was a excellent text  and the element found                                             
+                                                                                                                                                                      
+                                                                                                                                                                      
+  thi swill my my end goal                                                                                                                                            
+                                                                                                                                                                      
+  and all the add ons i can get and colors indicators will increase  the value of the ocr work                                                                        
+
+* Burrowing… (2m 5s · ↓ 238 tokens)                   
+  ⎿  Tip: Use /btw to ask a quick side question without interrupting Claude's current work
+                                                                                                                                                                      
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯                                                                                                                                                                     
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ accept edits on (shift+tab to cycle) · esc to interrupt
+  when isee lets say password  it was well resolved                                                                                                                   
+                                                                                                                                                                      
+  and click ath at end and togle this as done   and good to go to say that it was a excellent text  and the element found                                             
+                                                                                                                                                                      
+                                                                                                                                                                      
+  thi swill my my end goal                                                                                                                                            
+                                                                                                                                                                      
+  and all the add ons i can get and colors indicators will increase  the value of the ocr work                                                                        
+
+● Building the review grid. Three new files + tweak to onTest():
+
+● Write(src\main\java\com\allinweb\ch\vision\OcrTestResultRow.java)
+  ⎿  Wrote 71 lines to src\main\java\com\allinweb\ch\vision\OcrTestResultRow.java
+       1 package com.allinweb.ch.vision;
+       2
+       3 import javafx.beans.property.BooleanProperty;
+       4 import javafx.beans.property.SimpleBooleanProperty;
+       5
+       6 /**
+       7  * One row in the "Test On Current Page" review grid (Phase 4c+).
+       8  * Combines the persisted ElementDTO text with the test-run OCR result + a per-row Approved toggle.
+       9  */
+      10 public class OcrTestResultRow {
+     … +61 lines (ctrl+o to expand)
+
+● Write(src\main\java\com\allinweb\ch\component\pane\AROcrTestResultsPane.java)
+  ⎿  Wrote 259 lines to src\main\java\com\allinweb\ch\component\pane\AROcrTestResultsPane.java
+       1 package com.allinweb.ch.component.pane;
+       2                                                                                                                                                              
+       3 import com.allinweb.ch.component.pane.base.ARPane;
+       4 import com.allinweb.ch.vision.OcrTestResultRow;                                                                                                              
+       5 import java.io.File;                               
+       6 import java.nio.file.Path;
+       7 import java.util.List;
+       8 import javafx.application.Platform;
+       9 import javafx.beans.property.SimpleStringProperty;
+      10 import javafx.collections.FXCollections;
+     … +249 lines (ctrl+o to expand)
+
+● Write(src\main\java\com\allinweb\ch\component\scene\AROcrTestResultsScene.java)
+  ⎿  Wrote 68 lines to src\main\java\com\allinweb\ch\component\scene\AROcrTestResultsScene.java
+       1 package com.allinweb.ch.component.scene;
+       2                                                                                                                                                              
+       3 import com.allinweb.ch.component.pane.AROcrTestResultsPane;
+       4 import com.allinweb.ch.component.pane.base.IARPane;                                                                                                          
+       5 import com.allinweb.ch.component.scene.base.ARScene;
+       6 import com.allinweb.ch.vision.OcrTestResultRow;
+       7 import java.nio.file.Path;
+       8 import java.util.List;
+       9 import javafx.stage.Modality;
+      10 import javafx.stage.Stage;
+     … +58 lines (ctrl+o to expand)
+
+● Now updating AROcrConfigPane.onTest() to render the annotated PNG, build rows, and launch the new scene.
+
+● Update(src\main\java\com\allinweb\ch\component\pane\AROcrConfigPane.java)
+  ⎿  Added 3 lines
+      15  import com.allinweb.ch.util.ARPropertyEnum;
+      16  import com.allinweb.ch.util.ARPropertyManager;
+      17  import com.allinweb.ch.util.PageDiagnosticDumper;
+      18 +import com.allinweb.ch.component.scene.AROcrTestResultsScene;                                                                                        
+      19 +import com.allinweb.ch.vision.AnnotatedImageRenderer;                                                                                                
+      20  import com.allinweb.ch.vision.OcrCorrelationResult;
+      21  import com.allinweb.ch.vision.OcrDomCorrelator;
+      22 +import com.allinweb.ch.vision.OcrTestResultRow;                                                                                                      
+      23  import com.allinweb.ch.vision.WebPageOcrService;
+      24  import com.allinweb.ch.vision.ocr.OcrResult;
+      25  import com.google.gson.Gson;
+
+● Update(src\main\java\com\allinweb\ch\component\pane\AROcrConfigPane.java)
+  ⎿  Added 50 lines, removed 2 lines                                                      
+      609                          break;
+      610                  }                                                                                                                                          
+      611              }
+      612 -            statusInfo(String.format(                                                                                                                      
+      612 +            String summary = String.format(                                                                                                         
+      613                      "Test: %d OCR words · %d EXACT · %d OVERLAP · %d PROX · %d NONE (profile not saved)",
+      614 -                    ocr.getWords().size(), exact, overlap, prox, none));                                                                            
+      614 +                    ocr.getWords().size(), exact, overlap, prox, none);                                                                             
+      615 +            statusInfo(summary);                                                                                                                    
+      616 +                                                                                                                                                    
+      617 +            // Always render the annotated PNG for the review modal — independent of the                                                            
+      618 +            // saved-profile output.save_annotated_png setting; this is a one-shot diagnostic.                                                      
+      619 +            Path annotated = diagDir.resolve("page-HP-test-annotated.png");                                                                         
+      620 +            try {                                                                                                                                   
+      621 +                AnnotatedImageRenderer.render(img, ocr.getWords(), corr, dpr, annotated);                                                           
+      622 +            } catch (Exception annotEx) {                                                                                                           
+      623 +                log.warn("Could not render test-annotated PNG: {}", annotEx.getMessage());                                                          
+      624 +            }                                                                                                                                       
+      625 +                                                                                                                                                    
+      626 +            // Build review rows (one per ElementDTO with its correlation result).                                                                  
+      627 +            java.util.Map<String, OcrCorrelationResult> byXp = new java.util.HashMap<>();                                                           
+      628 +            for (OcrCorrelationResult c : corr) {                                                                                                   
+      629 +                if (c != null && c.xpath != null) byXp.put(c.xpath, c);                                                                             
+      630 +            }                                                                                                                                       
+      631 +            java.util.List<OcrTestResultRow> rows = new java.util.ArrayList<>();                                                                    
+      632 +            if (elements != null) {                                                                                                                 
+      633 +                for (ElementDTO e : elements) {                                                                                                     
+      634 +                    if (e == null || e.getXPath() == null) continue;                                                                                
+      635 +                    OcrCorrelationResult c = byXp.get(e.getXPath());                                                                                
+      636 +                    rows.add(new OcrTestResultRow(                                                                                                  
+      637 +                            c == null ? "NONE" : c.matchQuality,                                                                                    
+      638 +                            e.getTagName(),                                                                                                         
+      639 +                            e.getSomeText(),                                                                                                        
+      640 +                            c == null ? "" : c.ocrText,                                                                                             
+      641 +                            e.getXPath()));                                                                                                         
+      642 +                }                                                                                                                                   
+      643 +            }                                                                                                                                       
+      644 +            // Sort: EXACT_CONTAIN first, OVERLAP, PROXIMITY, NONE — easier to scan good ones at the top.                                           
+      645 +            rows.sort((a, b) -> qualityRank(a.getMatchQuality()) - qualityRank(b.getMatchQuality()));                                               
+      646 +                                                                                                                                                    
+      647 +            AROcrTestResultsScene.getInstance().openWith(summary, rows, annotated);                                                                 
+      648          } catch (Exception ex) {
+      649              log.warn("Test On Current Page failed", ex);
+      650              status("Test failed: " + ex.getMessage(), false);
+      651          }
+      652      }
+      653  
+      654 +    private static int qualityRank(String q) {                                                                                                      
+      655 +        if (q == null) return 99;                                                                                                                   
+      656 +        switch (q) {                                                                                                                                
+      657 +            case "EXACT_CONTAIN":                                                                                                                   
+      658 +                return 0;                                                                                                                           
+      659 +            case "OVERLAP":                                                                                                                         
+      660 +                return 1;                                                                                                                           
+      661 +            case "PROXIMITY":                                                                                                                       
+      662 +                return 2;                                                                                                                           
+      663 +            case "NONE":                                                                                                                            
+      664 +            default:                                                                                                                                
+      665 +                return 3;                                                                                                                           
+      666 +        }                                                                                                                                           
+      667 +    }                                                                                                                                               
+      668 +                                                                                                                                                    
+      669      // ── File I/O helpers for Test On Current Page ─────────────────────────
+      670  
+      671      private ElementDTO[] readElementDTOs(Path p) {
+
+● Updated the spec doc to record the review grid.
+                                                                                          
+● Update(specifications\ROADMAP_4_OCR_CONFIG_SYSTEM.md)
+  ⎿  Added 22 lines, removed 1 line                                                                                                                                   
+       1  # ROADMAP 4 — OCR Configuration System (per-page tunable knobs)
+       2                                                                                                                                                              
+       3 -**Status:** ✅ Phase 4a delivered (2026-04-24). ✅ Phase 4b polished editor delivered (2026-04-24) — per-param type-aware controls, tooltips, ComboBo
+         -x enums, colour-mapping template helper. ✅ Phase 4c "Test On Current Page" delivered (2026-04-24). Full visual HSV picker deferred. See [`OCR_CONFIG       
+         -_PARAMS.md`](./OCR_CONFIG_PARAMS.md) for the canonical param reference.                                                                              
+       3 +**Status:** ✅ Phase 4a delivered (2026-04-24). ✅ Phase 4b polished editor delivered (2026-04-24) — per-param type-aware controls, tooltips, ComboBo
+         +x enums, colour-mapping template helper. ✅ Phase 4c "Test On Current Page" delivered (2026-04-24). ✅ Phase 4c+ test review grid delivered (2026-04-
+         +26) — clicking Test now opens a separate `AROcrTestResultsScene` with a colour-coded results table, per-row Approved checkbox, and the annotated scre
+         +enshot rendered alongside. Full visual HSV picker deferred. See [`OCR_CONFIG_PARAMS.md`](./OCR_CONFIG_PARAMS.md) for the canonical param reference.  
+       4 +                                                                                                                                                     
+       5 +## Phase 4c+ delivered — Test review grid                                                                                                            
+       6 +                                                                                                                                                     
+       7 +After clicking **Test On Current Page** in the editor:                                                                                               
+       8 +1. The blue summary line still updates in place at the bottom of the editor.                                                                         
+       9 +2. `AnnotatedImageRenderer` produces `<PATH_DB>/page_diagnostics/page-HP-test-annotated.png` (always, regardless of the saved profile's `output.save_
+         +annotated_png`).                                                                                                                                     
+      10 +3. `AROcrTestResultsScene` opens (non-modal — keeps the editor reachable):                                                                           
+      11 +   - Header: blue summary line.                                                                                                                      
+      12 +   - Left: `TableView<OcrTestResultRow>` — one row per `ElementDTO`. Columns:                                                                        
+      13 +     - `✓ Approved` — per-row checkbox, in-memory only today.                                                                                        
+      14 +     - `Quality` — `EXACT_CONTAIN` (dark green) / `OVERLAP` (olive) / `PROXIMITY` (orange) / `NONE` (grey).                                          
+      15 +     - `Tag` — element's tagName.                                                                                                                    
+      16 +     - `DOM Text` — `ElementDTO.someText` after the resolver ran.                                                                                    
+      17 +     - `OCR Text` — joined primary-tier OCR words from the test run.                                                                                 
+      18 +     - `xPath (tail)` — last 60 chars; full path on tooltip.                                                                                         
+      19 +     - Rows are sorted by quality (EXACT first, NONE last) so the user reviews the best matches before chasing the misses.                           
+      20 +     - Approved rows get a light-green tint.                                                                                                         
+      21 +   - Right: `ImageView` of `page-HP-test-annotated.png` — green = OCR words, red = DOM rects, thick green = EXACT_CONTAIN matches.                   
+      22 +   - Bottom: `Approved: N / M` counter, `Mark All Approved`, `Clear All Approvals`, `Close`.                                                         
+      23 +                                                                                                                                                     
+      24 +Approval state is **not yet persisted** — it lives in memory for the duration of the modal. Persisting approvals into a profile column (e.g. `output.
+         +approved_xpaths`) is the next iteration if it proves useful.                                                                                         
+      25  **Owner:** Osvaldo Martini
+      26  **Depends on:** Roadmap 2a ✅ (delivered), Roadmap 2b (planned)
+      27  **Relates to:** Roadmap 3 (shares DB-migration conventions; independent feature)
+
+● Done. No mvn from me — build when ready.
+                                                                                          
+  What clicking Test On Current Page now produces
+                                                                                                                                                                      
+  Still works (the Phase 4c summary)
+                                                                                                                                                                      
+  - Blue status line in the editor: Test: 45 OCR words · 7 EXACT · 2 OVERLAP · 3 PROX · 9 NONE (profile not saved)
+
+  New (Phase 4c+ review grid)
+
+  1. <PATH_DB>/page_diagnostics/page-HP-test-annotated.png — always rendered, even when output.save_annotated_png=false in the saved profile (this is a one-shot
+  diagnostic, not a persistence side-effect).
+  2. AROcrTestResultsScene opens as a sibling window — non-modal so you can keep tweaking the config behind it.
+
+  Layout of the new scene
+
+  ┌───────────────────────────── OCR Test Results ─────────────────────────────┐
+  │ Test: 45 OCR words · 7 EXACT · 2 OVERLAP · 3 PROX · 9 NONE                 │
+  ├───────────────────────────────────┬───────────────────────────────────────┤
+  │ ┌─────────────────────────────┐   │  ┌─────────────────────────────────┐   │
+  │ │ ✓ │ Quality       │ Tag │…│   │  │  page-HP-test-annotated.png     │   │
+  │ ├───┼───────────────┼─────┼─┤   │  │  (DOM rects red, OCR words      │   │
+  │ │ ☐ │ EXACT_CONTAIN │ inp │…│   │  │   green, EXACT_CONTAIN highlight│   │
+  │ │ ☐ │ EXACT_CONTAIN │ a   │…│   │  │   thick green)                  │   │
+  │ │ ☐ │ OVERLAP       │ div │…│   │  └─────────────────────────────────┘   │
+  │ │ ☐ │ PROXIMITY     │ but │…│   │  legend caption                       │
+  │ │ ☐ │ NONE          │ a   │…│   │                                       │
+  │ └─────────────────────────────┘   │                                       │
+  ├───────────────────────────────────┴───────────────────────────────────────┤
+  │ Approved: 0 / 17   [Mark All Approved] [Clear All Approvals] [Close]       │
+  └───────────────────────────────────────────────────────────────────────────┘
+
+  Columns
+
+  ┌──────────────┬──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │    Column    │                                           Content                                            │
+  ├──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✓ Approved   │ Per-row checkbox. Tick = the resolution is "good to go". Light-green row tint when approved. │
+  ├──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Quality      │ EXACT_CONTAIN (dark green pill) · OVERLAP (olive) · PROXIMITY (orange) · NONE (grey).        │
+  ├──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Tag          │ input / button / a / div / etc.                                                              │
+  ├──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ DOM Text     │ ElementDTO.someText after the resolver ran (the canonical text).                             │
+  ├──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ OCR Text     │ What OCR found at this element's bbox with the current unsaved form values.                  │
+  ├──────────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ xPath (tail) │ Last 60 chars of the xPath, with the full path on hover tooltip.                             │
+  └──────────────┴──────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Rows are pre-sorted by quality so you start with the EXACT matches at the top — review and tick Password, User number, etc., then scroll down to the misses to
+  figure out what config knob would help.
+
+  Approval persistence
+
+  In-memory only today. Closing the scene drops the ticks. Persisting approvals as a JSON-encoded output.approved_xpaths param on the profile is a small follow-up —
+  say the word and I wire it.
+
+  What's next
+
+  Persisting approvals → comparing the approved set across profile versions → "regression alert when an approved element drops to NONE in v3" is a natural next step
+  that would close the loop on the workflow you described. Want that as 4c++?

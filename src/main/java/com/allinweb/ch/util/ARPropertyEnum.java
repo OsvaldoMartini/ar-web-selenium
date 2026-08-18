@@ -1,6 +1,10 @@
 package com.allinweb.ch.util;
 
 public enum ARPropertyEnum {
+    NAVIGATION_TIME("navigation_time"),
+    PATH_APPIUM("path_appium"),
+    PATH_PLUGINS("path_plugins"),
+    URL_PLUGINS("url_plugins"),
     PATH_LICENSE("path_license"),
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),
@@ -12,19 +16,34 @@ public enum ARPropertyEnum {
     DB_USER("db_user"),
     DB_PWD("db_pwd"),
     PATH_DB("path_db"),
+    PAGE_SCAN_RETENTION_DAYS("page_scan_retention_days"),
+    PAGE_SCAN_RETENTION_MAX_UNPINNED_PER_PAGE("page_scan_retention_max_unpinned_per_page"),
     PATH_REPORT("path_report"),
     PATH_PRIORITY("path_priority"),
     PATH_ENGINE("path_engine"),
     PATH_WEBDRIVER("path_web_driver"),
+    PATH_OCR("path_ocr"),
+    AI_ENDPOINT("ai_endpoint"),
+    AI_API_KEY("ai_api_key"),
+    AI_MODEL("ai_model"),
+    AI_MAX_BLOCKS("ai_max_blocks"),
     LOG_LEVEL("log_level"),
     MAX_LOG_SIZE("max_log_size"),
     BROWSER("browser"),
     VERSION("version"),
     BUILD("build"),
     EXPIRATION("expiration"),
+    LICENSE_ORG_KEY("license.orgKey"),
+    LICENSE_ORG_NAME("license.orgName"),
+    LICENSE_OWNER("license.owner"),
+    LICENSE_EMAIL("license.email"),
+    LICENSE_VERSION("license.version"),
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),
     WEBDRIVER_INTERACTION_TIMEOUT_SEC("interaction_timeout_sec"),
-    INSTRUCTION_STOP_SECONDS("default_instruction_stop_seconds");
+    INSTRUCTION_STOP_SECONDS("default_instruction_stop_seconds"),
+    WEB_APP("Web App"),
+    ANDROID("Android"),
+    IOS("iOS");
 
     private String value; // this must not be final even if suggested doing so
 

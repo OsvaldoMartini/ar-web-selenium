@@ -10,8 +10,17 @@ dist/
 # Compiled Java class files
 *.class
 
-# Compiled Python bytecode
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python files
+*.py
 *.py[cod]
+__pycache__/
 
 # Log files
 *.log
@@ -55,10 +64,9 @@ Thumbs.db
 # properties file
 configuration.properties
 
-
 # *.mdb
 
-#local folders
+# local folders
 /java/
 /javaFX/
 /log/
@@ -66,4 +74,3 @@ configuration.properties
 /excel/
 /config/
 /chrome/
-

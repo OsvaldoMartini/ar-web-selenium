@@ -1,0 +1,87 @@
+package com.allinweb.ch.model;
+
+import java.util.List;
+
+/** Typed UPDATE contract used only by the Variables Command Editor modal. */
+public final class VariablesCommandEditorUpdateV1 {
+    public static final int CONTRACT_VERSION = 1;
+
+    private VariablesCommandEditorUpdateV1() {}
+
+    public enum PlacementKind { KEEP, TOP, END, AFTER_INSTRUCTION }
+
+    public enum ConfigurationKind {
+        LOOP,
+        REFRESH_LOOP,
+        WAIT,
+        CHECK_VALUE,
+        EXTERNAL_CHECK,
+        EXCEL_WRITE,
+        GOTO,
+        SWIPE,
+        CONDITIONAL,
+        /** Target commands with no intrinsic configuration (GET, REFRESH, PAUSE, ...). */
+        NONE
+    }
+
+    public record Placement(PlacementKind kind, Integer referenceInstructionId) {}
+
+    public record Configuration(
+            ConfigurationKind kind,
+            Integer intervalSeconds,
+            Integer iterations,
+            Integer waitSeconds,
+            String operator,
+            String conditionSource,
+            Integer leftVariableId,
+            String operandKind,
+            String operandRawValue,
+            Integer operandVariableId,
+            String outputKey,
+            String outputColumn,
+            String outputFile,
+            String externalSourceKey,
+            String formatPolicy,
+            Integer count) {
+        public String comparisonOperator() {
+            return operator;
+        }
+
+        public Configuration withoutVariableReferences() {
+            if (operandVariableId == null && leftVariableId == null) return this;
+            return new Configuration(
+                    kind,
+                    intervalSeconds,
+                    iterations,
+                    waitSeconds,
+                    operator,
+                    "PREVIOUS_RESULT",
+                    null,
+                    "VOID",
+                    "",
+                    null,
+                    outputKey,
+                    outputColumn,
+                    outputFile,
+                    externalSourceKey,
+                    formatPolicy,
+                    count);
+        }
+    }
+
+    public record Request(
+            Integer contractVersion,
+            String requestId,
+            String bindingEpoch,
+            Long workspaceEpoch,
+            Long baseGraphVersion,
+            String graphRevision,
+            Integer sourceInstructionId,
+            Integer targetBlockId,
+            Placement placement,
+            Boolean allowRelationshipDisconnect,
+            Boolean allowConditionalFamilyDissolve,
+            List<Integer> conditionalFamilyDeleteIds,
+            Configuration configuration,
+            String targetAction) {}
+}

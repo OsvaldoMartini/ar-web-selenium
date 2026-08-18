@@ -1,5 +1,5 @@
  private void setupWebDriver() {
-        String logFolder = "D:\\Projects\\AllinWeb\\ARWeb\\Logs";
+        String logFolder = "C:\\AllinWeb\\ARWeb\\Logs";
         String webDriverPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
         // Set the path to the ChromeDriver executable
         ChromeOptions options = new ChromeOptions();

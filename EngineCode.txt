@@ -1,130 +1,190 @@
 String mainMsg = "";
 boolean byPassNotFound = false;
-boolean byPassFlagLoop;
+boolean byPassFlagLoop = false;
 boolean success = true;
 boolean stopAll = false;
+boolean firstRound = true;
+boolean anyFailure = false;
+boolean alreadyLogged = false;
 long botJobStartTime = System.nanoTime();
 long totalExecutionTime = 0;
 String resultActions = "No instruction executed yet";
 String failedMessage = "";
 Map<String, String> dataExcel = null;
+Integer lastBlockOrderPushed = null;
+TargetElement matchScanned = null;
+TargetElement matchXPath = null;
+WebElement webElementFound = null;
+int navTime = getNavigationTimeSeconds();
+String previousExcelFieldName = "";
+String newExcelFieldName = "";
+String currentExcelFileName = "";
+CsvTable currentTableCSV = null;
 
-// clearFields();
+//        List<InputInfo> inputs = new ArrayList<>();
 
-// Execute All Blocks starting from executeSpecificBlock if Defined
-// int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
-String sessionRowStatus = "botJobTasks-" + botJobId;
+sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
-variablesLoaded = performDataBase.loadAllVariables(botJobId);
-Map<String, String> mapSavedLocators = new HashMap<>();
+variablesLoaded = performLists.getListVariable();
+//        Map<String, String> mapSavedLocators = new HashMap<>();
 
 Set<Integer> parentIdsForLoop = null;
+Set<Integer> allOutPuts = null;
+
 Map<String, List<Integer>> mapConditional = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
 Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
 Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
 Set<String> loopBlockActive = new HashSet<>();
 Map<String, Integer> loopBlockLimits = new HashMap<>();
 
-ARConstants.ConditionStatus currentCondition = ARConstants.ConditionStatus.NONE;
-ARConstants.ConditionStatus previousCondition;
-ARConstants.ConditionStatus progressCondition;
-ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
+ARExecution.ConditionStatus currentCondition = ARExecution.ConditionStatus.NONE;
+ARExecution.ConditionStatus previousCondition;
+ARExecution.ConditionStatus progressCondition;
+ARExecution.DialogModal respModal = null;
 
 int exportIndex = 1;
 boolean webElementWork = false;
 
 if (extractedData.getNumberOfDataRows() > 0) {
-	List<InstructionLoadDTO> excelDataGoto =
-			performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
-
-	//                if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
-	//
-	//                    respModal = performMessage.showCustomModalDialogDragWin11(
-	//                            "Multiple Excel Rows Detected",
-	//                            "<span style='font-weight: bold;'>Your Excel data file contains multiple
-	// rows.</span>",
-	//                            "By default, each Excel test row <span style='font-weight: bold; color:
-	// #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span
-	// style='font-weight: bold;'>first block (Use Case).</span>",
-	//                            "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel
-	// GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default
-	// behaviour.</span>",
-	//                            "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span>
-	// allows you to specify which block <span style='font-weight: bold;'>the flow should continue
-	// from</span>, after the execution of the first row across all blocks.",
-	//                            false,
-	//                            "Continue",
-	//                            "Stop All",
-	//                            0);
-	//
-	//                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-	//
-	//                        launchBotJobButton.setDisable(false);
-	//                        performActions.setInterceptBotJob(true);
-	//                        setInterceptBotJob(true);
-	//                        isJobRunning.set(false);
-	//
-	//                        if (!lastBrowserTab()) {
-	//                            return false;
-	//                        }
-	//                    }
 
 	// Execute All Blocks starting from executeSpecificBlock if Defined
-	int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
-	int blockInitial = currentBlock;
+	currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
+	int blockRecall = currentBlockOrder;
+	int blockExcelGoto = blockRecall;
 
+	// BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
 	if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
-		Integer parentId =
-				excelDataGoto.get(excelDataGoto.size() - 1).getParentId();
-		blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentId) - 1;
+		Integer parentBlockId =
+				excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+		excelDataGoto
+				.get(0)
+				.setParentBlockId(excelDataGoto.get(0).getBlockId()); // overwrite/fix using block table
+
+		blockExcelGoto = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
+
+		// PREVENTID  LATGER DELETION
+		if (blockExcelGoto < 0) {
+
+			Integer blockOrder = (excelDataGoto != null && !excelDataGoto.isEmpty())
+					? excelDataGoto.get(0).getBlockOrderNumber()
+					: null;
+
+			blockExcelGoto = (blockOrder != null && blockOrder > 0) ? blockOrder : 1;
+		}
 	}
 
 	int xExcelCurrentRow = 0;
 	int xExcelDataSize = extractedData.getNumberOfDataRows();
-	mapExportRows = new LinkedHashMap<>();
+	mapOperators.clear();
 	headersExport.clear();
-	columnsCSV.clear();
-	rowsCSV.clear();
+	currentColumnsCSV.clear();
+	csvTables.clear();
 
 	while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+		// Clear's Up Any Loop as Per New Line
+		mapLoops.clear();
+		mapRefresh.clear();
+
+		if (firstRound) {
+			firstRound = false;
+			currentBlockOrder = blockRecall; // start blocks from initial for this row
+		} else {
+			currentBlockOrder = blockExcelGoto; // start blocks from initial for this row
+		}
 
 		blockLoop:
-		while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+		while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 			long blockStartTime = System.nanoTime();
+			failedMessage = "";
 
-			currentCondition = ARConstants.ConditionStatus.NONE;
-			previousCondition = ARConstants.ConditionStatus.NONE;
-			progressCondition = ARConstants.ConditionStatus.NONE;
+			currentCondition = ARExecution.ConditionStatus.NONE;
+			previousCondition = ARExecution.ConditionStatus.NONE;
+			progressCondition = ARExecution.ConditionStatus.NONE;
 
-			respModal = ARConstants.DialogModal.NONE;
+			respModal = ARExecution.DialogModal.NONE;
 
 			int parentBlockCondition = -1;
 
-			BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+			BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockOrder);
 
-			String blockName = blocksLoaded.get(currentBlock).getName();
-			int blockOrder = blocksLoaded.get(currentBlock).getBlockOrderNumber();
+			String blockName = blocksLoaded.get(currentBlockOrder).getName();
+			int blockOrder = blocksLoaded.get(currentBlockOrder).getBlockOrderNumber();
 			String blockReportName = "#" + blockOrder + " " + blockName;
 
-			int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
-					? blocksLoaded.get(currentBlock).getWait()
+			int blockWait = blocksLoaded.get(currentBlockOrder).getWait() > 0
+					? blocksLoaded.get(currentBlockOrder).getWait()
 					: 2;
 
-			boolean blockActive = blocksLoaded.get(currentBlock).getActive();
+			boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
 			if (blockActive) {
-				excelFieldName = blockLoad.getExportFile();
+
+				// Fire only when the block CHANGES, and only for ACTIVE blocks
+				if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+
+					// RESET instruction-level first-load flag
+					firstPageLoadDone = false;
+
+					performActions.waitPage();
+					lastBlockOrderPushed = currentBlockOrder;
+
+					performLists.resetListElements();
+					pushUpdateListElements();
+
+					logOperations.info("Total Target Elements: "
+							+ performLists.getListTargetElements().size());
+
+					// Inputs-only list with inferred labels
+					//                            inputs.clear();
+					//                            inputs =
+					//
+					//
+					// DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+				}
+
+				newExcelFieldName = blockLoad.getExportFile();
+				// Always loads ExcelWrite columns per block
+				ErrorMessage errorMessage = performDBEngine.loadAllColumnsExcelWrite(
+						"instruction", currentBotJob.getId(), blockLoad.getId());
+				if (errorMessage == null) {
+					setCurrentColumns(performLists.getExcelColumnNames());
+				}
+
+				if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
+					// Sanitize
+					if (!Strings.isNullOrEmpty(newExcelFieldName)) {
+						String[] parts = newExcelFieldName.split(":");
+						if (parts.length > 2) {
+							delimiterCSV = parts[2];
+							newExcelFieldName =
+									newExcelFieldName.replace(":,", "").replace(":|", "");
+						}
+
+						// Extract only file name with extension
+						Path path = Paths.get(newExcelFieldName);
+						currentExcelFileName = path.getFileName().toString();
+					}
+
+					String finalNewExcelFieldName = newExcelFieldName;
+					currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f -> {
+						CsvTable t = new CsvTable(f, finalNewExcelFieldName, delimiterCSV);
+						t.addColumns(currentColumnsCSV); // addAll per filename
+						return t;
+					});
+
+					previousExcelFieldName = newExcelFieldName;
+				}
 			}
 
 			// It Searches the Block That have finished the Loops to Avoid recursivity
-			if (loopBlockActive.size() > 0) {
+			if (!loopBlockActive.isEmpty()) {
 				for (String blocLoopKey : loopBlockActive) {
 					if (mapLoops.containsKey(blocLoopKey)) {
 						if (mapLoops.get(blocLoopKey) == 0) {
 							stopAll = true;
 							int limit = loopBlockLimits.get(blocLoopKey);
 
-							Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
+							FieldData msgBlock = new FieldData(blocLoopKey, "0");
 
 							// Excel Report and Log
 							performActions.logAndReport(
@@ -134,16 +194,16 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									blockStartTime,
 									blockReportName,
 									success,
-									new String[] {ARConstants.GOTO},
+									new String[] {ARConstantsEngine.GOTO},
 									msgBlock,
 									dataExcel,
 									writerReport,
 									"GOTO Limit Reached",
 									blocLoopKey + " Reached: 0");
 
-							msgBlock = new Pair(
+							msgBlock = new FieldData(
 									String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
-									ARConstants.EXIT);
+									ARConstantsEngine.EXIT);
 
 							// Excel Report and Log
 							performActions.logAndReport(
@@ -153,14 +213,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									blockStartTime,
 									blockReportName,
 									success,
-									new String[] {ARConstants.EXIT},
+									new String[] {ARConstantsEngine.EXIT},
 									msgBlock,
 									dataExcel,
 									writerReport,
 									"Stopping App",
 									String.format("Exit at Block Name: \"%s\"", blockName));
 
-							performActions.gotoLimitExecution(limit, resultActions);
+							// performActions.gotoLimitExecution(limit, resultActions);
 
 							continue blockLoop;
 						}
@@ -169,10 +229,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			}
 
 			if (!blockActive) {
-				currentBlock++;
+				currentBlockOrder++;
 
-				Pair<String, String> msgBlock =
-						new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
+				FieldData msgBlock = new FieldData(
+						String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstantsEngine.IGNORE);
 
 				// Excel Report and Log
 				performActions.logAndReport(
@@ -182,7 +242,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						blockStartTime,
 						blockReportName,
 						success,
-						new String[] {ARConstants.IGNORE},
+						new String[] {ARConstantsEngine.IGNORE},
 						msgBlock,
 						dataExcel,
 						writerReport,
@@ -194,8 +254,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 			try {
 
-				Pair<String, String> msgBlock =
-						new Pair(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
+				FieldData msgBlock = new FieldData(blockLoad.getName(), ARConstantsEngine.EXCEL_BLOCK_HEADER);
 
 				// Block Header Format
 				performActions.logAndReport(
@@ -205,7 +264,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						blockStartTime,
 						blockReportName,
 						success,
-						new String[] {ARConstants.EXCEL_BLOCK_HEADER},
+						new String[] {ARConstantsEngine.EXCEL_BLOCK_HEADER},
 						msgBlock,
 						null,
 						writerReport,
@@ -214,10 +273,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 				performActions.onHoldInSeconds(blockWait);
 
-				msgBlock = new Pair(
-						String.format(
-								"Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
-						ARConstants.HOLD);
+				msgBlock = new FieldData(
+						String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
+						ARConstantsEngine.HOLD);
 
 				// Excel Report and Log
 				performActions.logAndReport(
@@ -227,7 +285,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						blockStartTime,
 						blockReportName,
 						success,
-						new String[] {ARConstants.HOLD},
+						new String[] {ARConstantsEngine.HOLD},
 						msgBlock,
 						dataExcel,
 						writerReport,
@@ -235,15 +293,18 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
 			} catch (Exception ex) {
-				ARLogger.getInstance(Engine.class)
-						.severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+
+				logOperations.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
 			}
+
+			allOutPuts = performActions.getAllOutputsPerBlock(
+					blocksLoaded.get(currentBlockOrder).getInstructionLoad());
 
 			// Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
 			// current
 			// Block
 			parentIdsForLoop = performActions.getParentIdsForLoop(
-					blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
+					blocksLoaded.get(currentBlockOrder).getInstructionLoad());
 
 			// Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
 			// "ELSEIF",
@@ -251,14 +312,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			mapConditional = performActions.getConditionIndexMapByParentId(blockLoad);
 
 			// Step 3: Get all Instructions Ids on current Block
-			int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
-					.mapToInt(InstructionLoadDTO::getId)
+			int[] instructionIds = blockLoad.getInstructionLoad().stream()
+					.mapToInt(InstructionLoad::getId)
 					.toArray();
 
 			// Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
 			//                mapLoops = performActions.getLoopAndRefreshLoops(
-			//                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+			//                        blocksLoaded.get(currentBlockOrder).getBlockLoopInstructionLoadS());
 
 			//                executionTimes++;
 			boolean jumpGoto = false;
@@ -268,8 +329,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			boolean refreshLoop = false;
 			boolean refreshOnly = false;
 
-			while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
-				//                        mapExportRows.clear();
+			while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+				failedMessage = "";
+				//                        tableCSV.clear();
 
 				//                    writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -281,7 +343,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				while (currentIndex < instructionIds.length && !stopAll) {
 					// Resets the success
 
-					//                            stopAll = isInterceptBotJob();
+					stopAll = isInterceptBotJob();
 					if (stopAll) {
 						break;
 					}
@@ -291,21 +353,20 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 					long currentInstructionStartTime = System.nanoTime();
 
-					InstructionLoadDTO currentInstruction =
-							blockLoad.getInstructionLoadDTOS().get(currentIndex);
+					InstructionLoad currentInstruction =
+							blockLoad.getInstructionLoad().get(currentIndex);
 
 					byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
-					mainMsg = currentInstruction.getOptional()
-							? "OPTIONAL INSTRUCTION"
-							: "MANDATORY INSTRUCTION";
+					mainMsg =
+							currentInstruction.getOptional() ? "optional instruction" : "mandatory instruction";
 
 					if (!currentInstruction.getInstructionActive()) {
 
 						String nameInstruc =
 								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-						Pair<String, String> msgBlock =
-								new Pair(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
+						FieldData msgBlock = new FieldData(
+								String.format("Ignore: \"%s\"", nameInstruc), ARConstantsEngine.IGNORE);
 
 						// Excel Report and Log
 						performActions.logAndReport(
@@ -315,7 +376,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								blockStartTime,
 								blockReportName,
 								success,
-								new String[] {ARConstants.IGNORE},
+								new String[] {ARConstantsEngine.IGNORE},
 								msgBlock,
 								dataExcel,
 								writerReport,
@@ -327,16 +388,57 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						continue;
 					}
 
-					mapSavedLocators.clear();
+					// FIRST IMMEDIATE ATTEMPT TO LOCATE
+					if (isWebElementInstruction(currentInstruction)) {
+						webElementFound = immediateXPath(currentInstruction.getXpath());
+					}
 
-					// Loop through the instructionReferenceLoadDTOList
-					if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
-						for (InstructionReferenceLoadDTO reference :
-								currentInstruction.getInstructionReferenceLoadDTOList()) {
-							// Populate the map with referenceType as the key and value as the value
-							mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
+					performActions.waitPage();
+					try {
+						if (navTime > 0) {
+							performActions.onHoldInSeconds(navTime);
+							logOperations.info("Navigation Time : {}", navTime);
+						}
+					} catch (Exception ignore) {
+					}
+
+					// Fire on FIRST page load OR when the INSTRUCTION changes
+					// and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
+					if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+
+						Integer currentInstructionId = currentInstruction.getId();
+
+						if (!firstPageLoadDone
+								|| lastInstructionIdPushed == null
+								|| !lastInstructionIdPushed.equals(currentInstructionId)) {
+
+							firstPageLoadDone = true;
+							lastInstructionIdPushed = currentInstructionId;
+
+							performLists.resetListElements();
+							pushUpdateListElements();
+
+							logOperations.info("Total Target Elements: "
+									+ performLists
+											.getListTargetElements()
+											.size());
+
+							// runYourScript(currentInstructionId);
 						}
 					}
+
+					//                            mapSavedLocators.clear();
+					//
+					//                            // Loop through the instructionReferenceLoadDTOList
+					//                            if (currentInstruction.getReferenceLoadDTOList() != null) {
+					//                                for (ReferenceLoadDTO reference :
+					// currentInstruction.getReferenceLoadDTOList()) {
+					//                                    // Populate the map with referenceType as the key and
+					// value as the value
+					//                                    mapSavedLocators.put(reference.getReferenceType(),
+					// reference.getValue());
+					//                                }
+					//                            }
 
 					currentIndex++;
 
@@ -345,9 +447,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					// !currentInstruction.getExecuted()) {
 					boolean execGetOrSet = false;
 					boolean execCheckValue = false;
+					boolean execPDFCheck = false;
+					boolean execCSVCheck = false;
 					boolean execOutPut = false;
-					boolean excelWriteOperation = false;
+					boolean execExcellWrite = false;
 					boolean pauseOperation = false;
+					boolean nextEnter = false;
+					boolean swipeUp = false;
+					boolean swipeDown = false;
 
 					String xPathOperation = null;
 					String[] parentActions = null;
@@ -355,42 +462,47 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					String parentFieldLoop = null;
 					String variableField = null;
 					String localFormat = null;
-					delimiterCSV = null;
+					//                            delimiterCSV = null;
 					String fieldName = null;
 					int parentId = currentInstruction.getParentId();
 
-					if (mapIgnore.contains(
-							currentInstruction.getId() + "-" + currentInstruction.getName())) {
+					if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
 						continue;
 					}
 
-					// sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
-					String jsonStatus;
+					// webSocketSessionManager.sendMessageJson(int homeBankingId, String sessionId, String msg1,
+					// String msg2)
 					if (rowStatus.getInstructionId() == null) {
 						rowStatus.setInstructionId(currentInstruction.getId());
-						rowStatus.setColor("#fcba03"); // deep carmine yellow
-						//                                jsonStatus = gson.toJson(rowStatus);
-						//                                sendMessageJson(homeBanking.getId(),
-						// sessionRowStatus,
-						// jsonStatus, "rowStatus");
+						rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
+						jsonStatus = gson.toJson(rowStatus);
+						webSocketSessionManager.sendMessageJson(
+								this.currentBotJob.getHomeBankingId(),
+								sessionRowStatus,
+								jsonStatus,
+								"rowStatus");
 					} else {
 						// Previous
-						rowStatus.setColor("#1d9c06"); // green
-						//                                jsonStatus = gson.toJson(rowStatus);
-						//                                sendMessageJson(homeBanking.getId(),
-						// sessionRowStatus,
-						// jsonStatus, "rowStatus");
+						rowStatus.setColor("green"); // #1d9c06 green
+						jsonStatus = gson.toJson(rowStatus);
+						webSocketSessionManager.sendMessageJson(
+								this.currentBotJob.getHomeBankingId(),
+								sessionRowStatus,
+								jsonStatus,
+								"rowStatus");
 						try {
 							Thread.sleep(300);
 						} catch (Exception e) {
 						}
 						// Current
 						rowStatus.setInstructionId(currentInstruction.getId());
-						rowStatus.setColor("#fcba03"); // deep carmine green
-						//                                jsonStatus = gson.toJson(rowStatus);
-						//                                sendMessageJson(homeBanking.getId(),
-						// sessionRowStatus,
-						// jsonStatus, "rowStatus");
+						rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
+						jsonStatus = gson.toJson(rowStatus);
+						webSocketSessionManager.sendMessageJson(
+								this.currentBotJob.getHomeBankingId(),
+								sessionRowStatus,
+								jsonStatus,
+								"rowStatus");
 					}
 
 					//                        String[] operation =
@@ -398,19 +510,19 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					// ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
 					String[] actions = currentInstruction
 							.getActions()
-							.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+							.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
 					String[] operations = currentInstruction.getOperation() != null
 							? currentInstruction
 									.getOperation()
-									.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+									.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
 							: null;
 
-					if (actions[0].equalsIgnoreCase(ARConstants.IF)
-							|| actions[0].equalsIgnoreCase(ARConstants.ELSEIF)
-							|| actions[0].equalsIgnoreCase(ARConstants.ELSE)
-							|| actions[0].equalsIgnoreCase(ARConstants.ENDIF)) {
-						currentCondition = ARConstants.ConditionStatus.valueOf(actions[0]);
-						if (previousCondition.equals(ARConstants.ConditionStatus.NONE)) {
+					if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
+							|| actions[0].equalsIgnoreCase(ARConstantsEngine.ELSEIF)
+							|| actions[0].equalsIgnoreCase(ARConstantsEngine.ELSE)
+							|| actions[0].equalsIgnoreCase(ARConstantsEngine.ENDIF)) {
+						currentCondition = ARExecution.ConditionStatus.valueOf(actions[0]);
+						if (previousCondition.equals(ARExecution.ConditionStatus.NONE)) {
 							previousCondition = currentCondition;
 							parentBlockCondition = parentId;
 						} else if (!previousCondition.equals(
@@ -419,8 +531,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						}
 
 						// Conditions When Pass to any of then
-						if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-								|| progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+						if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+								|| progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
 							int jumpPassed = performActions.checkActionToJump(
 									actions[0],
 									progressCondition,
@@ -437,14 +549,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							if (jumpPassed > 0) {
 								currentIndex = jumpPassed;
 								// reset all Conditional
-								currentCondition = ARConstants.ConditionStatus.NONE;
-								progressCondition = ARConstants.ConditionStatus.NONE;
+								currentCondition = ARExecution.ConditionStatus.NONE;
+								progressCondition = ARExecution.ConditionStatus.NONE;
 								continue instructionLoop;
 							}
-						} else if (currentCondition.equals(ARConstants.ConditionStatus.ENDIF)) {
-							currentCondition = ARConstants.ConditionStatus.NONE;
-							previousCondition = ARConstants.ConditionStatus.NONE;
-							progressCondition = ARConstants.ConditionStatus.NONE;
+						} else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
+							currentCondition = ARExecution.ConditionStatus.NONE;
+							previousCondition = ARExecution.ConditionStatus.NONE;
+							progressCondition = ARExecution.ConditionStatus.NONE;
 							parentBlockCondition = -1;
 						}
 						continue;
@@ -452,35 +564,36 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 					// Case for Inputs
 					String valueInsert = "CHANGE ME";
-					if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+					if (actions[0].equals(ARConstantsEngine.INSERT)
+							&& actions[1].equals(ARConstantsEngine.ENTER)) {
 						String reference = actions[2];
 						valueInsert = dataExcel.get(reference);
-					} else if (actions[0].equals(ARConstants.INSERT)) {
+					} else if (actions[0].equals(ARConstantsEngine.INSERT)) {
 						String reference = actions[1];
 						valueInsert = dataExcel.get(reference);
 					}
 
-					Pair<String, String> msgInstruction = null;
-					if (actions[0].equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+					FieldData msgInstruction = null;
+					if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXCEL_GOTO)) {
 
 						//                                currentIndex++;
 						continue instructionLoop;
 
-					} else if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ROW)) {
 						// <currentId:blockId:blockOrderNumber:bockName>
 						xExcelCurrentRow++;
 
-						String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+						String bodyMsg = "Excel Data Calling Next Row: " + (xExcelCurrentRow + 1);
 
 						if (xExcelCurrentRow >= xExcelDataSize - 1) {
 							xExcelCurrentRow = xExcelDataSize - 1;
-							msgInstruction = new Pair<>(
-									"Excel Data limit reached keeping",
+							msgInstruction = new FieldData(
+									"Excel Data (limit reached) keeping last row",
 									String.valueOf(xExcelCurrentRow + 1));
-							bodyMsg = "Excel Data limit reached keeping: " + xExcelCurrentRow + 1;
+							bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
 						} else {
 							msgInstruction =
-									new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+									new FieldData("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
 						}
 
 						// Excel Report and Log
@@ -491,7 +604,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								blockStartTime,
 								blockReportName,
 								success,
-								new String[] {ARConstants.NEXT_ROW},
+								new String[] {ARConstantsEngine.NEXT_ROW},
 								msgInstruction,
 								dataExcel,
 								writerReport,
@@ -501,12 +614,11 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						//                                currentIndex++;
 						continue instructionLoop;
 
-					} else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GOTO)) {
 						// <currentId:blockId:blockOrderNumber:bockName>
-						msgInstruction =
-								performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
+						msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
 						if (msgInstruction == null) {
-							msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
+							msgInstruction = new FieldData("GO TO Block \"Unknown\"", "Unknown");
 							success = false;
 							jumpGotoError = true;
 							jumpGoto = true;
@@ -519,43 +631,39 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						} else if (mapLoops.containsKey(msgInstruction.getKey())) {
 							// Updates the msgInstruction
 							jumpGoto = true;
-							msgInstruction = new Pair<>(
+							msgInstruction = new FieldData(
 									msgInstruction.getKey(),
 									String.valueOf(mapLoops.get(msgInstruction.getKey())));
 						}
 
-					} else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
 						// <currentId:parentId:parentName>
 						msgInstruction = performActions.getInstructionDetailsById(
-								blocksLoaded.get(currentBlock).getInstructionLoadDTOS(),
-								currentInstruction);
+								blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 
 						if (msgInstruction == null) {
-							msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+							msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
 							success = false;
 						} else if (!mapLoops.containsKey(msgInstruction.getKey())) {
 							jumpLoopError = false;
-							String[] parts =
-									msgInstruction.getValue().split(":"); // Split by ':'
+							String[] parts = msgInstruction.getValue().split(":"); // Split by ':'
 							mapLoops.put(msgInstruction.getKey(), Integer.valueOf(parts[1])); // Loop Times
 							mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
 						} else if (mapLoops.containsKey(msgInstruction.getKey())) {
 							// Updates the msgInstruction
-							msgInstruction = new Pair<>(
+							msgInstruction = new FieldData(
 									msgInstruction.getKey(),
 									String.valueOf(mapLoops.get(msgInstruction.getKey())));
 						}
-					} else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
 						msgInstruction = performActions.getInstructionDetailsById(
-								blocksLoaded.get(currentBlock).getInstructionLoadDTOS(),
-								currentInstruction);
+								blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 						if (msgInstruction == null) {
-							msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+							msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
 							success = false;
 						} else if (!mapLoops.containsKey(msgInstruction.getKey())) {
 							jumpLoopError = false;
-							String[] parts =
-									msgInstruction.getValue().split(":"); // Split by ':'
+							String[] parts = msgInstruction.getValue().split(":"); // Split by ':'
 							mapLoops.put(msgInstruction.getKey(), Integer.valueOf(parts[1])); // Loop Times
 							mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
 						} else if (mapLoops.containsKey(msgInstruction.getKey())) {
@@ -563,30 +671,30 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Refresh Loop  <5:5> <WAIT:LOOP>
 							String updMsg = mapRefresh.get(msgInstruction.getKey()) + ":"
 									+ mapLoops.get(msgInstruction.getKey());
-							msgInstruction = new Pair<>(msgInstruction.getKey(), updMsg);
+							msgInstruction = new FieldData(msgInstruction.getKey(), updMsg);
 						}
-					} else if (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
-							|| (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
-						msgInstruction = new Pair(
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
+							|| (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
+						msgInstruction = new FieldData(
 								currentInstruction.getName(),
 								(currentInstruction.getOperation() != null
 										? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
-										: (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+										: (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
 												? valueInsert
 												: ""));
 					} else {
-						msgInstruction = new Pair(
+						msgInstruction = new FieldData(
 								"(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
 								(currentInstruction.getOperation() != null
 										? currentInstruction.getOperation()
-										: (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+										: (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
 												? valueInsert
 												: ""));
 					}
 
 					resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
-					if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
+					if (actions[0].equalsIgnoreCase(ARConstantsEngine.PAUSE)) {
 						pauseOperation = true;
 
 						respModal = performMessage.showCustomModalDialogDragWin11(
@@ -597,11 +705,17 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								null,
 								false,
 								"Continue",
-								"Stop all",
+								"Stop Run",
 								0);
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ENTER)) {
+						nextEnter = true;
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_UP)) {
+						swipeUp = true;
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_DOWN)) {
+						swipeDown = true;
 					}
 
-					if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+					if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
 						parentFieldLoop =
 								performActions.getInstructionParentField(currentInstruction, blockLoad);
 						if (parentField == null && parentFieldLoop == null) {
@@ -611,8 +725,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							parentField = parentFieldLoop;
 						}
 
-						parentFieldLoop =
-								currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
+						parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
 
 						if (mapLoops.containsKey(parentFieldLoop)) {
 							int currentLoop = mapLoops.get(parentFieldLoop);
@@ -631,9 +744,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							jumpLoopError = true;
 						}
 
-					} else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_ONLY)) {
 						refreshOnly = true;
-					} else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
 						parentFieldLoop =
 								performActions.getInstructionParentField(currentInstruction, blockLoad);
 						if (parentField == null && parentFieldLoop == null) {
@@ -643,8 +756,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							parentField = parentFieldLoop;
 						}
 
-						parentFieldLoop =
-								currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
+						parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
 
 						if (mapLoops.containsKey(parentFieldLoop)) {
 							int currentLoop = mapLoops.get(parentFieldLoop);
@@ -662,8 +774,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						} else {
 							jumpLoopError = true;
 						}
-					} else if (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)
-							|| actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)
+							|| actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)) {
 
 						execGetOrSet = true;
 
@@ -671,52 +783,66 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						String actionsParent =
 								performActions.getInstructionParentActions(currentInstruction, blockLoad);
 						parentActions = actionsParent != null
-								? actionsParent.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+								? actionsParent.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
 								: null;
 
-						parentField =
-								performActions.getInstructionParentField(currentInstruction, blockLoad);
-						variableField = performActions.getInstructionVariableField(
-								currentInstruction, variablesLoaded);
+						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+						variableField =
+								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
 						localFormat = performActions.getInstructionVariableFormat(
 								currentInstruction, variablesLoaded);
 						if (variableField == null) {
 							variableField = "Not Variable defined";
 						}
 
-					} else if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
 						execOutPut = true;
 						fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-					} else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CHECK_VALUE)) {
 						execCheckValue = true;
-						parentField =
-								performActions.getInstructionParentField(currentInstruction, blockLoad);
-						variableField = performActions.getInstructionVariableField(
-								currentInstruction, variablesLoaded);
+						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+						variableField =
+								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
 						if (variableField == null) {
 							variableField = "Not Variable defined";
 						}
-					} else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
-						excelWriteOperation = true;
-						parentField =
-								performActions.getInstructionParentField(currentInstruction, blockLoad);
-						variableField = performActions.getInstructionVariableField(
-								currentInstruction, variablesLoaded);
-						delimiterCSV = performActions.getInstructionVariableDelimiter(
-								currentInstruction, variablesLoaded);
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.PDF_CHECK)) {
+						execPDFCheck = true;
+						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+						variableField =
+								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+						if (variableField == null) {
+							variableField = "Not Variable defined";
+						}
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CSV_CHECK)) {
+						execCSVCheck = true;
+						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+						variableField =
+								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+						if (variableField == null) {
+							variableField = "Not Variable defined";
+						}
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
+						execExcellWrite = true;
+						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+						variableField =
+								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+						//                                if (delimiterCSV == null) {
+						//                                    delimiterCSV =
+						// performActions.getInstructionVariableDelimiter(
+						//                                            currentInstruction, variablesLoaded);
+						//                                }
 						if (variableField == null) {
 							variableField = "Not Variable defined";
 						}
 					}
-
-					File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
 					try {
 						if (jumpGoto) {
 
 							if (jumpGotoError) {
 								success = false;
-								failedMessage = "Failed: GO TO";
+								failedMessage = "Failed: GO TO ";
 								resultActions = performActions.blockGotoFailed(resultActions);
 							} else {
 								if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -730,27 +856,26 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									mapLoops.put(msgInstruction.getKey(), repeat);
 									try {
 
-										String[] parts = msgInstruction
-												.getKey()
-												.split(":");
+										String[] parts =
+												msgInstruction.getKey().split(":");
 										int blockOrderNumber = Integer.parseInt(parts[2]);
 
-										currentBlock = blockOrderNumber - 1;
+										currentBlockOrder = blockOrderNumber - 1;
 										currentInstruction.setExecuted(true);
 
+										failedMessage = "";
 										success = true;
 
 									} catch (Exception ex) {
-										failedMessage = "Failed: GO TO";
-										msgInstruction =
-												updateMSGInstruction(msgInstruction, failedMessage);
+										failedMessage = "Failed: GO TO ";
+										msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 										success = false;
 
 										resultActions = performActions.blockGotoFailed(resultActions);
 									}
 
-									Pair<String, String> currentPair = new Pair(
+									FieldData currentPair = new FieldData(
 											msgInstruction.getKey(),
 											String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -798,23 +923,22 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								if (repeat > 0) {
 									mapLoops.put(parentFieldLoop, repeat);
 
-									ARLogger.getInstance(Engine.class)
-											.info(String.format(
-													"Loop to Parent :\"%s\" - %d Times",
-													parts[0] + "-(" + parts[1] + ") " + parts[2],
-													mapLoops.get(parentFieldLoop)));
+									logOperations.info(String.format(
+											"Loop to Parent :\"%s\" - %d Times",
+											parts[0] + "-(" + parts[1] + ") " + parts[2],
+											mapLoops.get(parentFieldLoop)));
 
 									if (refreshLoop) {
 
 										String extraLog = performActions.actionResultMessage(
 												blockName,
-												new String[] {ARConstants.REFRESH_HOLD},
+												new String[] {ARConstantsEngine.REFRESH_HOLD},
 												msgInstruction);
 
 										performActions.performOtherActions(
 												byPassNotFound,
 												currentInstruction,
-												new String[] {ARConstants.REFRESH_HOLD});
+												new String[] {ARConstantsEngine.REFRESH_HOLD});
 
 										// Excel Report and Log
 										performActions.logAndReport(
@@ -824,7 +948,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 												currentInstructionStartTime,
 												blockReportName,
 												success,
-												new String[] {ARConstants.REFRESH_HOLD},
+												new String[] {ARConstantsEngine.REFRESH_HOLD},
 												msgInstruction,
 												dataExcel,
 												writerReport,
@@ -834,13 +958,13 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										// Refresh For REFRESH_LOOP
 										extraLog = performActions.actionResultMessage(
 												blockName,
-												new String[] {ARConstants.REFRESH_ONLY},
+												new String[] {ARConstantsEngine.REFRESH_ONLY},
 												msgInstruction);
 
 										performActions.performOtherActions(
 												byPassNotFound,
 												currentInstruction,
-												new String[] {ARConstants.REFRESH_ONLY});
+												new String[] {ARConstantsEngine.REFRESH_ONLY});
 
 										// Excel Report and Log
 										performActions.logAndReport(
@@ -850,7 +974,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 												currentInstructionStartTime,
 												blockReportName,
 												success,
-												new String[] {ARConstants.REFRESH_ONLY},
+												new String[] {ARConstantsEngine.REFRESH_ONLY},
 												msgInstruction,
 												dataExcel,
 												writerReport,
@@ -868,7 +992,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									}
 
 									// Get Correct Updated Pair for REFRESH_LOOP ACTION
-									Pair<String, String> currentPair = new Pair(
+									FieldData currentPair = new FieldData(
 											msgInstruction.getKey(),
 											String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -897,11 +1021,11 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								if (repeat > 0) {
 									continue instructionLoop;
 								} else {
-									ARLogger.getInstance(Engine.class)
-											.info(String.format(
-													"IGNORING Loop to Parent :\"%s\" - %d Times",
-													parts[0] + "-(" + parts[1] + ") " + parts[2],
-													mapLoops.get(parentFieldLoop)));
+
+									logOperations.info(String.format(
+											"IGNORING Loop to Parent :\"%s\" - %d Times",
+											parts[0] + "-(" + parts[1] + ") " + parts[2],
+											mapLoops.get(parentFieldLoop)));
 									continue;
 								}
 
@@ -923,14 +1047,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 							refreshOnly = false;
 
-						} else if (actions[0].equals(ARConstants.HOLD)
-								|| actions[0].equals(ARConstants.QUIT)
-								|| actions[0].equals(ARConstants.SCREEN)
-								|| actions[0].equals(ARConstants.REFRESH_ONLY)) {
+						} else if (actions[0].equals(ARConstantsEngine.HOLD)
+								|| actions[0].equals(ARConstantsEngine.QUIT)
+								|| actions[0].equals(ARConstantsEngine.SCREEN)
+								|| actions[0].equals(ARConstantsEngine.REFRESH_ONLY)) {
 
 							performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-							if (actions[0].equals(ARConstants.QUIT)) {
+							if (actions[0].equals(ARConstantsEngine.QUIT)) {
 								stopAll = true;
 								success = true;
 							}
@@ -939,76 +1063,188 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								&& !jumpLoopError
 								&& !execGetOrSet
 								&& !execCheckValue
-								&& !excelWriteOperation
-								&& !pauseOperation) {
+								&& !execPDFCheck
+								&& !execCSVCheck
+								&& !execExcellWrite
+								&& !pauseOperation
+								&& !nextEnter
+								&& !swipeUp
+								&& !swipeDown) {
 
 							webElementWork = true;
 
-							// Extract dataFieldName and dataFieldValue using a separate method
-							Pair<String, String> fieldData = performActions.extractFieldData(
+							FieldData fieldData = performActions.extractFieldData(
 									dataExcel,
 									actions,
 									currentInstruction.getDefaultValue(),
 									currentInstruction.getCodified());
 
-							WebElement webElementFound = null;
+							//                                    webElementFound = null;
 							boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
 									&& currentInstruction.getForceCoordinates();
-							try {
-								webElementFound = performActions.searchElement(
-										currentInstruction, botJobId, forceCoordinates);
-							} catch (Exception ex) {
-								success = false;
+
+							if (!isMobileApp) {
+
+								if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+									try {
+										performActions.waitPage();
+
+										matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
+												performLists.getListTargetElements(), currentInstruction);
+										matchScanned = null;
+										//                                            InputInfo match =
+										// findMatchingInput(inputs, currentInstruction);
+
+										if (matchXPath == null) {
+											matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+													performLists.getListTargetElements(), currentInstruction);
+
+											if (matchScanned != null) {
+												InstructionLoadUpdater.applyMatchToInstruction(
+														currentInstruction, matchScanned);
+
+												// SECOND IMMEDIATE ATTEMPT TO LOCATE
+												webElementFound = immediateXPath(matchScanned.getXPath());
+											}
+										}
+
+										// VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+										//                                            if (matchXPath != null ||
+										// matchScanned != null || match != null) {
+										if (webElementFound == null) {
+											webElementFound = performActions.searchElement(
+													currentInstruction,
+													this.currentBotJob.getId(),
+													forceCoordinates,
+													byPassFlagLoop);
+										}
+										//                                            } else {
+										//                                                webElementFound =
+										// null;
+										//                                                forceCoordinates =
+										// false;
+										//                                            }
+									} catch (Exception ex) {
+										success = false;
+									}
+								}
+							} else {
+								// Safely extract the first element ID (if present)
+								//                                        Integer elementId =
+								// Optional.ofNullable(splitDTO.getElementDetails())
+								//                                                .filter(arr -> arr.length > 0)
+								//                                                .map(arr -> arr[0])
+								//                                                .map(ElementDTO::getId)
+								//                                                .orElse(null);
+
+								// Find matching instruction by variableId
+								//                                        InstructionLoad matchingInstruction =
+								// Optional.ofNullable(
+								//
+								// performLists.getListInstruction())
+								//
+								// .orElse(Collections.emptyList())
+								//                                                .stream()
+								//                                                .filter(i ->
+								// Objects.equals(i.getId(), elementId))
+								//                                                .findFirst()
+								//                                                .orElse(null);
+
+								// 2) Apply only non-empty values into splitDTO and elementDetails[0]
+								//                                        if (matchingInstruction != null) {
+								// >>> Add AttrData:* references into elementDetails.attributesData
+								SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+
+								SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
+								//                                        }
+
+								// Already Maps List<TargetElement>
+								//
+								// androidHelper.scanElementsWithCanonicalXmlOnly(
+								//
+								// androidDevice.getCurrentDriver());
+
+								//                                        webElementFound =
+								// androidDevice.searchElement(
+								//                                                splitDTO, actions,
+								// performLists.getListTargetElements());
+
+								if (webElementFound == null) {
+									appendLog(
+											currentInstruction.getName() + "- Not Found- using coordinates",
+											"warn");
+									//
+									// androidDevice.executeAction(webElementFound, splitDTO, actions);
+								}
 							}
 
-							if (webElementFound == null && forceCoordinates) {
+							if (webElementFound == null && forceCoordinates && !isMobileApp) {
 
 								Boolean pressEnterAfter = false;
-								if (actions[0].equals(ARConstants.INSERT)
-										&& actions[1].equals(ARConstants.ENTER)) {
+								if (actions[0].equals(ARConstantsEngine.INSERT)
+										&& actions[1].equals(ARConstantsEngine.ENTER)) {
 									pressEnterAfter = true;
 								}
-								if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
-										|| actions[0].equalsIgnoreCase(ARConstants.CLICK)
-										|| actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-									success = performActions.executeActionsAtCoordinates(
-											mapSavedLocators.get("coordinates"),
-											fieldData,
-											actions[0],
-											pressEnterAfter);
+								if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+										|| actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+										|| actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+
+									List<WebElement> smartSearch = performActions.findBySmartLocator(
+											currentInstruction.getCssSelector());
+									if (!smartSearch.isEmpty()) {
+										success = performActions.executeActionsAtCoordinates(
+												"coordinates", fieldData, actions[0], pressEnterAfter);
+									}
 								}
 							}
 
 							byPassNotFound = byPassFlagLoop
-									|| !currentCondition.equals(ARConstants.ConditionStatus.NONE);
+									|| !currentCondition.equals(ARExecution.ConditionStatus.NONE);
 
 							if (webElementFound != null && success) {
 
 								success = performActions.performWebActions(
 										byPassNotFound,
-										mapSavedLocators.get("coordinates"),
+										"coordinates",
 										fieldData,
 										currentInstruction,
 										mapOperators,
 										webElementFound,
-										actions);
+										actions,
+										isMobileApp,
+										splitDTO);
 
 								if (execOutPut) {
 									if (mapOperators.containsKey(fieldName)) {
-										msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
+										msgInstruction = new FieldData(fieldName, mapOperators.get(fieldName));
 									} else {
-										msgInstruction = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
+										msgInstruction = new FieldData(fieldName, "TEXT OUTPUT NOT FOUND");
 									}
 								}
 							}
 							// Special Cases for Select Responses
 							// It could be Improved the case
-							if (resultActions.contains("Error:")
+							if (resultActions.contains("FAIL")
+									|| performLists
+											.getListTargetElements()
+											.isEmpty()
+									|| (matchXPath == null && matchScanned == null && webElementFound == null)
 									|| (webElementFound == null && !forceCoordinates)) {
-								failedMessage = "Failed execution Web Element";
+								failedMessage = "Failed execution Web Element ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+								if (resultActions.contains("PASSED")) {
+									resultActions = resultActions.replaceAll("PASSED", "FAIL");
+								}
 								success = false;
+
+								if (performLists.getListTargetElements().isEmpty()) {
+									String reason = performActions.buildMessageResult(
+											success, blockName, "TIME OUT", "Device timeout", "TIME OUT");
+									appendLog("[TEST]" + reason, "error");
+									stopAll = true;
+								}
 							} else if (resultActions != null && success) {
+								failedMessage = "";
 								currentInstruction.setExecuted(true);
 							}
 
@@ -1020,19 +1256,39 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							}
 							// Mandatory for GET_VALUE
 							if (xPathOperation == null
-									&& actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-								failedMessage = "Parent Id in Wrong Block";
+									&& actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)) {
+								failedMessage = "Parent Id in Wrong Block ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
 								success = false;
 							} else if (parentField == null) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
 								success = false;
 							} else {
+
+								webElementFound = null;
+								if (isMobileApp) {
+									int index = IntStream.range(0, instructionIds.length)
+											.filter(i -> instructionIds[i] == parentId)
+											.findFirst()
+											.orElse(-1);
+
+									InstructionLoad refInstruction = blockLoad
+											.getInstructionLoad()
+											.get(index);
+
+									SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
+									SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+
+									//                                            webElementFound =
+									// androidDevice.searchElement(
+									//                                                    splitDTO, actions,
+									// performLists.getListTargetElements());
+								}
 
 								resultActions = performActions.performOperatorActions(
 										byPassNotFound,
@@ -1043,13 +1299,18 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										operations,
 										parentField,
 										variableField,
-										mapOperators);
+										mapOperators,
+										webElementFound);
 
-								if (resultActions.contains("Error:")) {
-									failedMessage = "Failed: Operation (GetValue / SetValue)";
+								if (resultActions.contains("FAIL")) {
+									failedMessage = "Failed: Operation (GetValue / SetValue) ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+									if (resultActions.contains("PASSED")) {
+										resultActions = resultActions.replaceAll("PASSED", "FAIL");
+									}
 									success = false;
 								} else {
+									failedMessage = "";
 									success = true;
 									if (!Strings.isNullOrEmpty(localFormat)) {
 										String valueTo = mapOperators.get(variableField);
@@ -1064,16 +1325,35 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Check Validation Operator
 
 							if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined";
+								failedMessage = "Get Value Is Not Defined ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-								resultActions = performActions.getValueIsNotDefined(
+								//                                        resultActions =
+								// performActions.getValueIsNotDefined(
+								//                                                actions[0],
+								//                                                currentInstruction,
+								//                                                resultActions,
+								//                                                ARExecution.ConditionStatus
+								//                                                        .NONE, // NOT
+								// currentCondition to Force Message,
+								//                                                parentField,
+								//                                                variableField);
+
+								String reason = performActions.buildGetVariableReason(
 										actions[0],
 										currentInstruction,
 										resultActions,
-										ARConstants.ConditionStatus
-												.NONE, // NOT  currentCondition to Force Message,
+										currentCondition,
 										parentField,
-										variableField);
+										variableField,
+										byPassNotFound, // or your bypass flag
+										blockName,
+										currentInstruction.getId(),
+										false);
+
+								appendLog("[TEST]" + reason, "error");
+								alreadyLogged = true;
+
+								logOperations.error("{}", reason);
 
 								success = false;
 							} else {
@@ -1125,30 +1405,237 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								}
 
 								if (isOperationValid) {
-
 									currentInstruction.setExecuted(true);
-									success = true;
-								} else {
-									failedMessage = "Failed: Check Validation";
-									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-									resultActions = performActions.checkValidationFailed(
+									failedMessage = "";
+
+									resultActions = performActions.buildValidationReason(
 											invalidValues,
 											parentField,
-											mapOperators.get(variableField),
-											resultActions,
+											mapOperators.get(variableField), // actual/current web value
+											operations[2].trim(),
+											resultActions, // lastInstructionExecuted
 											operations,
 											currentCondition,
-											byPassNotFound);
+											byPassNotFound,
+											true,
+											blockName,
+											currentInstruction.getId(),
+											isOperationValid);
+
+									appendLog("[TEST]" + resultActions, "info");
+									alreadyLogged = true;
+
+									success = true;
+								} else {
+									failedMessage = "Failed: Check Validation ";
+									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+									//                                            resultActions =
+									// performActions.checkValidationFailed(
+									//                                                    invalidValues,
+									//                                                    parentField,
+									//
+									// mapOperators.get(variableField),
+									//                                                    resultActions,
+									//                                                    operations,
+									//                                                    currentCondition,
+									//                                                    byPassNotFound);
+
+									resultActions = performActions.buildValidationReason(
+											invalidValues,
+											parentField,
+											mapOperators.get(variableField), // actual/current web value
+											operations[2].trim(),
+											resultActions, // lastInstructionExecuted
+											operations,
+											currentCondition,
+											byPassNotFound,
+											true,
+											blockName,
+											currentInstruction.getId(),
+											isOperationValid);
+
+									appendLog("[TEST]" + resultActions, "error");
+									alreadyLogged = true;
+
+									logOperations.error("Validation failed: {}", resultActions);
 
 									success = false;
 								}
 							}
 
-						} else if (excelWriteOperation) {
+						} else if (execCSVCheck || execPDFCheck) {
+							String msgCSVPrefix = "CSV ";
+							if (execPDFCheck) {
+								msgCSVPrefix = "PDF ";
+							}
+
+							// If fieldsToValidate is null/empty => ignore (no log)
+							Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
+							if (fMap == null || fMap.isEmpty()) {
+								// ignore
+								resultActions = resultActions.replaceAll("PASSED", "IGNORED");
+							} else {
+
+								for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
+
+									FieldsToValidate expectedField = entry.getValue();
+
+									// Only run if parentField exists as a key. If not found => ignore (no log).
+									if (expectedField == null || expectedField.getValue() == null) {
+										// ignore
+									} else {
+
+										String parentFieldCSV = entry.getKey();
+
+										String foundKey = null;
+										if (allOutPuts != null && !allOutPuts.isEmpty()) {
+											for (Integer outId : allOutPuts) {
+												String k = outId + "-" + parentFieldCSV;
+												if (mapOperators.containsKey(k)) {
+													foundKey = k;
+													break;
+												}
+											}
+										}
+
+										if (foundKey == null) {
+											// ignore
+										} else {
+
+											String actualValue = mapOperators.get(foundKey);
+
+											// You still keep your "Get Value Is Not Defined" behavior
+											if (actualValue == null
+													|| actualValue
+															.trim()
+															.isEmpty()) {
+												failedMessage = "Get Value Is Not Defined ";
+												msgInstruction =
+														updateMSGInstruction(msgInstruction, failedMessage);
+
+												//                                                resultActions
+												// =
+												// performActions.getValueIsNotDefined(
+												//
+												// actions[0],
+												//
+												// currentInstruction,
+												//
+												// resultActions,
+												//
+												// ARExecution.ConditionStatus.NONE,
+												//
+												// parentField,
+												//
+												// variableField);
+
+												String reason = performActions.buildGetVariableReason(
+														actions[0],
+														currentInstruction,
+														resultActions,
+														currentCondition,
+														parentField,
+														variableField,
+														byPassNotFound, // or your bypass flag
+														blockName,
+														currentInstruction.getId(),
+														false);
+
+												appendLog("[TEST]" + reason, "error");
+												alreadyLogged = true;
+
+												logOperations.error("{}", reason);
+
+												success = false;
+
+											} else {
+												// actual/current value on the web/app side
+
+												// expected value comes from
+												// splitDTO.fieldsToValidate[parentField].value
+												String expectedValue = expectedField.getValue();
+
+												// operator comes from your parsed operations array
+												String operator = operations[1];
+
+												String msgCSV = msgCSVPrefix + parentFieldCSV;
+												resultActions = "Check Value for " + parentFieldCSV;
+												ValidationResult vr =
+														evaluateOperation(actualValue, operator, expectedValue);
+
+												if (vr.valid) {
+													currentInstruction.setExecuted(true);
+													failedMessage = "";
+													success = true;
+
+													resultActions = performActions.buildValidationReason(
+															vr.invalidReason,
+															msgCSV,
+															actualValue, // actual/current web value
+															expectedValue,
+															resultActions,
+															operations,
+															currentCondition,
+															byPassNotFound,
+															true,
+															blockName,
+															currentInstruction.getId(),
+															true);
+
+													appendLog("[TEST]" + resultActions, "info");
+													alreadyLogged = true;
+
+													logOperations.info(
+															msgCSVPrefix
+																	+ " Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+															parentFieldCSV,
+															actualValue,
+															operator,
+															expectedValue);
+
+												} else {
+													failedMessage = "Failed: Check Validation ";
+													msgInstruction =
+															updateMSGInstruction(msgInstruction, failedMessage);
+
+													resultActions = performActions.buildValidationReason(
+															vr.invalidReason,
+															msgCSV,
+															actualValue, // actual/current web value
+															expectedValue,
+															resultActions,
+															operations,
+															currentCondition,
+															byPassNotFound,
+															true,
+															blockName,
+															currentInstruction.getId(),
+															false);
+
+													appendLog("[TEST]" + resultActions, "error");
+													alreadyLogged = true;
+
+													logOperations.error(
+															msgCSVPrefix
+																	+ " Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+															msgCSV,
+															actualValue,
+															operator,
+															expectedValue,
+															resultActions);
+
+													success = false;
+												}
+											}
+										}
+									}
+								}
+							}
+						} else if (execExcellWrite) {
 							// Excel Write Operator
 
 							if (parentField == null) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
@@ -1156,16 +1643,35 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = false;
 
 							} else if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined";
+								failedMessage = "Get Value Is Not Defined ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-								resultActions = performActions.getValueIsNotDefined(
+								//                                        resultActions =
+								// performActions.getValueIsNotDefined(
+								//                                                actions[0],
+								//                                                currentInstruction,
+								//                                                resultActions,
+								//                                                ARExecution.ConditionStatus
+								//                                                        .NONE, // NOT
+								// currentCondition to Force Message,
+								//                                                parentField,
+								//                                                variableField);
+
+								String reason = performActions.buildGetVariableReason(
 										actions[0],
 										currentInstruction,
 										resultActions,
-										ARConstants.ConditionStatus
-												.NONE, // NOT  currentCondition to Force Message,
+										currentCondition,
 										parentField,
-										variableField);
+										variableField,
+										byPassNotFound, // or your bypass flag
+										blockName,
+										currentInstruction.getId(),
+										false);
+								updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
+								appendLog("[TEST]" + reason, "error");
+								alreadyLogged = true;
+
+								logOperations.error("{}", reason);
 
 								success = false;
 							} else {
@@ -1176,22 +1682,36 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									excelExportOnceCreation = false;
 								}
 
-								if (!Strings.isNullOrEmpty(excelFieldName)) {
+								if (!Strings.isNullOrEmpty(newExcelFieldName)) {
 									writerExport = new ExcelWriter(
-													excelFieldName, performActions.getCurrentDriver(), true)
+													newExcelFieldName, performActions.getCurrentDriver(), true)
 											.withPurpose("export");
+
+									// Only create Columns if Have a file to write
+									String webData = mapOperators
+											.get(variableField)
+											.trim();
+									webData = performActions.sanitizeValue(webData);
+
+									currentTableCSV.put(
+											xExcelCurrentRow,
+											parentField.trim(),
+											webData); // may add new columns later too
 								}
 
-								if (writerExport != null) {
+								resultActions = performActions.messageExcel(
+										"Excel Write",
+										currentInstruction,
+										parentField,
+										variableField,
+										mapOperators.get(variableField),
+										blockName,
+										currentInstruction.getId(),
+										(writerExport != null));
 
-									resultActions = "insertValueFieldNameInExcel -> " + variableField + "-"
-											+ mapOperators.get(variableField);
-								} else {
-									resultActions = "NO Export Excel File defined -> " + variableField + "-"
-											+ mapOperators.get(variableField);
-								}
-
-								if (mapExportRows.size() == 0) {
+								if (currentTableCSV != null
+										|| currentTableCSV.getRows() == null
+										|| currentTableCSV.getRows().isEmpty()) {
 									//
 									// writerExport.insertBlockSeparation(blockLoad.getName());
 									//                                            exportIndex *= 2;
@@ -1200,47 +1720,18 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								// Insert the updated mapExport into the Excel after each instruction
 								if (writerExport != null) {
 									headersExport.add(parentField.trim());
-									mapExportRows.put(
-											parentField.trim(),
-											mapOperators
-													.get(variableField)
-													.trim());
-
-									//
-									// addRowFromMap(mapExportRows);
-									if (excelFieldName != null
-											&& excelFieldName
-													.toLowerCase()
-													.endsWith(".csv")) {
-										if (Strings.isNullOrEmpty(delimiterCSV)) {
-											delimiterCSV = ",";
-										}
-
-										//
-										//                                                String csvContent
-										// =
-										// getBancaStatoCsvContent(delimiterCSV);
-										//
-										// writeToFile(excelFieldName, csvContent);
-
-										// writerExport.writeMapToCSV(mapExport, excelFieldName,
-										// delimiterCSV);
-									} else {
-										//
-										// writerExport.insertFieldNameAndValueLastColumn(
-										//                                                        mapExport,
-										// exportIndex - 1);
-									}
 								}
+
 								performActions.onHoldForSeconds(null);
 
-								if (resultActions != null) {
+								if (resultActions != null && resultActions.contains("PASSED")) {
 									currentInstruction.setExecuted(true);
+									failedMessage = "";
 									success = true;
 								} else {
-									failedMessage = "Failed: Generate File -> Excel/CSV";
+									failedMessage = "Failed: Generate File -> Excel/CSV ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
+									updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
 									success = false;
 								}
 							}
@@ -1264,34 +1755,44 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						String msg3 = resultActions;
 
 						if (Strings.isNullOrEmpty(failedMessage)) {
-							failedMessage = "Failed: General Execution";
+							failedMessage = "Failed: General Execution ";
 							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 						}
-
-						performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
+						logOperations.error("Error: {} - {} - {} - {}", resultActions, msg1, msg2, msg3);
+						//                                performMessage.errorMessage(resultActions, msg1, msg2,
+						// msg3, null, 260);
 						//                            throw new RuntimeException(t);
 					}
 
-					printLog(
-							generateTimestamp(),
-							logFileForSingleExcel,
-							finalLogMessage(failedMessage, resultActions),
-							success);
+					if (success && !alreadyLogged) {
+						if (resultActions.contains("IGNORED")) {
+							appendLog("[TEST]" + resultActions, "warn");
+						} else {
+							appendLog("[TEST]" + resultActions, "info");
+						}
+					} else if (!alreadyLogged) {
+						appendLog("[TEST]" + resultActions, "error");
+						anyFailure = true;
+					}
+
+					alreadyLogged = false;
+
+					printLog(finalLogMessage(failedMessage, resultActions), success);
 
 					// Here mark the Status of a progress Condition Fail or Success at the end of each Kind
 					// of Execution
 					if (!jumpGotoError
 							&& !jumpLoopError
-							&& !currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
+							&& !currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
 						progressCondition = performActions.updateProgressSuccess(success, currentCondition);
 						//                                continue instructionLoop;
 					} else {
-						progressCondition = ARConstants.ConditionStatus.NONE;
+						progressCondition = ARExecution.ConditionStatus.NONE;
 					}
 
 					// Excel Report and Log
 					performActions.logAndReport(
-							!byPassFlagLoop ? progressCondition : ARConstants.ConditionStatus.BY_PASS,
+							!byPassFlagLoop ? progressCondition : ARExecution.ConditionStatus.BY_PASS,
 							true,
 							true,
 							currentInstructionStartTime,
@@ -1304,14 +1805,16 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							mainMsg,
 							finalLogMessage(failedMessage, resultActions));
 
-					if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
+					failedMessage = "";
+
+					if (pauseOperation && respModal.equals(ARExecution.DialogModal.STOP)) {
 
 						String nameInstruc =
 								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
 
 						resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
 
-						Pair<String, String> msgBlock = new Pair(resultActions, ARConstants.PAUSE);
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.PAUSE);
 
 						// Excel Report and Log
 						performActions.logAndReport(
@@ -1321,24 +1824,149 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								blockStartTime,
 								blockReportName,
 								success,
-								new String[] {ARConstants.PAUSE},
+								new String[] {ARConstantsEngine.PAUSE},
 								msgBlock,
 								dataExcel,
 								writerReport,
 								"PAUSE -> STOP",
 								String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
 
-						respModal = ARConstants.DialogModal.NONE;
+						respModal = ARExecution.DialogModal.NONE;
 						stopAll = true;
 						break;
 					}
 
+					if (nextEnter) {
+
+						String nameInstruc =
+								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+						resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.NEXT_ENTER);
+
+						// Excel Report and Log
+						performActions.logAndReport(
+								currentCondition,
+								true,
+								true,
+								blockStartTime,
+								blockReportName,
+								success,
+								new String[] {ARConstantsEngine.NEXT_ENTER},
+								msgBlock,
+								dataExcel,
+								writerReport,
+								"DEVICE -> NEXT/ENTER",
+								String.format("NEXT/ENTER CALLED AT: \"%s\" : ", nameInstruc));
+
+						respModal = ARExecution.DialogModal.NONE;
+						continue;
+					} else if (swipeUp) {
+
+						String nameInstruc =
+								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+						resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_UP);
+
+						int timesSwipe = 1;
+
+						String operation = currentInstruction.getOperation();
+						if (operation != null && !operation.trim().isEmpty()) {
+							try {
+								timesSwipe = Integer.parseInt(operation.trim());
+							} catch (NumberFormatException ignored) {
+								appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+							}
+						}
+
+						for (int i = 0; i < timesSwipe; i++) {
+							//                                    androidDevice.swipeUp();
+							// androidDevice.swipeVertical(true); // false = down
+							//                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
+							// true);
+						}
+
+						// Excel Report and Log
+						performActions.logAndReport(
+								currentCondition,
+								true,
+								true,
+								blockStartTime,
+								blockReportName,
+								success,
+								new String[] {ARConstantsEngine.SWIPE_UP},
+								msgBlock,
+								dataExcel,
+								writerReport,
+								"DEVICE -> SWIPE UP",
+								String.format("SWIPE UP CALLED AT: \"%s\" : ", nameInstruc));
+
+						respModal = ARExecution.DialogModal.NONE;
+						continue;
+					} else if (swipeDown) {
+
+						String nameInstruc =
+								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+						resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_DOWN);
+
+						int timesSwipe = 1;
+
+						String operation = currentInstruction.getOperation();
+						if (operation != null && !operation.trim().isEmpty()) {
+							try {
+								timesSwipe = Integer.parseInt(operation.trim());
+							} catch (NumberFormatException ignored) {
+								appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+							}
+						}
+
+						for (int i = 0; i < timesSwipe; i++) {
+							//                                    androidDevice.swipeDown();
+							//                                    androidDevice.swipeVertical(false); // false =
+							// down
+							//                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
+							// false);
+						}
+						// Excel Report and Log
+						performActions.logAndReport(
+								currentCondition,
+								true,
+								true,
+								blockStartTime,
+								blockReportName,
+								success,
+								new String[] {ARConstantsEngine.SWIPE_DOWN},
+								msgBlock,
+								dataExcel,
+								writerReport,
+								"DEVICE -> SWIPE DOWN",
+								String.format("SWIPE DOWN CALLED AT: \"%s\" : ", nameInstruc));
+
+						respModal = ARExecution.DialogModal.NONE;
+						continue;
+					}
+
 					// It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+					// Does not block other executions if it fails for any reason and jumps to the beginning or
+					// Excel GOTO position block
 					if (!success
 							&& !byPassFlagLoop
-							&& currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-						stopAll = true;
-						break;
+							&& currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
+
+						// Record failure but do NOT alter execution flow
+						anyFailure = true;
+
+						// Reset success so execution can continue
+						success = true;
+
+						// Continue with next instruction
+						continue instructionLoop;
 					}
 
 					// It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -1355,8 +1983,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 					// Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
 					// Conditions When Pass to any of then
-					if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-							|| progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+					if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+							|| progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
 						int jumpPassed = performActions.checkActionToJump(
 								actions[0],
 								progressCondition,
@@ -1373,21 +2001,21 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						if (jumpPassed > 0) {
 							currentIndex = jumpPassed;
 							// reset all Conditional
-							currentCondition = ARConstants.ConditionStatus.NONE;
-							progressCondition = ARConstants.ConditionStatus.NONE;
+							currentCondition = ARExecution.ConditionStatus.NONE;
+							progressCondition = ARExecution.ConditionStatus.NONE;
 							continue instructionLoop;
 						}
 					}
 
 					// Conditions When Fails to any of then and Look for the next Correct Block
-					if (progressCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
-							|| progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)) {
+					if (progressCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
+							|| progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)) {
 
 						// Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
 						int index = performActions.searchMapConditional(
 								mapConditional,
 								parentBlockCondition,
-								ARConstants.ConditionStatus.ELSEIF,
+								ARExecution.ConditionStatus.ELSEIF,
 								currentIndex,
 								false);
 
@@ -1396,7 +2024,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							index = performActions.searchMapConditional(
 									mapConditional,
 									parentBlockCondition,
-									ARConstants.ConditionStatus.ELSE,
+									ARExecution.ConditionStatus.ELSE,
 									currentIndex,
 									true);
 						}
@@ -1405,16 +2033,16 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							continue blockLoop;
 						}
 						currentIndex = index;
-						currentCondition = ARConstants.ConditionStatus.NONE;
-						progressCondition = ARConstants.ConditionStatus.NONE;
+						currentCondition = ARExecution.ConditionStatus.NONE;
+						progressCondition = ARExecution.ConditionStatus.NONE;
 						continue instructionLoop;
 
-					} else if (progressCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)) {
+					} else if (progressCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED)) {
 						// Goes to the ENDIF (ENDIF index + 1);
 						int index = performActions.searchMapConditional(
 								mapConditional,
 								parentBlockCondition,
-								ARConstants.ConditionStatus.ENDIF,
+								ARExecution.ConditionStatus.ENDIF,
 								currentIndex,
 								true);
 
@@ -1423,8 +2051,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							continue blockLoop;
 						}
 						currentIndex = index;
-						currentCondition = ARConstants.ConditionStatus.NONE;
-						progressCondition = ARConstants.ConditionStatus.NONE;
+						currentCondition = ARExecution.ConditionStatus.NONE;
+						progressCondition = ARExecution.ConditionStatus.NONE;
 						continue instructionLoop;
 					}
 				}
@@ -1433,193 +2061,40 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				// Way Out from the Current Excel Data Row to another Block keeping the Same Excel Data Row
 				break;
 			}
-			currentBlock++;
+			currentBlockOrder++;
+
+			currentTableCSV = csvTables.get(newExcelFieldName);
+
+			if (currentTableCSV != null
+					&& currentTableCSV.getRows() != null
+					&& !currentTableCSV.getRows().isEmpty()) {
+				saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
+			}
 		}
 
-		currentBlock = blockInitial;
+		currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
 		xExcelCurrentRow++;
-		addRowFromMap(mapExportRows);
-		if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
-			if (Strings.isNullOrEmpty(delimiterCSV)) {
-				delimiterCSV = ",";
-			}
-
-			String csvContent = getBancaStatoCsvContent(delimiterCSV);
-			writeToFile(excelFieldName, csvContent);
-			if (xExcelDataSize > 1) {
-				mapExportRows = new LinkedHashMap<>();
-			}
-			excelFieldName = "";
-		} else {
-			//
-			//                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex
-			// -
-			// 1);
-			writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
-		}
-	}
-} else { //  if dataExel is NULL
-	// Creating Dynamic Data if Default is Null
-	Pair<String, String> dataDynamic = null;
-	for (int j = 0; success && j < blocksLoaded.size(); j++) {
-
-		for (InstructionLoadDTO currentInstruction :
-				blocksLoaded.get(j).getInstructionLoadDTOS()) {
-			if (currentInstruction.getDefaultValue() == null) {
-				String[] arr = UtilsMethods.splitIfContains(
-						currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-				if (arr.length > 1) {
-					String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-					PerformActions.insertRandomName(dataFieldName);
-				}
-			}
-		}
-	}
-	for (int j = 0; success && j < blocksLoaded.size(); j++) {
-
-		String blockName = blocksLoaded.get(j).getName();
-		int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
-		String blockReportName = "#" + blockOrder + " " + blockName;
-
-		for (InstructionLoadDTO currentInstruction :
-				blocksLoaded.get(j).getInstructionLoadDTOS()) {
-
-			long currentInstructionStartTime = System.nanoTime();
-			File logFileForSingleExcel = excelReader.createLogFile(excelPath);
-
-			String[] actions =
-					currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
-
-			// Case for Inputs
-			String valueInsert = "CHANGE ME";
-			if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
-				String reference = actions[2];
-				valueInsert = dataExcel.get(reference);
-			} else if (actions[0].equals(ARConstants.INSERT)) {
-				String reference = actions[1];
-				valueInsert = dataExcel.get(reference);
-			}
-
-			Pair<String, String> msgInstruction = new Pair(
-					currentInstruction.getName(),
-					(currentInstruction.getOperation() != null
-							? currentInstruction.getOperation()
-							: (actions[0].equalsIgnoreCase(ARConstants.INSERT)) ? valueInsert : ""));
-
-			resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
-
-			try {
-
-				if (actions[0].equals(ARConstants.HOLD)
-						|| actions[0].equals(ARConstants.QUIT)
-						|| actions[0].equals(ARConstants.SCREEN)
-						|| actions[0].equals(ARConstants.REFRESH_ONLY)) {
-					performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
-
-					if (actions[0].equals(ARConstants.QUIT)) {
-						stopAll = true;
-						success = true;
-					}
-
-					// Excel Report and Log
-					performActions.logAndReport(
-							currentCondition,
-							true,
-							true,
-							currentInstructionStartTime,
-							blockReportName,
-							success,
-							actions,
-							msgInstruction,
-							dataExcel,
-							writerReport,
-							mainMsg,
-							finalLogMessage(failedMessage, resultActions));
-
-					continue;
-				}
-
-				WebElement webElementFound = null;
-				boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
-						&& currentInstruction.getForceCoordinates();
-
-				try {
-					webElementFound =
-							performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
-				} catch (Exception ex) {
-				}
-
-				success = performActions.performWebActions(
-						byPassNotFound,
-						mapSavedLocators.get("coordinates"),
-						dataDynamic,
-						currentInstruction,
-						mapOperators,
-						webElementFound,
-						actions);
-
-				// Special Cases for Select Responses
-				// It could be Improved the case
-				if (resultActions.contains("Error:")) {
-					success = false;
-				} else if (resultActions != null) {
-					currentInstruction.setExecuted(true);
-					success = true;
-				} else {
-					failedMessage = "Failed: Execution";
-					msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
-					resultActions = currentInstruction.getName();
-					success = false;
-				}
-
-				// Excel Report and Log
-				performActions.logAndReport(
-						currentCondition,
-						true,
-						true,
-						currentInstructionStartTime,
-						blockReportName,
-						success,
-						actions,
-						msgInstruction,
-						dataExcel,
-						writerReport,
-						mainMsg,
-						finalLogMessage(failedMessage, resultActions));
-
-			} catch (Throwable t) {
-				success = false;
-				currentInstruction.setExecuted(false);
-
-				failedMessage = "Failed: ";
-				msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
-				// Excel Report and Log
-				performActions.logAndReport(
-						currentCondition,
-						true,
-						true,
-						currentInstructionStartTime,
-						blockReportName,
-						success,
-						actions,
-						msgInstruction,
-						dataExcel,
-						writerReport,
-						mainMsg,
-						finalLogMessage(failedMessage, resultActions));
-
-				//                        throw new RuntimeException(t);
-			}
-			printLog(
-					generateTimestamp(),
-					logFileForSingleExcel,
-					finalLogMessage(failedMessage, resultActions),
-					success);
+		currentTableCSV = csvTables.get(newExcelFieldName);
+		if (currentTableCSV != null
+				&& currentTableCSV.getRows() != null
+				&& !currentTableCSV.getRows().isEmpty()) {
+			saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
 		}
 	}
 }
-//            launchBotJobButton.setDisable(false);
+
+// Last Recall For to avoid Multirow Cycles
+// Iterate over all stored CsvTables
+for (Map.Entry<String, CsvTable> entry : csvTables.entrySet()) {
+
+	currentTableCSV = entry.getValue();
+
+	if (currentTableCSV != null
+			&& currentTableCSV.getRows() != null
+			&& !currentTableCSV.getRows().isEmpty()) {
+
+		saveExcelWrite(currentTableCSV.getFullPath(), currentTableCSV, writerExport, exportIndex);
+	}
+}
 
 totalExecutionTime = performActions.getTotalExecutionTime();
