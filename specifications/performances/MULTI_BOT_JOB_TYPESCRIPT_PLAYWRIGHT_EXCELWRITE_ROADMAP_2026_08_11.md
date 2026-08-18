@@ -1695,7 +1695,7 @@ and atomic artifact-write checkpoints are complete.
 - [x] The post-implementation audit traced Page Scanner configuration and metadata through persisted
   registry attributes, Locator Recovery BOT JOB/CURRENT evidence, V1 selected-candidate references,
   V2 action/recovery payloads, and Node physical selector order.
-- [x] Seven focused tests cover standard ordering/deduplication, custom authorization and mismatch
+- [x] Eight focused tests cover standard ordering/deduplication, custom authorization and mismatch
   fallback, scanner metadata propagation without a browser, recovery evidence preservation, and
   Node short-circuit execution before stale XPath.
 - [x] Verification passed Java 29/29 focused with JaCoCo, Java 79/79 broader affected, Node 53/53

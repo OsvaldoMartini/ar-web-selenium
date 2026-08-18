@@ -1762,7 +1762,7 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   normalizer: Java V1 selector construction, persisted scanner attribute parsing, unresolved and
   selected Locator Recovery evidence, recovery matching, V2 action DTO construction, and Node V2
   selector execution order. No new production defect or production-source change was required.
-- [x] Seven focused regression cases prove standard-ID ordering and deduplication, custom-ID
+- [x] Eight focused regression cases prove standard-ID ordering and deduplication, custom-ID
   mismatch fallback, persisted configured-ID authorization, scanner option/metadata propagation
   without a browser, BOT JOB and CURRENT recovery evidence, V1 selected-row reference
   reconstruction, V2 recovery payload ordering, and Node's first-selector short circuit.

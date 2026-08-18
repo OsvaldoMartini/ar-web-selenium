@@ -766,7 +766,7 @@ The Page Mappings roadmap is now source-complete through P7:
 
 ### Test ID adjacent-contract regression expansion - 2026-08-18
 
-- [x] A second audit found no additional production defect. Seven focused tests now protect the
+- [x] A second audit found no additional production defect. Eight focused tests now protect the
   scanner-to-registry-to-recovery-to-V1/V2 selector contract outside the already 100%-covered core.
 - [x] Focused Java with coverage passed 29/29; the broader affected Java matrix passed 79/79; the
   complete Node V2 suite and TypeScript build passed 53/53; catalog validation passed 2/2.
