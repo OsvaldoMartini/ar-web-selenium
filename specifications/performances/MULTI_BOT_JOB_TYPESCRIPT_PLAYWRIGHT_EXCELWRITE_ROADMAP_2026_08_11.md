@@ -1675,3 +1675,17 @@ and atomic artifact-write checkpoints are complete.
   `main.dbaeb5e6.js` / `main.724a0df7.css`.
 - [ ] Restart/live acceptance remains for standard and custom Test IDs under both runtimes. No
   application process, database row, Page Scanner action, or live banking page was changed here.
+
+## 60. Test ID and Locator Recovery coverage hardening - 2026-08-18
+
+- [x] Frontend `719a538` handles rejected recovery decisions inside the modal instead of emitting
+  an unhandled promise rejection. The failure remains visible and retryable.
+- [x] Java `TestIdLocatorContract` has 100% instruction, branch, line, and method coverage. Locator
+  Recovery modal/help have 100% statement, branch, function, and line coverage.
+- [x] Focused Java 7/7, focused React 19/19, Node 52/52, TypeScript build, and React production build
+  passed. The two full-Java local-page timeouts passed 2/2 in isolation.
+- [x] Full React evidence remains 891 passing / 54 failing across 18 unrelated legacy suites; this
+  checkpoint does not misrepresent that repository backlog as changed-scope coverage.
+- [x] Backend `e65b1d29`, deployment `e234f95a`, and catalog totals 2,485 rows / 2,449 code cases are
+  pushed. The exact 61-file mirror uses `main.a82a4b50.js` / `main.724a0df7.css`.
+- [ ] Runtime restart and live V1/V2 acceptance remain open.

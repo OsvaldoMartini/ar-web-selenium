@@ -1733,3 +1733,25 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] No ARWeb process was restarted and no live banking action was performed. Live acceptance is
   one V1 and one V2 instruction with a standard Test ID, then a newly scanned client-configured
   Test ID, proving Test ID is attempted before a deliberately stale XPath.
+
+## Test ID and Locator Recovery coverage hardening - 2026-08-18
+
+- [x] Review found one changed-surface failure path: a rejected Locator Recovery decision released
+  the busy state but became an unhandled React promise rejection. Frontend `719a538` now keeps the
+  modal open, renders the bounded failure message, and remains retryable without changing backend
+  authorization or decision semantics.
+- [x] Focused coverage is exactly 100% instructions/branches/lines/methods for Java
+  `TestIdLocatorContract`, and 100% statements/branches/functions/lines for both Locator Recovery
+  React components. Java contract tests are 7/7; Locator Recovery React tests are 19/19.
+- [x] Node/Playwright V2 passed 52/52 plus TypeScript build. The full Java run reached 1,516 passes
+  with only two local-page navigation timeouts; both timed-out browser tests passed 2/2 in an
+  isolated rerun. Catalog verification passed after regeneration to 2,485 rows / 2,449 code cases.
+- [x] The full React repository baseline is still 891 passes / 54 failures across 18 unrelated
+  legacy suites. None of those failures references the changed Locator Recovery files; therefore
+  repository-wide 100% is not claimed.
+- [x] Backend `e65b1d29`, frontend `719a538`, and deployment `e234f95a` are pushed. The successful
+  production build is mirrored exactly across 61 source/resource/target paths. Entrypoints are
+  `main.a82a4b50.js` (SHA-256 `9A03293909391FC16CEFB993B81EF7A1F1DCD2BB66732C6D1EC3498A29D3EB20`)
+  and `main.724a0df7.css` (SHA-256 `29CA28FA0933D4CA755135344B75088E910B1ECCE410294ADD13D9F49D2DD8A4`).
+- [ ] No application restart or live banking action was performed. Live V1/V2 Test ID precedence
+  and rejected-decision retry behavior remain manual acceptance gates.

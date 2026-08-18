@@ -750,3 +750,16 @@ The Page Mappings roadmap is now source-complete through P7:
   mirror uses `main.dbaeb5e6.js` and `main.724a0df7.css`.
 - [ ] Restart/live proof remains open. Test one standard ID and one newly scanned custom client ID
   in both V1 and V2 while their stored XPath is stale.
+
+### Test ID and Locator Recovery coverage hardening - 2026-08-18
+
+- [x] A rejected Locator Recovery decision is now caught and displayed while the modal remains
+  open and retryable (`719a538`).
+- [x] Changed-scope coverage is 100% across every metric for the Java Test ID contract and the two
+  Locator Recovery React components. Focused results: Java 7/7 and React 19/19.
+- [x] Node/Playwright passed 52/52 plus build. Full Java produced 1,516 passes and two local-page
+  timeouts which then passed 2/2 alone. Full React remains at its unrelated baseline of 891 passes
+  and 54 failures across 18 legacy suites; repository-wide 100% is not claimed.
+- [x] Backend `e65b1d29`, frontend `719a538`, deployment `e234f95a`, and the regenerated 2,485-row
+  catalog are pushed. The exact 61-file mirror uses `main.a82a4b50.js` / `main.724a0df7.css`.
+- [ ] Restart and live V1/V2 precedence/retry acceptance remain open.
