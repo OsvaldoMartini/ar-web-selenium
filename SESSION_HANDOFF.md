@@ -1755,3 +1755,22 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   and `main.724a0df7.css` (SHA-256 `29CA28FA0933D4CA755135344B75088E910B1ECCE410294ADD13D9F49D2DD8A4`).
 - [ ] No application restart or live banking action was performed. Live V1/V2 Test ID precedence
   and rejected-decision retry behavior remain manual acceptance gates.
+
+## Test ID adjacent-contract regression expansion - 2026-08-18
+
+- [x] A second end-to-end audit covered the consumers around the already fully covered Test ID
+  normalizer: Java V1 selector construction, persisted scanner attribute parsing, unresolved and
+  selected Locator Recovery evidence, recovery matching, V2 action DTO construction, and Node V2
+  selector execution order. No new production defect or production-source change was required.
+- [x] Seven focused regression cases prove standard-ID ordering and deduplication, custom-ID
+  mismatch fallback, persisted configured-ID authorization, scanner option/metadata propagation
+  without a browser, BOT JOB and CURRENT recovery evidence, V1 selected-row reference
+  reconstruction, V2 recovery payload ordering, and Node's first-selector short circuit.
+- [x] Verification passed 29/29 focused Java tests with JaCoCo, 79/79 broader affected Java tests,
+  53/53 complete Node V2 tests plus TypeScript build, and catalog validation 2/2. The core
+  `TestIdLocatorContract` remains 100% line/branch/method covered. Large legacy executor classes are
+  not represented as repository-wide 100% coverage.
+- [x] Commit `c652e639` is pushed. The regenerated catalog records 2,492 rows / 2,456 code cases /
+  19,452 generated API requests.
+- [ ] No frontend production source, build asset, Java production source, database, process, or live
+  browser was changed. Runtime restart/live V1 and V2 standard/custom Test ID acceptance remains open.

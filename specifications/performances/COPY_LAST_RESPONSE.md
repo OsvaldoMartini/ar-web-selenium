@@ -763,3 +763,13 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Backend `e65b1d29`, frontend `719a538`, deployment `e234f95a`, and the regenerated 2,485-row
   catalog are pushed. The exact 61-file mirror uses `main.a82a4b50.js` / `main.724a0df7.css`.
 - [ ] Restart and live V1/V2 precedence/retry acceptance remain open.
+
+### Test ID adjacent-contract regression expansion - 2026-08-18
+
+- [x] A second audit found no additional production defect. Seven focused tests now protect the
+  scanner-to-registry-to-recovery-to-V1/V2 selector contract outside the already 100%-covered core.
+- [x] Focused Java with coverage passed 29/29; the broader affected Java matrix passed 79/79; the
+  complete Node V2 suite and TypeScript build passed 53/53; catalog validation passed 2/2.
+- [x] `c652e639` is pushed with the tests and the 2,492-row / 2,456-code-case catalog.
+- [ ] No production source, frontend build/deployment, process restart, database mutation, or live
+  banking action occurred. Live standard/custom Test ID acceptance remains open in V1 and V2.

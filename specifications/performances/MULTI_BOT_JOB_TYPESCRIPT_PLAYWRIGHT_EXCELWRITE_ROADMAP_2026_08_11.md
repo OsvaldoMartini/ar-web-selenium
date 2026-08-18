@@ -1689,3 +1689,19 @@ and atomic artifact-write checkpoints are complete.
 - [x] Backend `e65b1d29`, deployment `e234f95a`, and catalog totals 2,485 rows / 2,449 code cases are
   pushed. The exact 61-file mirror uses `main.a82a4b50.js` / `main.724a0df7.css`.
 - [ ] Runtime restart and live V1/V2 acceptance remain open.
+
+## 61. Test ID adjacent-contract regression expansion - 2026-08-18
+
+- [x] The post-implementation audit traced Page Scanner configuration and metadata through persisted
+  registry attributes, Locator Recovery BOT JOB/CURRENT evidence, V1 selected-candidate references,
+  V2 action/recovery payloads, and Node physical selector order.
+- [x] Seven focused tests cover standard ordering/deduplication, custom authorization and mismatch
+  fallback, scanner metadata propagation without a browser, recovery evidence preservation, and
+  Node short-circuit execution before stale XPath.
+- [x] Verification passed Java 29/29 focused with JaCoCo, Java 79/79 broader affected, Node 53/53
+  complete plus TypeScript build, and catalog 2/2. The core Test ID contract remains 100% covered;
+  repository-wide coverage is not claimed for large legacy executors.
+- [x] Commit `c652e639` is pushed. Catalog totals are 2,492 rows / 2,456 code cases / 19,452 generated
+  API requests.
+- [ ] No production source/build asset/runtime/database changed. Restart and live V1/V2 acceptance
+  for standard and newly scanned custom Test IDs remain open.
