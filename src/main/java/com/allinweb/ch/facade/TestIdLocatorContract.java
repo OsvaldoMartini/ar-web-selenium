@@ -42,7 +42,7 @@ public final class TestIdLocatorContract {
         List<String> selectors = new ArrayList<>();
         for (String name : names) {
             String value = normalized.get(name);
-            if (value != null && !value.isBlank()) {
+            if (value != null) {
                 selectors.add("[" + name + "=\"" + cssAttribute(value.trim()) + "\"]");
             }
         }
@@ -88,7 +88,7 @@ public final class TestIdLocatorContract {
     }
 
     private static void addValue(Map<String, String> target, String name, String value) {
-        if (value != null && !value.isBlank()) target.putIfAbsent(name, value.trim());
+        if (value != null) target.putIfAbsent(name, value.trim());
     }
 
     private static String cssAttribute(String value) {
