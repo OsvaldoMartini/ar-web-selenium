@@ -1629,3 +1629,32 @@ and atomic artifact-write checkpoints are complete.
   records 2,464 rows / 2,428 code cases / 19,452 generated API requests, and validation passes 2/2.
 - [ ] Live restart/acceptance remains: late target, disabled/read-only skip, missing target with
   target-first row, database matches, Page Scanner refresh, and correct continuation behavior.
+
+## 58. Locator Recovery evidence origins, retained history, and typed V2 probes - 2026-08-18
+
+- [x] Frontend `1063553` keeps the unresolved authored instruction first and labels it `BOT JOB`.
+  Owner/page-scoped database evidence is labeled `PREVIOUS`; candidates produced by the current
+  in-modal Page Scanner are labeled `CURRENT`. The Origin column follows Select, while the existing
+  action, Test Input, Test Click, and locator-comparison columns remain unchanged.
+- [x] The in-modal Page Scanner now retains the bounded PREVIOUS candidate set and replaces only
+  CURRENT scanner evidence in both Java V1 and isolated V2. V1 preserves insertion order, so the
+  review remains BOT JOB -> PREVIOUS -> CURRENT after every refresh.
+- [x] Node V2 scanner probes now use explicit `xpath=` selector-engine syntax before CSS. Invalid
+  selector syntax returns the typed `SCANNER_TEST_SELECTOR_INVALID` diagnostic and never logs the
+  raw locator. Test Input and Test Click continue to be non-settling physical probes.
+- [x] A blue circular rules helper beside `Use and Save Locator` explains origins, actions, probes,
+  Page Scanner, decisions, verification power, and fail-closed owner/run/page authorization. It is
+  keyboard-contained, closes with Escape/backdrop/Close, and restores focus to its launcher.
+- [x] Backend/Node commit `94bd17e9` adds the authoritative origin contracts, unresolved-target
+  enrichment, retained evidence merge, safe diagnostics, and regression coverage. The regenerated
+  catalog records 2,467 rows / 2,431 code cases / 19,452 generated API requests.
+- [x] Verification passed Node 52/52, Java Locator Recovery 38/38, catalog 2/2, and React 25/25.
+  The React production build passed with only the established lint/dependency warnings.
+- [x] Deployment `8696ed25` mirrors 61 exact files into Java resources and `target/classes` with zero
+  path/hash differences. Entrypoints are `main.cb263057.js` (SHA-256
+  `B261E5734F307A19895786B5A0D30659D25E3EB1E82CD790355D2EFD05146503`) and
+  `main.724a0df7.css` (SHA-256
+  `29CA28FA0933D4CA755135344B75088E910B1ECCE410294ADD13D9F49D2DD8A4`).
+- [ ] No ARWeb process was restarted and no live Bot Job action was performed. Live acceptance must
+  pause V1 and V2 on a missing element, prove the first BOT JOB row, retained PREVIOUS rows, refreshed
+  CURRENT rows, working Test Input/Test Click, Help behavior, and Use Once/Use and Save isolation.

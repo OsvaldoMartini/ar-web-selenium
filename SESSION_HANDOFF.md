@@ -1691,3 +1691,21 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   late-rendered target resolves before recovery; a persistently disabled/read-only control skips
   and advances; and a true missing target opens the modal with the unresolved row first and
   database/Page Scanner candidates below it.
+
+### Locator Recovery origin and probe correction - 2026-08-18
+
+- Frontend `1063553` / backend `94bd17e9` are pushed. Locator Recovery now renders the authored
+  unresolved instruction as `BOT JOB`, retained owner/page database candidates as `PREVIOUS`, and
+  the latest in-modal scanner candidates as `CURRENT`; scanner refresh retains PREVIOUS evidence.
+- V2 Test Input/Test Click now probe XPath with explicit Playwright `xpath=` syntax before CSS and
+  return `SCANNER_TEST_SELECTOR_INVALID` without exposing raw selectors when syntax is invalid.
+- The new blue rules helper beside `Use and Save Locator` documents every origin, probe, decision,
+  Page Scanner behavior, verification power, and fail-closed authorization; keyboard focus is
+  contained and restored.
+- Verification passed Node 52/52, Java 38/38, catalog 2/2, React 25/25, and the React production
+  build. Catalog totals are 2,467 rows / 2,431 code cases / 19,452 generated API requests.
+- Deployment commit `8696ed25` is pushed. The frontend build, `src/main/resources/build`, and
+  `target/classes/build` contain the same 61 paths and SHA-256 values. Entrypoints are
+  `main.cb263057.js` (`B261E5734F307A19895786B5A0D30659D25E3EB1E82CD790355D2EFD05146503`) and
+  `main.724a0df7.css` (`29CA28FA0933D4CA755135344B75088E910B1ECCE410294ADD13D9F49D2DD8A4`).
+- No process restart or live banking action occurred. Restart/live V1+V2 acceptance is still open.
