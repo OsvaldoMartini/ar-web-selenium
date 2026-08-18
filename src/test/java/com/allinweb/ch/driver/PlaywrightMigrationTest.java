@@ -156,11 +156,13 @@ class PlaywrightMigrationTest {
             assertFalse(
                     hasAttribute(avanti, "data-testid"),
                     "a literal test-id must not be relabelled as data-testid");
+            assertTrue(hasAttribute(avanti, "automation.test-id.attribute", "test-id"));
 
             List<ElementDTO> customElements = driver.scanElements(new String[] {"attr:qa-hook"}, false);
             ElementDTO annulla = byAttribute(customElements, "qa-hook", "cancel-action");
             assertNotNull(annulla, "a configured custom attribute must become a scanner selector");
             assertEquals("button[qa-hook=\"cancel-action\"]", annulla.getCssSelector());
+            assertTrue(hasAttribute(annulla, "automation.test-id.attribute", "qa-hook"));
         } finally {
             driver.close();
         }
@@ -185,6 +187,12 @@ class PlaywrightMigrationTest {
         return element.getAttributeData() != null
                 && java.util.Arrays.stream(element.getAttributeData())
                         .anyMatch(attribute -> name.equals(attribute.getName()));
+    }
+
+    private static boolean hasAttribute(ElementDTO element, String name, String value) {
+        return element.getAttributeData() != null
+                && java.util.Arrays.stream(element.getAttributeData())
+                        .anyMatch(attribute -> name.equals(attribute.getName()) && value.equals(attribute.getValue()));
     }
 
     private static String oneTrustBanner() {

@@ -543,6 +543,9 @@ public class PlaywrightElementScanner {
                 const automationAttributeName = automationAttribute(el)?.name;
                 const zIndex = style.zIndex && style.zIndex !== 'auto' ? style.zIndex : '';
                 const kind = override?.attributeType || controlKind(el, tag, role);
+                if (automationAttributeName) {
+                  pushMetadata(attrs, 'automation.test-id.attribute', automationAttributeName);
+                }
                 if (role) attrs.push({ name: 'role', value: role });
                 if (zIndex) attrs.push({ name: 'z-index', value: zIndex });
                 if (kind) attrs.push({ name: 'control.kind', value: kind });

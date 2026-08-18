@@ -210,12 +210,18 @@ public final class RuntimeElementHealingService {
             InstructionLoad instruction,
             ScannedElement row,
             Map<String, String> stableAttributes) {
+        Map<String, String> references = instructionReferences(instruction);
+        Map<String, String> expectedTestIds = TestIdLocatorContract.testIdValues(references);
+        Map<String, String> candidateTestIds = TestIdLocatorContract.testIdValues(stableAttributes);
+        if (expectedTestIds.entrySet().stream()
+                .anyMatch(entry -> sameLocator(entry.getValue(), candidateTestIds.get(entry.getKey())))) {
+            return 4;
+        }
         if (sameLocator(instruction.getXpath(), row.getCustomXPath())
                 || sameLocator(instruction.getXpath(), row.getXPath())) {
             return 3;
         }
 
-        Map<String, String> references = instructionReferences(instruction);
         if (sameLocator(references.get("id"), row.getAttribId())
                 || sameLocator(references.get("name"), row.getAttribName())
                 || sameLocator(references.get("data-testid"), stableAttributes.get("data-testid"))
@@ -247,9 +253,12 @@ public final class RuntimeElementHealingService {
                 case "test-id", "attrdata:test-id" -> "test-id";
                 case "data-cy", "attrdata:data-cy" -> "data-cy";
                 case "data-qa", "attrdata:data-qa" -> "data-qa";
-                default -> "";
+                default -> type.startsWith("attrdata:")
+                        ? type.substring("attrdata:".length()) : "";
             };
-            if (!key.isEmpty()) references.putIfAbsent(key, reference.getValue().trim());
+            if (!key.isEmpty() && TestIdLocatorContract.isSafeAttributeName(key)) {
+                references.putIfAbsent(key, reference.getValue().trim());
+            }
         }
         return references;
     }
@@ -283,16 +292,26 @@ public final class RuntimeElementHealingService {
         try {
             AttributeData[] values = JSON.fromJson(raw, AttributeData[].class);
             if (values == null) return Map.of();
-            Map<String, String> attributes = new LinkedHashMap<>();
+            Map<String, String> rawAttributes = new LinkedHashMap<>();
             for (AttributeData attribute : values) {
                 if (attribute == null || attribute.getName() == null || attribute.getValue() == null) {
                     continue;
                 }
                 String name = attribute.getName().trim().toLowerCase(Locale.ROOT);
-                if (!isStableAttribute(name)) continue;
+                if (!TestIdLocatorContract.isSafeAttributeName(name)) continue;
                 String value = attribute.getValue().trim();
                 if (value.isEmpty() || value.length() > MAX_ATTRIBUTE_VALUE_LENGTH) continue;
-                attributes.putIfAbsent(name, value);
+                rawAttributes.putIfAbsent(name, value);
+            }
+            Map<String, String> attributes = new LinkedHashMap<>();
+            rawAttributes.forEach((name, value) -> {
+                if (isStableAttribute(name)) attributes.putIfAbsent(name, value);
+            });
+            String configured = rawAttributes.get(TestIdLocatorContract.ATTRIBUTE_NAME_METADATA);
+            if (TestIdLocatorContract.isSafeAttributeName(configured)) {
+                attributes.put(TestIdLocatorContract.ATTRIBUTE_NAME_METADATA, configured);
+                String customValue = rawAttributes.get(configured);
+                if (customValue != null) attributes.put(configured, customValue);
             }
             return Collections.unmodifiableMap(attributes);
         } catch (RuntimeException invalidJson) {
@@ -303,6 +322,7 @@ public final class RuntimeElementHealingService {
     private static boolean isStableAttribute(String name) {
         return switch (name) {
             case "id", "name", "data-testid", "data-test-id", "test-id", "data-cy", "data-qa",
+                    TestIdLocatorContract.ATTRIBUTE_NAME_METADATA,
                     "aria-label", "role", "type", "original-tag" -> true;
             default -> false;
         };

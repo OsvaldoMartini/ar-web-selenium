@@ -9,6 +9,7 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.BoundingBox;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
@@ -484,11 +485,13 @@ public class PlaywrightActionExecutor {
     static List<String> selectorsFor(InstructionLoad instruction) {
         List<String> selectors = new ArrayList<>();
 
+        TestIdLocatorContract.selectorsFromReferences(instruction.getReferenceLoadDTOList())
+                .forEach(selector -> addCss(selectors, selector));
         addXPath(selectors, instruction.getXpath());
         addCss(selectors, instruction.getCssSelector());
         addReferences(selectors, instruction.getReferenceLoadDTOList());
 
-        return selectors;
+        return List.copyOf(new LinkedHashSet<>(selectors));
     }
 
     private static void addReferences(List<String> selectors, List<ReferenceLoadDTO> references) {
@@ -567,7 +570,7 @@ public class PlaywrightActionExecutor {
         return switch (value) {
             case "generated-id", "original-tag", "select-xpath", "option-value", "option-text",
                     "trigger-selector", "text-source", "dom-label", "control.kind", "control.role", "z-index",
-                    "clickable" -> false;
+                    "clickable", TestIdLocatorContract.ATTRIBUTE_NAME_METADATA -> false;
             default -> true;
         };
     }

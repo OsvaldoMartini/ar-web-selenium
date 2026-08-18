@@ -1228,6 +1228,7 @@ public final class PlaywrightRuntimeHealingExecutor {
 
     private static List<String> registrySelectors(RegistryCandidate candidate) {
         Set<String> selectors = new LinkedHashSet<>();
+        selectors.addAll(TestIdLocatorContract.selectors(candidate.attributes()));
         addXpath(selectors, candidate.customXPath());
         addXpath(selectors, candidate.xpath());
         if (hasText(candidate.cssSelector())) selectors.add(candidate.cssSelector().trim());

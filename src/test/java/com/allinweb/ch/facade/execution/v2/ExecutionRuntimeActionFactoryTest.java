@@ -10,6 +10,7 @@ import com.allinweb.ch.facade.RuntimeElementHealingService.Status;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.BlockSnapshot;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.InstructionSnapshot;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.ReferenceSnapshot;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,8 +78,33 @@ class ExecutionRuntimeActionFactoryTest {
                 () -> factory.create(1L, click, overflow, null));
     }
 
+    @Test
+    void sendsStandardAndClientTestIdsBeforeXpathForAuthoredAndRegistryTargets() {
+        InstructionSnapshot instruction = instruction(
+                "C", "", "button", List.of(
+                        new ReferenceSnapshot(1, 1733, "AttrData:automation.test-id.attribute", "qa-hook"),
+                        new ReferenceSnapshot(2, 1733, "AttrData:qa-hook", "continue")));
+        RegistryCandidate candidate = new RegistryCandidate(
+                41L, "button", "button", "//button[2]", "//button[@name='next']", "button.next",
+                "", "", "", "", "", "", Map.of(
+                        "data-testid", "registry-next"));
+        JsonObject request = factory.create(1L, instruction, new Preparation(
+                Status.READY, 13, 29, PAGE_KEY, List.of(candidate), List.of(), List.of()), null);
+
+        assertEquals("[qa-hook=\"continue\"]", request.getAsJsonArray("authoredSelectors").get(0).getAsString());
+        assertEquals("//*[@id='login']", request.getAsJsonArray("authoredSelectors").get(1).getAsString());
+        JsonObject registry = request.getAsJsonArray("registryCandidates").get(0).getAsJsonObject();
+        assertEquals("[data-testid=\"registry-next\"]", registry.getAsJsonArray("selectors").get(0).getAsString());
+        assertEquals("//button[@name='next']", registry.getAsJsonArray("selectors").get(1).getAsString());
+    }
+
     private static InstructionSnapshot instruction(
             String action, String forceCoordinates, String tagName) {
+        return instruction(action, forceCoordinates, tagName, List.of());
+    }
+
+    private static InstructionSnapshot instruction(
+            String action, String forceCoordinates, String tagName, List<ReferenceSnapshot> references) {
         Owner owner = new Owner(13, 29);
         BlockSnapshot block = new BlockSnapshot(7, 1, "Login", "", null, "", true, 0);
         return new InstructionSnapshot(
@@ -111,7 +137,7 @@ class ExecutionRuntimeActionFactoryTest {
                 true,
                 null,
                 null,
-                List.of(),
+                references,
                 Map.of());
     }
 }

@@ -26,6 +26,7 @@ import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantF
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.DataMode;
 import com.allinweb.ch.facade.execution.v2.SmokeTestIntegrationV2StepExecutor;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
+import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
@@ -1572,6 +1573,15 @@ public final class SmokeTestIntegrationService {
         element.setClientNamed(candidate.get("savedClientName").getAsString());
         element.setSomeText(candidate.get("ocrMappedName").getAsString());
         element.setDefaultValue(action == RecoveryAction.INPUT ? inputValue : "");
+        if (candidate.has("newStableAttributes") && candidate.get("newStableAttributes").isJsonObject()) {
+            List<AttributeData> attributes = new ArrayList<>();
+            candidate.getAsJsonObject("newStableAttributes").entrySet().forEach(entry -> {
+                if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
+                    attributes.add(new AttributeData(entry.getKey(), entry.getValue().getAsString()));
+                }
+            });
+            element.setAttributeData(attributes.toArray(AttributeData[]::new));
+        }
         return element;
     }
 

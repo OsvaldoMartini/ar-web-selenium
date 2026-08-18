@@ -3,12 +3,15 @@ package com.allinweb.ch.facade.execution.v2;
 import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.facade.RuntimeElementHealingService.RegistryCandidate;
+import com.allinweb.ch.facade.TestIdLocatorContract;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.InstructionSnapshot;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -68,7 +71,8 @@ public final class ExecutionRuntimeActionFactory {
         request.addProperty("sequence", sequence);
         request.addProperty("action", action);
         request.addProperty("pageKey", preparation.pageKey());
-        request.add("authoredSelectors", selectors(
+        request.add("authoredSelectors", selectorsWithTestIds(
+                TestIdLocatorContract.selectorsFromSnapshots(target.references()),
                 target.xpath(), target.cssSelector()));
         request.add("registryCandidates", candidates(preparation));
         optional(request, "canonicalName", target.name(), MAX_NAME_LENGTH);
@@ -109,7 +113,8 @@ public final class ExecutionRuntimeActionFactory {
         }
         String xpath = candidate.has("newXPath") ? candidate.get("newXPath").getAsString() : "";
         String css = candidate.has("newCss") ? candidate.get("newCss").getAsString() : "";
-        JsonArray selectors = selectors(xpath, css);
+        JsonArray selectors = selectorsWithTestIds(
+                TestIdLocatorContract.selectors(candidateAttributes(candidate)), xpath, css);
         if (selectors.isEmpty()) {
             throw new IllegalArgumentException("Execution V2 recovery candidate has no locator");
         }
@@ -173,7 +178,8 @@ public final class ExecutionRuntimeActionFactory {
             JsonObject value = new JsonObject();
             value.addProperty("candidateId", candidate.scannedElementId());
             value.addProperty("tier", tier);
-            value.add("selectors", selectors(
+            value.add("selectors", selectorsWithTestIds(
+                    TestIdLocatorContract.selectors(candidate.attributes()),
                     candidate.customXPath(), candidate.xpath(), candidate.cssSelector()));
             optional(value, "expectedTag", normalizedTag(candidate.tagName()), 32);
             optional(value, "iframeXPath", candidate.iframeXpath(), MAX_SELECTOR_LENGTH);
@@ -211,6 +217,25 @@ public final class ExecutionRuntimeActionFactory {
         }
         JsonArray result = new JsonArray();
         unique.forEach(result::add);
+        return result;
+    }
+
+    private static JsonArray selectorsWithTestIds(List<String> testIds, String... candidates) {
+        List<String> values = new java.util.ArrayList<>(testIds == null ? List.of() : testIds);
+        values.addAll(List.of(candidates));
+        return selectors(values.toArray(String[]::new));
+    }
+
+    private static Map<String, String> candidateAttributes(JsonObject candidate) {
+        if (!candidate.has("newStableAttributes") || !candidate.get("newStableAttributes").isJsonObject()) {
+            return Map.of();
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        candidate.getAsJsonObject("newStableAttributes").entrySet().forEach(entry -> {
+            if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
+                result.put(entry.getKey(), entry.getValue().getAsString());
+            }
+        });
         return result;
     }
 

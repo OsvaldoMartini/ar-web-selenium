@@ -2,6 +2,7 @@ package com.allinweb.ch.facade.execution;
 
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.facade.RuntimeElementHealingService.RegistryCandidate;
+import com.allinweb.ch.facade.TestIdLocatorContract;
 import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
 import com.google.gson.Gson;
@@ -27,7 +28,8 @@ public final class SmokeTestLocatorRecoveryMatcher {
     private static final int MAX_RESULTS = 25;
     private static final Set<String> STABLE_ATTRIBUTES = Set.of(
             "id", "name", "role", "type", "title", "placeholder",
-            "aria-label", "aria-labelledby", "data-testid", "data-test", "data-qa");
+            "aria-label", "aria-labelledby", "data-testid", "data-test-id", "test-id",
+            "data-test", "data-cy", "data-qa", TestIdLocatorContract.ATTRIBUTE_NAME_METADATA);
 
     private SmokeTestLocatorRecoveryMatcher() {}
 
@@ -171,6 +173,7 @@ public final class SmokeTestLocatorRecoveryMatcher {
 
     private static Map<String, String> stableAttributes(ElementDTO element) {
         Map<String, String> values = new LinkedHashMap<>();
+        Map<String, String> raw = new LinkedHashMap<>();
         if (!text(element.getAttribId()).isBlank()) values.put("id", element.getAttribId().trim());
         if (!text(element.getAttribName()).isBlank()) values.put("name", element.getAttribName().trim());
         if (element.getAttributeData() != null) {
@@ -178,10 +181,17 @@ public final class SmokeTestLocatorRecoveryMatcher {
                 if (attribute == null || attribute.getName() == null || attribute.getValue() == null) continue;
                 String key = attribute.getName().trim().toLowerCase(Locale.ROOT);
                 String value = attribute.getValue().trim();
-                if (STABLE_ATTRIBUTES.contains(key) && !value.isEmpty() && value.length() <= 8_192) {
-                    values.putIfAbsent(key, value);
+                if (TestIdLocatorContract.isSafeAttributeName(key) && !value.isEmpty() && value.length() <= 8_192) {
+                    raw.putIfAbsent(key, value);
                 }
             }
+        }
+        raw.forEach((key, value) -> {
+            if (STABLE_ATTRIBUTES.contains(key)) values.putIfAbsent(key, value);
+        });
+        String configured = raw.get(TestIdLocatorContract.ATTRIBUTE_NAME_METADATA);
+        if (TestIdLocatorContract.isSafeAttributeName(configured) && raw.containsKey(configured)) {
+            values.put(configured, raw.get(configured));
         }
         return Map.copyOf(values);
     }

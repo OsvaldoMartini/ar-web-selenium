@@ -47,4 +47,27 @@ class RuntimeElementHealingServiceTest {
         assertEquals(2, RuntimeElementHealingService.locatorMatchStrength(
                 instruction, stable, Map.of()));
     }
+
+    @Test
+    void configuredClientTestIdOutranksXpath() {
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setXpath("//button[9]");
+        instruction.setReferenceLoadDTOList(List.of(
+                reference("AttrData:automation.test-id.attribute", "qa-hook"),
+                reference("AttrData:qa-hook", "continue")));
+        ScannedElement row = new ScannedElement();
+        row.setXPath("//button[2]");
+
+        assertEquals(4, RuntimeElementHealingService.locatorMatchStrength(
+                instruction, row, Map.of(
+                        "automation.test-id.attribute", "qa-hook",
+                        "qa-hook", "continue")));
+    }
+
+    private static ReferenceLoadDTO reference(String type, String value) {
+        ReferenceLoadDTO reference = new ReferenceLoadDTO();
+        reference.setReferenceType(type);
+        reference.setValue(value);
+        return reference;
+    }
 }

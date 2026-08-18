@@ -6,6 +6,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
 import com.allinweb.ch.facade.RuntimeElementHealingService;
+import com.allinweb.ch.facade.TestIdLocatorContract;
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.facade.RuntimeElementHealingService.RegistryCandidate;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue;
@@ -15,6 +16,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepDisposition;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepStatus;
 import com.allinweb.ch.socket.ExcelDataWorkspaceService.IntegrationDataset;
@@ -465,19 +467,28 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
     }
 
     private static Map<String, String> stableAttributes(InstructionLoad target) {
-        Map<String, String> values = new LinkedHashMap<>();
-        if (target.getReferenceLoadDTOList() == null) return values;
+        Map<String, String> raw = new LinkedHashMap<>();
+        if (target.getReferenceLoadDTOList() == null) return raw;
         for (var reference : target.getReferenceLoadDTOList()) {
             if (reference == null || reference.getReferenceType() == null
                     || reference.getValue() == null) continue;
             String type = reference.getReferenceType().trim().toLowerCase(Locale.ROOT);
             String name = type.startsWith("attrdata:")
                     ? type.substring("attrdata:".length()) : type;
-            if (Set.of("id", "name", "role", "type", "title", "placeholder",
-                    "aria-label", "data-testid", "data-test-id", "data-qa").contains(name)
+            if (TestIdLocatorContract.isSafeAttributeName(name)
                     && !reference.getValue().isBlank() && reference.getValue().length() <= MAX_TEXT) {
-                values.putIfAbsent(name, reference.getValue());
+                raw.putIfAbsent(name, reference.getValue());
             }
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        Set.of("id", "name", "role", "type", "title", "placeholder", "aria-label")
+                .forEach(name -> {
+                    if (raw.containsKey(name)) values.put(name, raw.get(name));
+                });
+        values.putAll(TestIdLocatorContract.testIdValues(raw));
+        String configured = raw.get(TestIdLocatorContract.ATTRIBUTE_NAME_METADATA);
+        if (TestIdLocatorContract.isSafeAttributeName(configured)) {
+            values.put(TestIdLocatorContract.ATTRIBUTE_NAME_METADATA, configured);
         }
         return Map.copyOf(values);
     }
@@ -669,8 +680,22 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         selected.setIFrameXPath("");
         selected.setShadowHost("");
         selected.setShadowRoot("");
-        selected.setReferenceLoadDTOList(List.of());
+        selected.setReferenceLoadDTOList(recoveryReferences(candidate.json));
         return selected;
+    }
+
+    private static List<ReferenceLoadDTO> recoveryReferences(JsonObject candidate) {
+        if (candidate == null || !candidate.has("newStableAttributes")
+                || !candidate.get("newStableAttributes").isJsonObject()) return List.of();
+        List<ReferenceLoadDTO> references = new ArrayList<>();
+        candidate.getAsJsonObject("newStableAttributes").entrySet().forEach(entry -> {
+            if (!entry.getValue().isJsonPrimitive() || !entry.getValue().getAsJsonPrimitive().isString()) return;
+            ReferenceLoadDTO reference = new ReferenceLoadDTO();
+            reference.setReferenceType("AttrData:" + entry.getKey());
+            reference.setValue(entry.getValue().getAsString());
+            references.add(reference);
+        });
+        return List.copyOf(references);
     }
 
     private static boolean samePage(ARPlaywrightDriver driver, String expectedPageKey) {
