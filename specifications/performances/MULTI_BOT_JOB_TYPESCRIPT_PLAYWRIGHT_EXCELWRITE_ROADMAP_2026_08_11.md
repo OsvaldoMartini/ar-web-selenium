@@ -1723,3 +1723,17 @@ and atomic artifact-write checkpoints are complete.
   compilation passed for 588 Java sources and 275 resources with only two established warnings.
 - [ ] Tests, distributable packaging, application restart, database activation, and live V1/V2
   acceptance were not part of this branch/delivery checkpoint.
+
+## 63. Clean frontend/backend repository separation - 2026-08-18
+
+- [x] The clean React project was moved from inside the backend to the sibling
+  `D:\Projects\AllinWeb\ar-web-allinweb-fe`; the backend remains
+  `D:\Projects\AllinWeb\ar-web-allinweb` with no embedded frontend source project.
+- [x] Package name `ar-web-allinweb-fe` and its lockfile are aligned. Unused recursive `file:`
+  dependencies were removed. `npm run build` now builds locally and mirrors only into the sibling
+  backend `src\main\resources\build` through a path-guarded, hash-verifying Node script.
+- [x] The production build passed with established warnings. Frontend build, backend resources, and
+  generated classes each have 61 exact matching files. A subsequent Maven compile passed for 588
+  Java sources and 275 resources with only the two established compiler warnings.
+- [x] The two clean projects are independent local Git repositories on `master`: backend `5c86db0`,
+  frontend `5ca928b`. Both working trees are clean; neither new repository has a remote yet.

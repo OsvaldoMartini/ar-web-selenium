@@ -1797,3 +1797,24 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   compiler warnings remain.
 - [ ] This checkpoint did not run test suites, package a distributable JAR/installer, start ARWeb,
   alter a database, or perform live V1/V2 browser acceptance. Those remain separate gates.
+
+### Clean frontend/backend repository separation - 2026-08-18
+
+- [x] The embedded `ar-web-allinweb\abr-react-ts-grid` directory was moved out. The clean projects
+  are now independent siblings: backend `D:\Projects\AllinWeb\ar-web-allinweb` and frontend
+  `D:\Projects\AllinWeb\ar-web-allinweb-fe`.
+- [x] Frontend package metadata is named `ar-web-allinweb-fe`; the two unused self-referencing
+  `file:` dependencies were removed and the lockfile regenerated with the repository's established
+  legacy-peer compatibility mode.
+- [x] Frontend `npm run build` now runs the production build and a guarded Node mirror that targets
+  only the sibling backend `src\main\resources\build`, refuses unexpected folder layouts or
+  symbolic links, and verifies the complete path set and every SHA-256 after copying.
+- [x] The production build passed with established lint warnings. Frontend, backend resources, and
+  `target\classes` each contain the same 61 files with zero hash differences. Entrypoints are
+  `main.1f0fef7f.js` (`F941DA1BCD0599811CB497D48EDF04B409B57D5614C755DD38293104AA647662`)
+  and `main.3fea108d.css` (`DF1C21A11DF43F2694BCB06BC749199BA9AF00EC41F9A66A3BD745FCD7BA904D`).
+- [x] Maven compilation passed again after removing the exact stale generated frontend directory;
+  588 Java sources and 275 resources compiled/copied successfully with the same two warnings.
+- [x] Both clean folders are new, clean local Git repositories on `master`: backend root commit
+  `5c86db0` and frontend root commit `5ca928b`. No remotes are configured, so nothing from these two
+  new repositories has been pushed.
