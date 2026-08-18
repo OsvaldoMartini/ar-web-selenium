@@ -1658,3 +1658,20 @@ and atomic artifact-write checkpoints are complete.
 - [ ] No ARWeb process was restarted and no live Bot Job action was performed. Live acceptance must
   pause V1 and V2 on a missing element, prove the first BOT JOB row, retained PREVIOUS rows, refreshed
   CURRENT rows, working Test Input/Test Click, Help behavior, and Use Once/Use and Save isolation.
+
+## 59. Test ID first locator parity - 2026-08-18
+
+- [x] `8912aa4d` defines one bounded V1/V2 Test ID contract. Standard attributes and the one client
+  attribute explicitly configured through Page Scanner `attr:<name>` are attempted before XPath,
+  CSS, registry identity, canonical name, client name, and OCR/name fallbacks.
+- [x] Page Scanner persists the configured automation attribute name without persisting a second
+  copy of its value. Standard historical rows work unchanged; a historical custom attribute becomes
+  priority-one after the next scan records its explicit marker.
+- [x] Recovery candidate execution and testing preserve the selected row's Test ID evidence. The
+  frontend `a02bb1c` exposes Test ID immediately after Select and documents the rule in Help.
+- [x] Focused verification passed Java 33/33, catalog 2/2, and React 11/11. Java compile, Node build,
+  and React production build passed. Catalog `f7e307f9` records 2,473 rows / 2,437 code cases.
+- [x] Deployment `c45e75bd` is an exact 61-file resource and target/classes mirror using
+  `main.dbaeb5e6.js` / `main.724a0df7.css`.
+- [ ] Restart/live acceptance remains for standard and custom Test IDs under both runtimes. No
+  application process, database row, Page Scanner action, or live banking page was changed here.

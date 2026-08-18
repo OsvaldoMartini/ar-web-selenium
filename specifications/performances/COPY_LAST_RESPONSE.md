@@ -737,3 +737,16 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Exact deployment `03ce2179` is mirrored across 58 files / 19 images in resources and `target/classes`: `main.86864372.js` and `main.cd1e36ee.css`.
 - [x] BancaStato migration `2026-08-11__excelwrite_instruction_targets` was applied alone in one transaction after exact backup `Backup-CODEX-2026-08-11-excelwrite-instruction-targets\database.db` (5,373,952 bytes; SHA-256 `5756E73B80ED5467E4107D3018EF3FC22C533155C848F632EE90B0D5D20B9147`). Migration count is 25; integrity/FK checks are clean; 25/25 E rows are typed; variables, slots, instructions, and Block rollback settings are unchanged.
 - [ ] No restart or live workbook write was performed. Jobs 5/32 retain their ExcelWrite READ bindings, but 11 historical E rows elsewhere lack a READ slot and five are active; explicitly bind or disable them. Then verify two instructions from different Blocks can share one file while keeping independent variables and columns.
+
+### Test ID first locator contract - 2026-08-18
+
+- [x] V1 and V2 now use the same priority: standard or explicitly configured client Test ID before
+  XPath/CSS and all name-based recovery. Scanner metadata preserves which client `attr:<name>` is a
+  Test ID, preventing ordinary attributes from being promoted accidentally.
+- [x] Locator Recovery displays Test ID as the second column and carries it through Test Input,
+  Test Click, Use Once, and V1/V2 execution rather than rendering a cosmetic value only.
+- [x] Source commits `a02bb1c` / `8912aa4d`, deployment `c45e75bd`, and catalog `f7e307f9` are pushed.
+  Java 33/33 + catalog 2/2 and React 11/11 passed; Java/Node/React builds passed. The exact 61-file
+  mirror uses `main.dbaeb5e6.js` and `main.724a0df7.css`.
+- [ ] Restart/live proof remains open. Test one standard ID and one newly scanned custom client ID
+  in both V1 and V2 while their stored XPath is stale.

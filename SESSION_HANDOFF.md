@@ -1709,3 +1709,27 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   `main.cb263057.js` (`B261E5734F307A19895786B5A0D30659D25E3EB1E82CD790355D2EFD05146503`) and
   `main.724a0df7.css` (`29CA28FA0933D4CA755135344B75088E910B1ECCE410294ADD13D9F49D2DD8A4`).
 - No process restart or live banking action occurred. Restart/live V1+V2 acceptance is still open.
+
+## Test ID first locator contract - 2026-08-18
+
+- [x] Backend `8912aa4d` establishes one V1/V2 locator order: Test ID first, then authored/custom
+  XPath, XPath, CSS, registry identity, and name recovery. Standard Test IDs are `data-testid`,
+  `data-test-id`, `test-id`, `data-cy`, and `data-qa`.
+- [x] Page Scanner now records `automation.test-id.attribute` for an explicitly configured client
+  `attr:<name>`. Only that declared client attribute is promoted to Test ID priority; ordinary DOM
+  attributes are not. Existing standard IDs remain backward compatible; existing custom IDs gain
+  the marker on their next scan.
+- [x] V1, V2, recovery Test Input/Test Click, Use Once, and registry candidate execution carry the
+  same Test ID-first selector order. The Locator Recovery table shows `Test ID` immediately after
+  Select as `attribute=value`, including client-defined attributes.
+- [x] Frontend `a02bb1c`, backend `8912aa4d`, deployment `c45e75bd`, and catalog `f7e307f9` are
+  pushed. Focused Java verification passed 33/33 plus catalog 2/2; React passed 11/11; Java compile,
+  Node build, and React production build passed. The catalog has 2,473 rows / 2,437 code cases.
+- [x] The 61-file frontend build is mirrored exactly into resources and `target/classes`.
+  Entrypoints are `main.dbaeb5e6.js` (SHA-256
+  `7401BA21C51905212CA2A1988A5C3425248569E8906B8C801393D51688939D7D`) and
+  `main.724a0df7.css` (SHA-256
+  `29CA28FA0933D4CA755135344B75088E910B1ECCE410294ADD13D9F49D2DD8A4`).
+- [ ] No ARWeb process was restarted and no live banking action was performed. Live acceptance is
+  one V1 and one V2 instruction with a standard Test ID, then a newly scanned client-configured
+  Test ID, proving Test ID is attempted before a deliberately stale XPath.
