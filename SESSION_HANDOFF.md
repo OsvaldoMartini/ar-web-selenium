@@ -1774,3 +1774,26 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   19,452 generated API requests.
 - [ ] No frontend production source, build asset, Java production source, database, process, or live
   browser was changed. Runtime restart/live V1 and V2 standard/custom Test ID acceptance remains open.
+
+## Authoritative final branches and clean source delivery - 2026-08-18
+
+- [x] The obsolete backend and React `master` trees were not allowed to overwrite the current
+  working implementations. Each repository received one auditable integration commit whose first
+  parent is the former remote `master`, whose second parent is the authoritative working branch,
+  and whose resulting tree is byte-for-byte identical to that working branch.
+- [x] Backend `master` and `final-allinweb` were pushed at `0fd41bf2`; their tree matches source
+  commit `c6a98cbd`. React `master` and `final-allinweb` were pushed at `0119cae`; their tree matches
+  source commit `719a538`. The V2 `playwright-runtime-ts` project is tracked inside the backend and
+  is therefore included in the same backend integration.
+- [x] The clean non-Git delivery was created at `D:\Projects\AllinWeb\ar-web-allinweb` from committed
+  files only. It contains Java production source/resources, the V2 TypeScript runtime, native
+  OpenCV/OCR resources, runtime configuration/launch files, deployment inputs, and React
+  source plus the production build. It excludes repository metadata, databases, logs, IDE state,
+  temporary worktrees, and user evidence files.
+- [x] Both clean delivery build copies contain the same 61 frontend paths and SHA-256 values as the
+  authoritative backend resources. The V2 TypeScript `npm ci` and production TypeScript build
+  passed with 0 vulnerabilities. `mvn -DskipTests compile` passed in the clean folder, compiling
+  588 Java sources and copying 275 resources; only the established Lombok builder and varargs
+  compiler warnings remain.
+- [ ] This checkpoint did not run test suites, package a distributable JAR/installer, start ARWeb,
+  alter a database, or perform live V1/V2 browser acceptance. Those remain separate gates.

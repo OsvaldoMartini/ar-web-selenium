@@ -1705,3 +1705,21 @@ and atomic artifact-write checkpoints are complete.
   API requests.
 - [ ] No production source/build asset/runtime/database changed. Restart and live V1/V2 acceptance
   for standard and newly scanned custom Test IDs remain open.
+
+## 62. Authoritative final branches and clean source delivery - 2026-08-18
+
+- [x] The latest working backend and React branches are the source of truth. The old remote master
+  histories were retained as merge parents for auditability, while every conflicting tree entry was
+  resolved to the current working implementation rather than replaying obsolete master content.
+- [x] Backend `master` and `final-allinweb` point to `0fd41bf2` and match the `c6a98cbd` source tree.
+  React `master` and `final-allinweb` point to `0119cae` and match the `719a538` source tree. Both
+  branch pairs are pushed. V1 Java and the in-repository V2 TypeScript runtime are included.
+- [x] A clean delivery exists at `D:\Projects\AllinWeb\ar-web-allinweb` with production source,
+  native OCR/OpenCV resources, V2 runtime inputs, React source/build, configs, launchers, and deploy
+  inputs. Git metadata, databases, logs, IDE state, temporary worktrees, and evidence screenshots
+  were excluded.
+- [x] The two clean 61-file frontend build trees match the authoritative resource build exactly.
+  V2 TypeScript dependency installation/build passed with 0 vulnerabilities. Clean-folder Maven
+  compilation passed for 588 Java sources and 275 resources with only two established warnings.
+- [ ] Tests, distributable packaging, application restart, database activation, and live V1/V2
+  acceptance were not part of this branch/delivery checkpoint.
