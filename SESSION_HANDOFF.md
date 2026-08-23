@@ -1818,3 +1818,66 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] Both clean folders are new, clean local Git repositories on `master`: backend root commit
   `5c86db0` and frontend root commit `5ca928b`. No remotes are configured, so nothing from these two
   new repositories has been pushed.
+
+## Claude review bridge - Manual Locator Recovery browser readiness - 2026-08-23
+
+This is the current Codex-to-Claude review checkpoint. The authoritative implementation is in the
+separated projects below; the older `ar-web-selenium` repository is documentation/history only for
+this checkpoint.
+
+### Separated projects and Git source of truth
+
+- Backend: `D:\Projects\AllinWeb\ar-web-allinweb`; GitHub `OsvaldoMartini/ar-web-allinweb`;
+  branch `master`; current pushed commit `00a3316182d4b00b3829d994fbdb49a258e898e9`.
+- Frontend: `D:\Projects\AllinWeb\ar-web-allinweb-fe`; GitHub
+  `OsvaldoMartini/ar-web-allinweb-fe`; branch `master`; current pushed implementation
+  `76a2ed970b8c91a25cb0c18ced850790b70bd526`.
+- Backend includes Java V1, the tracked `playwright-runtime-ts` V2 runtime, resources, and the
+  frontend build under `src/main/resources/build`. Frontend source remains a separate project.
+- The backend's untracked `config/` directory is pre-existing and must remain untouched.
+- The old `D:\Projects\AllinWeb\ar-web-selenium` tree is documentation/history for this bridge;
+  preserve its unrelated dirty files and do not use its obsolete `master` as source of truth.
+
+### Completed Manual Locator Recovery work
+
+- [x] The red magic-wand action in Smoke Test instruction rows opens an owner-bound manual Locator
+  Recovery workflow without creating a fake Integration run, for both V1 and isolated V2.
+- [x] Graph validation now uses the mutation-capability graph revision, not the relationship-plan
+  revision. Backend refusal logs include safe revision prefixes only.
+- [x] V1 no longer treats a retained `about:blank` tab as usable. The service probes driver state,
+  page count, usable HTTP(S) URL, and redacted page identity. Blank/closed pages reopen the selected
+  Bot Job URL; one bounded reopen/revalidation retry handles a page disappearing during settling.
+- [x] V2 remains isolated per run and never attaches to V1's shared browser.
+- [x] Trace stages include `REQUEST_RECEIVED`, `BROWSER_ACQUIRE_STARTED`, `BROWSER_PROBED`,
+  `BROWSER_NAVIGATION_REQUIRED`, `BROWSER_SELECTED`, `PAGE_SETTLE_STARTED/COMPLETED`,
+  `PAGE_DISAPPEARED`, `BROWSER_REVALIDATION_FAILED`, `REGISTRY_PREPARE_STARTED/COMPLETED`, and
+  `DOM_SCAN_STARTED/COMPLETED`. Exceptions include stack traces while excluding URLs, credentials,
+  banking values, and raw locators.
+- [x] Manual scan, test, decision, and close phases are written to
+  `D:\Projects\ARWebBancaStato\ARWeb\Logs\ar_web_smoke_execution-*.log`.
+- [x] Regression verification: Java 3/3 passed (0 failures, 0 errors, 0 skipped); focused React
+  verification 45/45 passed. Backend commit `00a3316` is pushed.
+- [x] The application was intentionally left stopped after the fix; no live banking acceptance is
+  claimed.
+
+### Claude review questions and remaining acceptance gates
+
+1. Confirm owner, mode, generation, and runtime isolation across manual open, scan, probe, decision,
+   and close for V1 and V2.
+2. Confirm the V1 reopen retry is bounded and cancellation-safe, with no implicit/unbounded wait that
+   could block Stop.
+3. Confirm `about:blank` or stale retained pages cannot reach registry preparation or DOM scanning.
+4. Confirm reconnects and Bot Job retargeting cannot attach a manual request to the wrong WebSocket
+   owner/session.
+5. Confirm trace coverage is sufficient to diagnose acquisition, settlement, registry, scan, and
+   probe failures without secret or banking-data leakage.
+6. Live gate still required: restart with BancaStato Config-4.2, test V1 and V2 magic-wand recovery,
+   in-modal Page Scanner, Test Input/Click, Use Once, Use and Save, Bypass, and owner isolation.
+
+### Do not claim yet
+
+- No live runtime health, browser acceptance, or banking-page behavior has been verified after this
+  fix.
+- No Maven package/JAR or frontend rebuild was performed for this documentation checkpoint.
+- The broad legacy React baseline remains below 100%; unrelated historical failures are not evidence
+  against Manual Locator Recovery.
