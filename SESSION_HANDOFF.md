@@ -1881,3 +1881,24 @@ this checkpoint.
 - No Maven package/JAR or frontend rebuild was performed for this documentation checkpoint.
 - The broad legacy React baseline remains below 100%; unrelated historical failures are not evidence
   against Manual Locator Recovery.
+
+## Account-transition resume note - 2026-08-24
+
+If the Codex/Claude account login changes, restore context by reading these two shared bridge files
+first:
+
+1. `D:\Projects\AllinWeb\ar-web-selenium\specifications\performances\COPY_LAST_RESPONSE.md`
+2. `D:\Projects\AllinWeb\ar-web-selenium\SESSION_HANDOFF.md`
+
+The source directories are independent of the account login:
+
+- Backend: `D:\Projects\AllinWeb\ar-web-allinweb` (`master`, current functional commit `00a3316`).
+- Frontend: `D:\Projects\AllinWeb\ar-web-allinweb-fe` (`master`, current functional commit
+  `76a2ed9`).
+- Documentation/history: `D:\Projects\AllinWeb\ar-web-selenium` (`final-allinweb`, handoff commit
+  `89277793`).
+
+The last functional work was Manual Locator Recovery browser readiness: reject `about:blank`, reopen
+the selected Bot Job page, retry once if the page disappears, and trace every recovery stage. The
+application was left stopped; live V1/V2 acceptance remains pending. Do not claim a live fix until
+the BancaStato runtime is restarted and the manual recovery matrix is executed.

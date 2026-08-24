@@ -2,13 +2,37 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-16 - The first V2 Page Scanner live test correctly selected the retained owner/browser but exposed remote function non-invocation and an overly strict whole-body readiness timeout. Backend/Node `060ea054` invokes scanner functions correctly, gives scanner-only readiness V1 parity, and adds bounded sample/outcome logs without weakening V2 execution startup. Node passes 51/51; catalog `9330cfa6` is pushed. Fresh PID 11280 serves the unchanged exact frontend on 49719/49720. Repeat Test 2 without closing Page Scanner remains the live gate.
+**Last updated:** 2026-08-24 - Account-transition continuity checkpoint. The latest documentation task
+was to update the shared Codex/Claude handoff with the separated working directories, Git source of
+truth, and Manual Locator Recovery browser-readiness status. No application code was changed in this
+checkpoint. Before resuming after a login/account change, read this file and
+`D:\Projects\AllinWeb\ar-web-selenium\SESSION_HANDOFF.md`.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
 plans, select REAL/SYNTHETIC per row, and display runtime/command readiness without opening a browser.
 Java compile and frontend build passed after reported corrections; no tests or app restart ran.
 This earlier preflight-only statement is superseded by the isolated controller checkpoint below.
+
+### Current Codex continuity checkpoint - 2026-08-24
+
+- The immediately preceding functional task was backend commit `00a3316`: Manual Locator Recovery
+  rejects retained `about:blank`/non-web pages, reopens the selected Bot Job page when necessary,
+  and performs one bounded revalidation if the page disappears during settling.
+- The related frontend commits are `fe969a2` (manual recovery review) and `76a2ed9` (mutation-capability
+  graph revision authority). Backend graph/recovery commits are `75561bb`, `6ae555b`, and `77f2b36`.
+- The bridge-document update itself is old-repository commit `89277793`, pushed on branch
+  `final-allinweb`.
+- Backend source of truth: `D:\Projects\AllinWeb\ar-web-allinweb`, GitHub
+  `OsvaldoMartini/ar-web-allinweb`, branch `master`, commit `00a3316`.
+- Frontend source of truth: `D:\Projects\AllinWeb\ar-web-allinweb-fe`, GitHub
+  `OsvaldoMartini/ar-web-allinweb-fe`, branch `master`, commit `76a2ed9`.
+- The old `D:\Projects\AllinWeb\ar-web-selenium` checkout stores handoff/history and contains
+  unrelated dirty files. Do not use its obsolete `master` as implementation source.
+- Resume gate: restart with the BancaStato Config-4.2 configuration, then manually verify V1 and V2
+  magic-wand recovery, in-modal Page Scanner, Test Input/Click, Use Once, Use and Save, Bypass,
+  reconnect/retarget ownership, and the trace file under
+  `D:\Projects\ARWebBancaStato\ARWeb\Logs\ar_web_smoke_execution-*.log`.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
