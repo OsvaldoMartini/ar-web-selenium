@@ -26,9 +26,14 @@ login/account change, read this file and
   expectation failures remain in untouched relationship-chip and BlockHeader tests.
 - Current bundle: `main.7d3226ad.js`, SHA-256
   `0D2645E3D219BB7BE1A06CD74A3E321FC4B05C6C4C27EF99D2C02F089C58184D`.
-- Not performed: JAR/package, restart, migration, or live database/workbook mutation. Live gate:
-  confirm one INPUT Block rename end to end, confirm a running execution keeps its frozen snapshot,
-  and prove an open/locked workbook refuses without a partial database or memory change.
+- `mvn clean package` subsequently passed all 32 Java tests and produced
+  `AR_Web_Scanner-4.2.jar` (293,660,296 bytes; SHA-256
+  `A9AD7E949378F36F2F2B8A7AE8752046CEA0382D8B72ED5D15F81A450043FECC`). The exact artifact replaced
+  `D:\Projects\ARWebBancaStato\ARWeb-Scanner\AR_Web_Scanner-4.2.jar`, and source/destination hashes
+  match. The archive contains the new Block rename classes and `main.7d3226ad.js`.
+- Not performed: restart, migration, or live database/workbook mutation. Live gate: confirm one
+  INPUT Block rename end to end, confirm a running execution keeps its frozen snapshot, and prove
+  an open/locked workbook refuses without a partial database or memory change.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job

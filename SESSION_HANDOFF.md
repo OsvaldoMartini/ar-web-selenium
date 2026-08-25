@@ -24,9 +24,14 @@
 - `npm run build` passed with established repository warnings and mirrored/verified 61 files.
   Backend deployment-assets commit `07044d3` selects `main.7d3226ad.js`; its SHA-256 is
   `0D2645E3D219BB7BE1A06CD74A3E321FC4B05C6C4C27EF99D2C02F089C58184D`.
-- Backend and frontend commits are pushed and match their upstream branches. No JAR/package,
-  process restart, database migration, or live workbook rename was performed. Live acceptance is
-  still required: rename one INPUT Block with a closed workbook, confirm the modal, verify the
+- Backend and frontend commits are pushed and match their upstream branches. On 2026-08-25,
+  `mvn clean package` passed all 32 active Java tests and produced the shaded
+  `AR_Web_Scanner-4.2.jar` (293,660,296 bytes; SHA-256
+  `A9AD7E949378F36F2F2B8A7AE8752046CEA0382D8B72ED5D15F81A450043FECC`). The exact JAR replaced
+  `D:\Projects\ARWebBancaStato\ARWeb-Scanner\AR_Web_Scanner-4.2.jar`; source and destination hashes
+  match, and the delivered archive contains the Block rename classes and `main.7d3226ad.js`.
+  No process restart, database migration, or live workbook rename was performed. Live acceptance
+  is still required: rename one INPUT Block with a closed workbook, confirm the modal, verify the
   database/grid/workbook/REAL+SYNTHETIC memory, and prove a running execution retains its frozen
   snapshot. Repeat once with the workbook open to verify refusal and no partial change.
 
