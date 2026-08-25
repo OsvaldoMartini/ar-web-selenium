@@ -2,11 +2,33 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-24 - Account-transition continuity checkpoint. The latest documentation task
-was to update the shared Codex/Claude handoff with the separated working directories, Git source of
-truth, and Manual Locator Recovery browser-readiness status. No application code was changed in this
-checkpoint. Before resuming after a login/account change, read this file and
+**Last updated:** 2026-08-25 - Confirmed Block rename synchronization. Before resuming after a
+login/account change, read this file and
 `D:\Projects\AllinWeb\ar-web-selenium\SESSION_HANDOFF.md`.
+
+### Current Codex checkpoint - 2026-08-25
+
+- Backend source of truth: `D:\Projects\AllinWeb\ar-web-allinweb`, `master`, pushed HEAD
+  `07044d3`. Functional source is `73c1892`; `07044d3` is the exact mirrored frontend deployment.
+- Frontend source of truth: `D:\Projects\AllinWeb\ar-web-allinweb-fe`, `master`, pushed HEAD
+  `eab47e9`.
+- Bot Job Block rename is no longer optimistic. React requests a read-only preview and presents the
+  established confirmation modal. A confirm sends a distinct request correlated to that preview.
+- Java binds each preview to the exact owner, Block ID, old name, and new name and consumes it for
+  one commit attempt. It synchronizes the database Block, matching workbook header, durable
+  synthetic dataset, and retained REAL/SYNTHETIC Excel Data memory. Workbook writes are staged,
+  atomic, concurrency-checked, and compensatable until database commit.
+- Active executions deliberately retain their frozen snapshots. Missing workbooks do not block a
+  rename because the next generated file uses the database name. Locked, ambiguous, mismatched, or
+  colliding workbooks/names fail closed and report the reason to the client.
+- Verification: complete active Java suite 32/32; focused React 4/4; production build passed and
+  mirrored 61 verified files. The adjacent React matrix was 22/27; five unrelated existing
+  expectation failures remain in untouched relationship-chip and BlockHeader tests.
+- Current bundle: `main.7d3226ad.js`, SHA-256
+  `0D2645E3D219BB7BE1A06CD74A3E321FC4B05C6C4C27EF99D2C02F089C58184D`.
+- Not performed: JAR/package, restart, migration, or live database/workbook mutation. Live gate:
+  confirm one INPUT Block rename end to end, confirm a running execution keeps its frozen snapshot,
+  and prove an open/locked workbook refuses without a partial database or memory change.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job

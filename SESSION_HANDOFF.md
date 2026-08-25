@@ -1,5 +1,35 @@
 # Session Handoff
 
+## Current implementation checkpoint - 2026-08-25 - confirmed Block rename synchronization
+
+- The active source repositories remain `D:\Projects\AllinWeb\ar-web-allinweb` (backend) and
+  `D:\Projects\AllinWeb\ar-web-allinweb-fe` (frontend), both on `master`. This historical checkout
+  is not the implementation source of truth.
+- Frontend `eab47e9` replaces the optimistic `BLOCK_UPDATE` Bot Job rename with a correlated
+  preview/confirmation/commit flow using the established confirmation modal. The modal identifies
+  the Block, old/new names, workbook, workbook status, affected INPUT columns, and the frozen-run
+  rule. Timeouts and malformed/stale responses fail closed without optimistic local mutation.
+- Backend `73c1892` makes `BLOCK_RENAME` authoritative across the owner-scoped database Block,
+  matching Excel workbook Block header, durable synthetic Excel dataset, and retained REAL/
+  SYNTHETIC Excel Data memory. A backend preview token is bound to the exact owner/Block/names and
+  authorizes one commit attempt only. Duplicate commit request IDs are idempotent.
+- Workbook publication is staged and atomic, detects concurrent file changes, retains an exact
+  compensation copy until the database commit, and restores it on transaction failure. Missing
+  workbooks are safe future-generation cases; locked, ambiguous, or mismatched workbooks block the
+  rename. Active executions keep their already-frozen data snapshot; the new name is for the next
+  execution.
+- Complete active Java verification passed 32/32. Focused React confirmation/contract verification
+  passed 4/4. The adjacent React matrix passed 22/27; its five failures are existing expectations in
+  untouched `GridItem.relationshipChips.test.tsx` and `BlockHeader.test.tsx`, not this rename path.
+- `npm run build` passed with established repository warnings and mirrored/verified 61 files.
+  Backend deployment-assets commit `07044d3` selects `main.7d3226ad.js`; its SHA-256 is
+  `0D2645E3D219BB7BE1A06CD74A3E321FC4B05C6C4C27EF99D2C02F089C58184D`.
+- Backend and frontend commits are pushed and match their upstream branches. No JAR/package,
+  process restart, database migration, or live workbook rename was performed. Live acceptance is
+  still required: rename one INPUT Block with a closed workbook, confirm the modal, verify the
+  database/grid/workbook/REAL+SYNTHETIC memory, and prove a running execution retains its frozen
+  snapshot. Repeat once with the workbook open to verify refusal and no partial change.
+
 ## Current checkpoint - 2026-08-10
 
 The dated 2026-07-15 scanner-removal notes below remain historical backlog. The authoritative Page
