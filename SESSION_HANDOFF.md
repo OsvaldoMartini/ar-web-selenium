@@ -1,5 +1,30 @@
 # Session Handoff
 
+## Current implementation checkpoint - 2026-08-26 - Add Variable reconnect preview
+
+- The active source repositories are `D:\Projects\AllinWeb\ar-web-allinweb` (backend/deployment
+  assets) and `D:\Projects\AllinWeb\ar-web-allinweb-fe` (frontend), both on `master`. This
+  historical checkout remains documentation only.
+- Frontend `399e7a1` adds a visual-only green `Add Variable` action to the shared Reconnect variable
+  footer, between Disconnect and Cancel. It is rendered only for `VARIABLE_BINDING`, so both Bot
+  Job and Variables-page callers receive the same presentation without changing LOOP/GOTO/other
+  reconnect dialogs. The button deliberately has no mutation action yet.
+- The label is title case exactly as requested. A modal-scoped style overrides the shared
+  `RulesCard` uppercase transformation, so the visible text is `Add Variable`, not `ADD VARIABLE`.
+- Focused verification passed 2/2 for visibility, placement, casing class, no-op behavior, and
+  non-variable exclusion. The complete existing component test file was also observed at 5/8:
+  three pre-existing expectations conflict with current master behavior for LOOP copy, Connect
+  selection locking, and pending action locking; those unrelated contracts were not modified.
+- `npm run build` passed with established repository warnings and mirrored/verified 61 files.
+  Deployment-assets commit `59f3263` selects `main.a0f72aee.js` (SHA-256
+  `EB14778AE6416CA146C68D76B80C311240B8EED3588C43EBAF8385A6F4258B71`) and
+  `main.e9775051.css` (SHA-256
+  `AA746063C512AC50F73B598C2D195691779737DA5ED94F5A9F4D62089EE18303`). Both commits are pushed.
+- No Java source, backend behavior, database, package/JAR, process, or live application was
+  changed. Java compilation was intentionally not run. Next functional checkpoint: wire Add
+  Variable through a single authoritative modal/state flow after its interaction contract is
+  approved; avoid stacking the existing Reconnect and Add Variable focus traps.
+
 ## Current implementation checkpoint - 2026-08-25 - confirmed Block rename synchronization
 
 - The active source repositories remain `D:\Projects\AllinWeb\ar-web-allinweb` (backend) and

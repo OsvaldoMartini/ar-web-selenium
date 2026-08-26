@@ -2,9 +2,28 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-25 - Confirmed Block rename synchronization. Before resuming after a
+**Last updated:** 2026-08-26 - Add Variable reconnect preview. Before resuming after a
 login/account change, read this file and
 `D:\Projects\AllinWeb\ar-web-selenium\SESSION_HANDOFF.md`.
+
+### Current Codex checkpoint - 2026-08-26
+
+- Frontend source of truth: `D:\Projects\AllinWeb\ar-web-allinweb-fe`, `master`, pushed HEAD
+  `399e7a1`. Backend/deployment source of truth: `D:\Projects\AllinWeb\ar-web-allinweb`, `master`,
+  pushed HEAD `59f3263`.
+- The shared `ReconnectWebElement` footer now displays a green, visual-only `Add Variable` button
+  between Disconnect and Cancel only for `VARIABLE_BINDING`. Bot Job and Variables-page callers
+  therefore share the same presentation; other relationship dialogs are unchanged.
+- The label is visibly title case (`Add Variable`). Its component-scoped class overrides the
+  shared RulesCard uppercase rule. The button intentionally performs no action in this checkpoint.
+- Focused tests passed 2/2. The broader pre-existing component file remains 5/8 because three
+  unrelated tests expect older LOOP copy and disabled-state behavior. Production build passed with
+  established warnings and mirrored/verified 61 files.
+- Deployment entrypoints: `main.a0f72aee.js` SHA-256
+  `EB14778AE6416CA146C68D76B80C311240B8EED3588C43EBAF8385A6F4258B71`; `main.e9775051.css`
+  SHA-256 `AA746063C512AC50F73B598C2D195691779737DA5ED94F5A9F4D62089EE18303`.
+- No Java compile, package/JAR, restart, database mutation, or live visual acceptance was performed.
+  Next step is the separately approved Add Variable action/state contract.
 
 ### Current Codex checkpoint - 2026-08-25
 
