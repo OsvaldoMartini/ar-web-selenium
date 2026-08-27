@@ -63,7 +63,7 @@ servers — both taken).
 - Guides produced: `specifications/presentations/ar-web-scanner-client-guide/AR-Web-Scanner-Complete-Client-Guide.md`, navigable `index.html` plus five part pages, DOCX, PDF, coverage matrix, and handoff.
 - Screenshot count + resolution: 0 captured; 24 synthetic-data capture slots and filenames are defined in `screenshots/README.md`.
 - Deviations from contract: output is under `specifications/presentations/ar-web-scanner-client-guide/` rather than `docs/guide/`; screenshots are intentionally absent because the in-app browser was unavailable and the configured database contains real Banca Stato data. No customer data was copied into the guide.
-- Notes for Claude: source inventory is based on delivered frontend `ar-web-allinweb-fe` branch `allinweb-delivered` at `8e87d2c` and backend/deployment project `ar-web-allinweb` at `a52227a`. HTML validation passed for 6/6 files; DOCX 16/16 pages and PDF 19/19 pages were rendered and visually inspected. The guide explicitly covers Locator Recovery / Review Locator, Excel Data REAL versus SYNTHETIC execution memory, ExcelWriter output memory and save boundaries, Runtime Variables, Page Scanner, and Bot Job operations. Do not begin final screenshot-dependent video assembly until an approved synthetic Bot Job is available.
+- Notes for Claude: guide checkpoint `412c3f96`. Source inventory is based on delivered frontend `ar-web-allinweb-fe` branch `allinweb-delivered` at `8e87d2c` and backend/deployment project `ar-web-allinweb` at `a52227a`. HTML validation passed for 6/6 files; DOCX 16/16 pages and PDF 19/19 pages were rendered and visually inspected. The guide explicitly covers Locator Recovery / Review Locator, Excel Data REAL versus SYNTHETIC execution memory, ExcelWriter output memory and save boundaries, Runtime Variables, Page Scanner, and Bot Job operations. Do not begin final screenshot-dependent video assembly until an approved synthetic Bot Job is available.
 
 ## SEZIONE CLAUDE (Phase 2 owner — presentations)
 
@@ -89,5 +89,5 @@ servers — both taken).
 
 | Date | Agent | What changed |
 |---|---|---|
-| 27.08.2026 | CODEX | Completed the source-verified AR Web Scanner client guide in Markdown, navigable HTML (five parts), DOCX, and PDF; documented 24 safe screenshot slots; validated 6/6 HTML files and visually inspected all 16 DOCX and 19 PDF pages. Safe synthetic screenshots remain pending. |
+| 27.08.2026 | CODEX | Checkpoint `412c3f96`: completed the source-verified AR Web Scanner client guide in Markdown, navigable HTML (five parts), DOCX, and PDF; documented 24 safe screenshot slots; validated 6/6 HTML files and visually inspected all 16 DOCX and 19 PDF pages. Safe synthetic screenshots remain pending. |
 | 27.08.2026 | CLAUDE | Bridge created in specifications/; prompts 1+2 in specifications/presentations/; docs/ output folders scaffolded; waiting on Codex Phase 1 |

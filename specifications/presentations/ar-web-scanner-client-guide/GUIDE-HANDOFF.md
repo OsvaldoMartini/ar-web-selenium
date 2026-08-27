@@ -2,13 +2,13 @@
 
 | Gate | Owner | Status | Evidence/artifacts | Commit | Remaining work |
 | --- | --- | --- | --- | --- | --- |
-| Governing instructions and repositories | Codex | APPROVED | `AGENTS.md`, shared bridge, prompts, repo status/HEAD recorded | pending | none |
-| Current UI/workflow inventory | Codex | READY FOR REVIEW | `GUIDE-COVERAGE-MATRIX.md` | pending | client/Claude review |
-| Markdown source | Codex | READY FOR REVIEW | `AR-Web-Scanner-Complete-Client-Guide.md` | pending | client wording review |
-| Navigable HTML | Codex | READY FOR REVIEW | `index.html`, five part pages, `guide-steps.json`; 6/6 HTML files passed local-link validation | pending | client/Claude review |
-| DOCX | Codex | READY FOR REVIEW | `AR-Web-Scanner-Complete-Client-Guide.docx`; 16/16 rendered pages visually inspected | pending | client/Claude review |
-| PDF | Codex | READY FOR REVIEW | `AR-Web-Scanner-Complete-Client-Guide.pdf`; 19/19 rendered pages visually inspected | pending | client/Claude review |
-| Screenshots | Codex | BLOCKED | `screenshots/README.md` | pending | capture 24 synthetic-data screens at one resolution |
+| Governing instructions and repositories | Codex | APPROVED | `AGENTS.md`, shared bridge, prompts, repo status/HEAD recorded | `412c3f96` | none |
+| Current UI/workflow inventory | Codex | READY FOR REVIEW | `GUIDE-COVERAGE-MATRIX.md` | `412c3f96` | client/Claude review |
+| Markdown source | Codex | READY FOR REVIEW | `AR-Web-Scanner-Complete-Client-Guide.md` | `412c3f96` | client wording review |
+| Navigable HTML | Codex | READY FOR REVIEW | `index.html`, five part pages, `guide-steps.json`; 6/6 HTML files passed local-link validation | `412c3f96` | client/Claude review |
+| DOCX | Codex | READY FOR REVIEW | `AR-Web-Scanner-Complete-Client-Guide.docx`; 16/16 rendered pages visually inspected | `412c3f96` | client/Claude review |
+| PDF | Codex | READY FOR REVIEW | `AR-Web-Scanner-Complete-Client-Guide.pdf`; 19/19 rendered pages visually inspected | `412c3f96` | client/Claude review |
+| Screenshots | Codex | BLOCKED | `screenshots/README.md` | `412c3f96` | capture 24 synthetic-data screens at one resolution |
 | Claude presentation pre-flight | Claude | NOT STARTED | shared bridge task 2 | — | wait for this guide checkpoint |
 
 ## Source repositories
