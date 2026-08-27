@@ -1,0 +1,1456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Complete Guide · AR Web Scanner Guide</title>
+  <link rel="stylesheet" href="assets/guide.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><strong>AR Web Scanner</strong><span>Complete Guide</span></div>
+    <div class="header-actions">
+      <input type="search" data-guide-search placeholder="Search this guide part" aria-label="Search guide">
+      <span class="search-count" data-search-count>All sections</span>
+      <a class="classic-button" href="AR-Web-Scanner-Complete-Client-Guide.pdf">PDF</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar"><h2>On this page</h2><nav><a class="depth-1" href="#ar-web-scanner-complete-client-guide">AR Web Scanner Complete Client Guide</a>
+<a class="depth-2" href="#table-of-contents">Table of contents</a>
+<a class="depth-1" href="#1-purpose-and-safe-use">1. Purpose and safe use</a>
+<a class="depth-2" href="#11-recommended-operating-sequence">1.1 Recommended operating sequence</a>
+<a class="depth-1" href="#2-interface-fundamentals">2. Interface fundamentals</a>
+<a class="depth-2" href="#21-detached-pages-and-pages-open">2.1 Detached pages and Pages Open</a>
+<a class="depth-2" href="#22-status-messages">2.2 Status messages</a>
+<a class="depth-2" href="#23-grey-action-controls">2.3 Grey action controls</a>
+<a class="depth-2" href="#24-find-search-and-selection">2.4 Find, search, and selection</a>
+<a class="depth-2" href="#25-destructive-confirmations">2.5 Destructive confirmations</a>
+<a class="depth-1" href="#part-1-main-dashboard-and-setup">Part 1 — Main Dashboard and setup</a>
+<a class="depth-2" href="#31-main-dashboard">3.1 Main Dashboard</a>
+<a class="depth-2" href="#32-organizations-and-environments">3.2 Organizations and Environments</a>
+<a class="depth-2" href="#33-new-bot-job">3.3 New Bot Job</a>
+<a class="depth-2" href="#34-clone-job">3.4 Clone Job</a>
+<a class="depth-2" href="#35-configuration">3.5 Configuration</a>
+<a class="depth-2" href="#36-about-this-software">3.6 About this Software</a>
+<a class="depth-2" href="#37-license-request">3.7 License Request</a>
+<a class="depth-1" href="#part-2-bot-job-authoring-and-execution">Part 2 — Bot Job authoring and execution</a>
+<a class="depth-2" href="#41-bot-job-details-workspace">4.1 Bot Job Details workspace</a>
+<a class="depth-2" href="#42-execution-rules-help">4.2 Execution rules help</a>
+<a class="depth-2" href="#43-blocks">4.3 Blocks</a>
+<a class="depth-2" href="#44-instruction-rows-and-web-element-actions">4.4 Instruction rows and web-element actions</a>
+<a class="depth-2" href="#45-relationships-and-reconnect-dialogs">4.5 Relationships and reconnect dialogs</a>
+<a class="depth-2" href="#46-command-editor">4.6 Command Editor</a>
+<a class="depth-2" href="#47-locator-recovery-review-locator">4.7 Locator Recovery / Review Locator</a>
+<a class="depth-1" href="#part-3-page-scanner-locators-and-ocr">Part 3 — Page Scanner, locators, and OCR</a>
+<a class="depth-2" href="#51-page-scanner-workspace">5.1 Page Scanner workspace</a>
+<a class="depth-2" href="#52-scanner-results-grid">5.2 Scanner results grid</a>
+<a class="depth-2" href="#53-page-scanner-profiles">5.3 Page Scanner profiles</a>
+<a class="depth-2" href="#54-locator-generator">5.4 Locator Generator</a>
+<a class="depth-2" href="#55-ocr-configuration">5.5 OCR Configuration</a>
+<a class="depth-1" href="#part-4-data-variables-memory-and-output-files">Part 4 — Data, variables, memory, and output files</a>
+<a class="depth-2" href="#61-excel-data-execution-input-memory">6.1 Excel Data — execution input memory</a>
+<a class="depth-2" href="#62-excel-data-synthetic-data-mode">6.2 Excel Data — Synthetic Data mode</a>
+<a class="depth-2" href="#63-excelwriter-manager-execution-output-memory">6.3 ExcelWriter Manager — execution output memory</a>
+<a class="depth-2" href="#64-runtime-variables">6.4 Runtime Variables</a>
+<a class="depth-2" href="#65-memory-list">6.5 Memory List</a>
+<a class="depth-2" href="#66-pages-open">6.6 Pages Open</a>
+<a class="depth-1" href="#part-5-troubleshooting-and-quick-reference">Part 5 — Troubleshooting and quick reference</a>
+<a class="depth-2" href="#71-a-page-is-disconnected-or-has-no-data">7.1 A page is disconnected or has no data</a>
+<a class="depth-2" href="#72-test-run-does-not-start">7.2 Test Run does not start</a>
+<a class="depth-2" href="#73-an-element-is-not-found-or-is-ambiguous">7.3 An element is not found or is ambiguous</a>
+<a class="depth-2" href="#74-page-scanner-returns-pagereadinesstimeout">7.4 Page Scanner returns PAGE_READINESS_TIMEOUT</a>
+<a class="depth-2" href="#75-test-input-uses-an-unexpected-value">7.5 Test Input uses an unexpected value</a>
+<a class="depth-2" href="#76-excelwriter-file-is-missing">7.6 ExcelWriter file is missing</a>
+<a class="depth-2" href="#77-void-versus-empty-value">7.7 VOID versus empty value</a>
+<a class="depth-2" href="#78-quick-control-reference">7.8 Quick control reference</a>
+<a class="depth-2" href="#79-known-documentation-limitation">7.9 Known documentation limitation</a>
+<a class="depth-1" href="#8-glossary">8. Glossary</a>
+<a class="depth-1" href="#9-source-and-verification-record">9. Source and verification record</a></nav></aside>
+    <main class="main">
+      <nav class="part-nav" aria-label="Guide parts"><a href="index.html" aria-current="page">Overview</a><a href="parts/part-1-setup.html">Part 1 · Setup</a><a href="parts/part-2-bot-job.html">Part 2 · Bot Job</a><a href="parts/part-3-page-scanner.html">Part 3 · Scanner</a><a href="parts/part-4-data.html">Part 4 · Data</a><a href="parts/part-5-troubleshooting.html">Part 5 · Help</a></nav>
+      <article class="document"><h1 id="ar-web-scanner-complete-client-guide">AR Web Scanner Complete Client Guide</h1>
+<p><strong>Guide edition:</strong> 1.0
+<strong>Date:</strong> 27 August 2026
+<strong>Audience:</strong> Authorized AR Web Scanner operators, Bot Job designers, and test analysts
+<strong>Product scope:</strong> Delivered Banca Stato desktop edition, Java V1 execution path
+<strong>Classification:</strong> Client operations guide; use only with authorized test data</p>
+<blockquote>
+<p>This guide is based on the delivered React frontend at commit <code>8e87d2c</code> and backend/deployment assets at commit <code>a52227a</code>. Controls and behavior were verified from current source. Live screenshot capture is pending because the in-app browser control was unavailable; every planned figure is therefore shown as a clearly marked capture slot rather than a fabricated image.</p>
+</blockquote>
+<h2 id="table-of-contents">Table of contents</h2>
+<ol>
+<li><a href="#1-purpose-and-safe-use">Purpose and safe use</a></li>
+<li><a href="#2-interface-fundamentals">Interface fundamentals</a></li>
+<li><a href="#part-1-main-dashboard-and-setup">Part 1 — Main Dashboard and setup</a></li>
+<li><a href="#part-2-bot-job-authoring-and-execution">Part 2 — Bot Job authoring and execution</a></li>
+<li><a href="#part-3-page-scanner-locators-and-ocr">Part 3 — Page Scanner, locators, and OCR</a></li>
+<li><a href="#part-4-data-variables-memory-and-output-files">Part 4 — Data, variables, memory, and output files</a></li>
+<li><a href="#part-5-troubleshooting-and-quick-reference">Part 5 — Troubleshooting and quick reference</a></li>
+</ol>
+<h1 id="1-purpose-and-safe-use">1. Purpose and safe use</h1>
+<p>AR Web Scanner helps an authorized user define browser automation as Bot Jobs, organize instructions into Blocks, scan a current browser page for web elements, connect variables, and execute or test the result. The delivered edition opens major tools as independent AR Web pages so that the Bot Job, Page Scanner, Excel Data, Runtime Variables, and output-file state can remain visible together.</p>
+<p>Use only approved environments and data. Never place production passwords, account numbers, license content, or private URLs in documentation screenshots. A disabled control normally means that a Bot Job, browser, WebSocket connection, selection, or completed validation is required first.</p>
+<h2 id="11-recommended-operating-sequence">1.1 Recommended operating sequence</h2>
+<ol>
+<li>Confirm the correct Organization and Environment.</li>
+<li>Select or create the Bot Job.</li>
+<li>Open <strong>Bot Job</strong> and review Blocks, instructions, Web Elements, and variable connections.</li>
+<li>Open <strong>Excel Data</strong> and choose <strong>Real Data</strong> or <strong>Synthetic Data</strong> for testing.</li>
+<li>Use <strong>CHECK</strong> before <strong>Test run</strong> or <strong>Launch</strong>.</li>
+<li>Open <strong>Page Scanner</strong> when web elements or locators need inspection.</li>
+<li>Use <strong>Review Locator</strong> when a web element is ambiguous, changed, or cannot be found.</li>
+<li>Monitor <strong>Variables</strong>, <strong>ExcelWriter Manager</strong>, and <strong>Pages Open</strong> when the workflow uses them.</li>
+</ol>
+<h1 id="2-interface-fundamentals">2. Interface fundamentals</h1>
+<h2 id="21-detached-pages-and-pages-open">2.1 Detached pages and Pages Open</h2>
+<p>Most workspaces are separate windows. The <strong>Pages (x)</strong> control opens <strong>Pages Open</strong>, where a row brings a page to the foreground and <strong>X</strong> closes that page. Closing the Main Dashboard is different: after confirmation, it closes every AR Web page and stops the backend.</p>
+<h2 id="22-status-messages">2.2 Status messages</h2>
+<p>The header status is the first place to check after an action. It reports ready, waiting, success, warning, disconnected, and error states. A timeout or disconnected status means the client did not receive the expected acknowledgement; avoid repeating a destructive action until the page has refreshed and the result is known.</p>
+<h2 id="23-grey-action-controls">2.3 Grey action controls</h2>
+<p>The delivered interface uses compact grey controls for routine actions. Text labels such as <strong>TEST INPUT</strong>, <strong>TEST CLICK</strong>, <strong>RENAME</strong>, <strong>EDIT CMD</strong>, and <strong>ROLLBACK</strong> describe the action directly. Buttons remain disabled when their authoritative connection or owner state is unavailable.</p>
+<h2 id="24-find-search-and-selection">2.4 Find, search, and selection</h2>
+<p><strong>Find:</strong> filters a displayed grid without changing saved data. Page Scanner <strong>Search by:</strong> changes what the next scan requests. Checkboxes select rows or Blocks for a later explicit action; selection alone does not delete anything.</p>
+<h2 id="25-destructive-confirmations">2.5 Destructive confirmations</h2>
+<p>Deletion and database replacement actions display confirmation dialogs. Read the target name and count before confirming. <strong>Cancel</strong> leaves the current data unchanged.</p>
+<h1 id="part-1-main-dashboard-and-setup">Part 1 — Main Dashboard and setup</h1>
+<h2 id="31-main-dashboard">3.1 Main Dashboard</h2>
+<p><strong>Entry path:</strong> Start the authorized AR Web Scanner application.
+<strong>Purpose:</strong> Select a Bot Job and open every main client workspace.</p>
+<blockquote>
+<p><strong>Figure 01 — Main Dashboard.</strong> Screenshot pending: capture with synthetic Bot Jobs and no client data.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Important condition or result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Organizations</strong></td>
+<td>Opens Organizations and its child Environments.</td>
+<td>Available without selecting a Bot Job.</td>
+</tr>
+<tr>
+<td><strong>New Bot Job</strong></td>
+<td>Opens the New Bot Job workflow.</td>
+<td>Requires a valid Organization Environment before creation.</td>
+</tr>
+<tr>
+<td><strong>Clone Job</strong></td>
+<td>Copies the selected Bot Job into a selected target context.</td>
+<td>Enabled after selecting one Bot Job.</td>
+</tr>
+<tr>
+<td><strong>Config</strong></td>
+<td>Opens Configuration.</td>
+<td>Database actions can be destructive.</td>
+</tr>
+<tr>
+<td><strong>Info</strong></td>
+<td>Opens About this Software.</td>
+<td>Includes the path to License Manager.</td>
+</tr>
+<tr>
+<td><strong>Launch</strong></td>
+<td>Starts the selected Bot Job through the delivered Java V1 execution engine.</td>
+<td>Enabled only for a selected launchable Bot Job.</td>
+</tr>
+<tr>
+<td><strong>Open Job</strong></td>
+<td>Opens Bot Job Details for the selected row.</td>
+<td>Double-clicking a row also opens it.</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads the Bot Job list.</td>
+<td>Use after creation, clone, import, or external changes.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong></td>
+<td>Filters Bot Jobs by visible fields.</td>
+<td>Does not change database data.</td>
+</tr>
+<tr>
+<td>Row checkbox / header checkbox</td>
+<td>Selects one or all loaded Bot Jobs.</td>
+<td>Used by <strong>ALL (x)</strong> deletion.</td>
+</tr>
+<tr>
+<td><strong>ALL (x)</strong></td>
+<td>Requests deletion of checked Bot Jobs.</td>
+<td>Confirmation identifies the count and targets.</td>
+</tr>
+<tr>
+<td>Row <strong>X</strong></td>
+<td>Requests deletion of one Bot Job.</td>
+<td>Removes job data and saved components after confirmation.</td>
+</tr>
+<tr>
+<td>User menu</td>
+<td>Shows the licensed identity and opens <strong>Pages Open</strong>.</td>
+<td>The license status is informational.</td>
+</tr>
+<tr>
+<td><strong>Exit</strong></td>
+<td>Requests application shutdown.</td>
+<td>Closes child pages and backend after confirmation/processing.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Normal workflow</strong></p>
+<ol>
+<li>Click a Bot Job row.</li>
+<li>Confirm that <strong>Open Job</strong>, <strong>Clone Job</strong>, and <strong>Launch</strong> become available as appropriate.</li>
+<li>Click <strong>Open Job</strong> to inspect and test the automation before a normal launch.</li>
+</ol>
+<blockquote>
+<p><strong>Caution:</strong> <strong>Launch</strong> executes the job. Use <strong>CHECK</strong> and a safe environment before running a workflow that submits data or changes an external system.</p>
+</blockquote>
+<h2 id="32-organizations-and-environments">3.2 Organizations and Environments</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>Organizations</strong>.
+<strong>Purpose:</strong> Maintain the owner and URL contexts used by Bot Jobs.</p>
+<blockquote>
+<p><strong>Figure 02 — Organizations and child Environments.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Important condition or result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Organization</strong></td>
+<td>Selects an existing Organization or <strong>+ New Organization</strong>.</td>
+<td>Populates the Organization form and Environment list.</td>
+</tr>
+<tr>
+<td><strong>Environment</strong></td>
+<td>Selects an existing Environment or <strong>+ New Environment</strong>.</td>
+<td>Disabled until an Organization exists.</td>
+</tr>
+<tr>
+<td><strong>Organization Name</strong></td>
+<td>Defines the displayed owner name.</td>
+<td>Required for a useful Organization record.</td>
+</tr>
+<tr>
+<td><strong>URL Baseline</strong></td>
+<td>Stores the Organization’s baseline URL.</td>
+<td>Use an approved non-secret URL.</td>
+</tr>
+<tr>
+<td>Advanced Organization fields</td>
+<td>Store priority, search, and option configuration.</td>
+<td>Use only values agreed for the client environment.</td>
+</tr>
+<tr>
+<td><strong>Create Organization</strong> / <strong>Update Organization</strong></td>
+<td>Creates or updates the displayed Organization.</td>
+<td>The label changes according to whether an ID exists.</td>
+</tr>
+<tr>
+<td><strong>Delete</strong></td>
+<td>Deletes an Organization that has no active Bot Jobs.</td>
+<td>Backend refuses an in-use Organization.</td>
+</tr>
+<tr>
+<td><strong>Environment Name</strong></td>
+<td>Names a child environment such as TEST or UAT.</td>
+<td>Stored under the selected Organization.</td>
+</tr>
+<tr>
+<td><strong>Environment URL</strong></td>
+<td>Defines the exact starting URL.</td>
+<td>Validate before creating Bot Jobs.</td>
+</tr>
+<tr>
+<td><strong>Create Environment</strong> / <strong>Update Environment</strong></td>
+<td>Creates or updates the displayed Environment.</td>
+<td>Requires an Organization.</td>
+</tr>
+<tr>
+<td><strong>Delete Environment</strong></td>
+<td>Deletes the selected child Environment.</td>
+<td>Disabled when deletion would violate the current rules.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> Deleting an Organization or Environment is persistent. The confirmation explains that in-use records are refused.</p>
+</blockquote>
+<h2 id="33-new-bot-job">3.3 New Bot Job</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>New Bot Job</strong>.
+<strong>Purpose:</strong> Create an empty automation job owned by one Organization and Environment.</p>
+<blockquote>
+<p><strong>Figure 03 — New Bot Job.</strong> Screenshot pending.</p>
+</blockquote>
+<ol>
+<li>Select an Organization in the left grid.</li>
+<li>Select one of its Environments in the right grid.</li>
+<li>Enter <strong>Bot Job Name</strong> and optional <strong>Description</strong>.</li>
+<li>Choose <strong>Web App</strong>, <strong>Android</strong>, or <strong>iOS</strong> under <strong>Application Type</strong>.</li>
+<li>Confirm the Organization, Environment, and URL summary.</li>
+<li>Click <strong>Create Bot Job</strong>.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Organizations / Environments</strong></td>
+<td>Opens the maintenance page for missing owner data.</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads available Organizations and Environments.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong> in either grid</td>
+<td>Filters only that selection grid.</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong> / <strong>Close</strong></td>
+<td>Leaves without creating the job.</td>
+</tr>
+<tr>
+<td><strong>Create Bot Job</strong></td>
+<td>Creates the record when name and Environment are valid.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="34-clone-job">3.4 Clone Job</h2>
+<p><strong>Entry path:</strong> Select a Bot Job on Main Dashboard → <strong>Clone Job</strong>.
+<strong>Purpose:</strong> Copy a source Bot Job while assigning a new name, owner context, URL, and application type.</p>
+<blockquote>
+<p><strong>Figure 04 — Clone Job.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Review the read-only <strong>Source Bot Job</strong> summary. Enter <strong>New Bot Job Name</strong>, <strong>Description</strong>, and <strong>Target URL</strong>, then select <strong>Application Type</strong>, target Organization, and target Environment. Click <strong>Clone Bot Job</strong> only after the summary identifies the intended target.</p>
+<blockquote>
+<p><strong>Caution:</strong> Cloning copies the source job structure and related records. A partial database failure is reported and should not be assumed successful.</p>
+</blockquote>
+<h2 id="35-configuration">3.5 Configuration</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>Config</strong>.
+<strong>Purpose:</strong> Select browser and database type, set operational paths, and perform authorized database maintenance.</p>
+<blockquote>
+<p><strong>Figure 05 — Configuration.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Caution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Browser</strong></td>
+<td>Chooses the shared Playwright browser.</td>
+<td>Changing an active browser can require closing and replacement.</td>
+</tr>
+<tr>
+<td><strong>DB Type</strong></td>
+<td>Selects the configured database type.</td>
+<td>The delivered client uses path-based Access/SQLite configurations.</td>
+</tr>
+<tr>
+<td>Operational path fields and <strong>...</strong></td>
+<td>Edit or browse for supported database/report paths.</td>
+<td>Use absolute authorized paths.</td>
+</tr>
+<tr>
+<td><strong>Reload Configs</strong></td>
+<td>Saves/reloads the selected database connection.</td>
+<td>Successful reload closes other pages so they cannot retain stale owners.</td>
+</tr>
+<tr>
+<td><strong>Backup DB</strong></td>
+<td>Chooses a destination and creates a database backup after confirmation.</td>
+<td>Verify the destination folder.</td>
+</tr>
+<tr>
+<td><strong>Restore DB</strong></td>
+<td>Restores data for <strong>Date Restore</strong> after confirmation.</td>
+<td>Replaces current data and closes other pages.</td>
+</tr>
+<tr>
+<td><strong>Delete DB</strong></td>
+<td>Deletes all Bot Job details in the selected database.</td>
+<td>Destructive and irreversible; confirm the database type.</td>
+</tr>
+<tr>
+<td><strong>Organizations</strong></td>
+<td>Opens Organization maintenance.</td>
+<td>Useful after a reload.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="36-about-this-software">3.6 About this Software</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>Info</strong>.
+<strong>Purpose:</strong> Display installed software and license information.</p>
+<blockquote>
+<p><strong>Figure 06 — About this Software.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Use <strong>Refresh</strong> to reload displayed information. <strong>Open License Manager</strong> and <strong>Manage License</strong> both open the independent License Request page. <strong>Pages (x)</strong> opens the page manager, and <strong>Close</strong> closes only the About page.</p>
+<h2 id="37-license-request">3.7 License Request</h2>
+<p><strong>Entry path:</strong> About this Software → <strong>Open License Manager</strong> or <strong>Manage License</strong>.
+<strong>Purpose:</strong> Generate a license request, activate a response, or select an existing license file.</p>
+<blockquote>
+<p><strong>Figure 07 — License Request.</strong> Screenshot pending; never capture license content.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Mode/control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Request</strong></td>
+<td>Requires Organization, Owner, Email, and agreement acceptance; <strong>Generate request</strong> creates the request.</td>
+</tr>
+<tr>
+<td><strong>Activate</strong></td>
+<td>Selects a response file and uses <strong>Activate license</strong>.</td>
+</tr>
+<tr>
+<td><strong>Use existing</strong></td>
+<td>Selects an existing license file and uses <strong>Use existing license</strong>.</td>
+</tr>
+<tr>
+<td><strong>Refresh license status</strong></td>
+<td>Reloads the current validity state.</td>
+</tr>
+<tr>
+<td>Agreement checkbox</td>
+<td>Records acceptance of the displayed software license agreement.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Security:</strong> Do not share <code>ARWeb.lic</code>, response files, machine identifiers, or request payloads in screenshots or support messages unless an authorized secure process requires them.</p>
+</blockquote>
+<h1 id="part-2-bot-job-authoring-and-execution">Part 2 — Bot Job authoring and execution</h1>
+<h2 id="41-bot-job-details-workspace">4.1 Bot Job Details workspace</h2>
+<p><strong>Entry path:</strong> Main Dashboard → select a row → <strong>Open Job</strong>.
+<strong>Purpose:</strong> Author, connect, test, and execute the selected Bot Job.</p>
+<blockquote>
+<p><strong>Figure 08 — Bot Job Details and Execution headers.</strong> Screenshot pending.</p>
+</blockquote>
+<p>The first header switches the visible workspace; the second controls execution.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads the current Bot Job graph and owner state.</td>
+</tr>
+<tr>
+<td><strong>Bot Job</strong></td>
+<td>Returns from another surface to the instruction grid.</td>
+</tr>
+<tr>
+<td><strong>Components</strong> / <strong>Hide Components</strong></td>
+<td>Opens or hides the reusable Components surface.</td>
+</tr>
+<tr>
+<td><strong>Pre Scan</strong></td>
+<td>Opens Page Scanner for the active Bot Job.</td>
+</tr>
+<tr>
+<td><strong>Excel</strong></td>
+<td>Opens the Bot Job workbook through the configured local action.</td>
+</tr>
+<tr>
+<td><strong>Generate</strong></td>
+<td>Rebuilds the Bot Job spreadsheet after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Report</strong></td>
+<td>Chooses and opens an existing report.</td>
+</tr>
+<tr>
+<td>Flame-only button</td>
+<td>Creates a local BAT launcher.</td>
+</tr>
+<tr>
+<td>Starting block</td>
+<td>Chooses <strong>Execute All</strong> or a specific Block.</td>
+</tr>
+<tr>
+<td>Reload Blocks</td>
+<td>Refreshes the Block selector.</td>
+</tr>
+<tr>
+<td>Navigation time</td>
+<td>Cycles 0–10 seconds and saves automatically.</td>
+</tr>
+<tr>
+<td><strong>ONE</strong></td>
+<td>Executes only the selected Block.</td>
+</tr>
+<tr>
+<td><strong>ALL ↓</strong></td>
+<td>Executes from the selected Block through the remaining Blocks.</td>
+</tr>
+<tr>
+<td><strong>Launch</strong></td>
+<td>Uses the Excel file as the starting authority, synchronizes Excel Data memory, then executes through Java V1.</td>
+</tr>
+<tr>
+<td><strong>Test run</strong></td>
+<td>Uses the selected REAL/SYNTHETIC Excel Data memory snapshot, including permitted unsaved test edits.</td>
+</tr>
+<tr>
+<td><strong>CHECK</strong></td>
+<td>Runs the selected preflight without starting execution.</td>
+</tr>
+<tr>
+<td><strong>Stop</strong></td>
+<td>Requests execution stop after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Export</strong> / <strong>Import</strong></td>
+<td>Transfers the Bot Job to or from a selected folder after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Variables</strong></td>
+<td>Opens Runtime Variables.</td>
+</tr>
+<tr>
+<td><strong>Excel Data</strong></td>
+<td>Opens the execution dataset workspace.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="starting-block-and-oneall-rules">Starting Block and ONE/ALL rules</h3>
+<ul>
+<li><strong>Execute All</strong> always uses <strong>ALL</strong> and starts at the first Block.</li>
+<li>Selecting a specific Block changes the mode to <strong>ONE</strong>.</li>
+<li><strong>ONE</strong> runs only that selected Block.</li>
+<li>Switch to <strong>ALL ↓</strong> to run the selected Block and every later Block in order.</li>
+</ul>
+<h2 id="42-execution-rules-help">4.2 Execution rules help</h2>
+<p><strong>Entry path:</strong> Bot Job Details → the blue <strong>?</strong> between <strong>Launch</strong> and <strong>Test run</strong>.
+<strong>Purpose:</strong> Explain names, locator priority, Excel Data authority, and execution paths.</p>
+<blockquote>
+<p><strong>Figure 09 — Names, locators, and Excel Data rules.</strong> Screenshot pending.</p>
+</blockquote>
+<p>The help tabs are <strong>Names &amp; Priority</strong>, <strong>Excel Data Authority</strong>, and <strong>Execution Paths</strong>. The required locator order is:</p>
+<ol>
+<li>Test ID</li>
+<li>Custom XPath</li>
+<li>XPath</li>
+<li>CSS</li>
+<li>Registry locator</li>
+<li>Canonical name</li>
+<li><code>client_named</code></li>
+<li>OCR name</li>
+<li>Locator Recovery</li>
+</ol>
+<p>Semantic names create candidates; they are not direct browser locators. A candidate still needs uniqueness, visibility, element type/role, and requested-action validation.</p>
+<h2 id="43-blocks">4.3 Blocks</h2>
+<p><strong>Purpose:</strong> Group instructions into ordered execution units.</p>
+<blockquote>
+<p><strong>Figure 10 — Block and instruction controls.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Block control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Active/inactive status</td>
+<td>Includes or excludes the Block from execution.</td>
+</tr>
+<tr>
+<td>Collapse/expand</td>
+<td>Hides or shows the instruction rows.</td>
+</tr>
+<tr>
+<td>Block checkbox</td>
+<td>Selects the Block for the checked-Block delete action.</td>
+</tr>
+<tr>
+<td><strong>+</strong></td>
+<td>Adds the complete connected Block to Memory List when allowed.</td>
+</tr>
+<tr>
+<td>Rollback on first Block</td>
+<td>Moves every instruction into the first Block.</td>
+</tr>
+<tr>
+<td>Up / Down</td>
+<td>Reorders the Block.</td>
+</tr>
+<tr>
+<td>Edit</td>
+<td>Renames the Block; the confirmed change is saved.</td>
+</tr>
+<tr>
+<td>Save/component icon</td>
+<td>Creates a reusable component from that Block when available.</td>
+</tr>
+<tr>
+<td>Trash</td>
+<td>Deletes a Block under the displayed deletion rules.</td>
+</tr>
+<tr>
+<td>Selected-row trash</td>
+<td>Deletes only checked instructions in that Block after confirmation.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> The first Block has special structural behavior. Read the delete/move confirmation before changing it.</p>
+</blockquote>
+<h2 id="44-instruction-rows-and-web-element-actions">4.4 Instruction rows and web-element actions</h2>
+<p>An instruction row shows status, selection, command or web-element identity, relationship state, and valid actions.</p>
+<table>
+<thead>
+<tr>
+<th>Row control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>≡</strong></td>
+<td>Drags the instruction; keyboard Alt+Arrow can move one position where allowed.</td>
+</tr>
+<tr>
+<td>Active/inactive status</td>
+<td>Includes or excludes the instruction.</td>
+</tr>
+<tr>
+<td>Checkbox</td>
+<td>Selects this row for the Block’s selected-instruction delete action.</td>
+</tr>
+<tr>
+<td><strong>+</strong></td>
+<td>Adds the connected instruction group to Memory List.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Cycles the web-element execution type and persists the graph-safe replacement.</td>
+</tr>
+<tr>
+<td>Wand <strong>Review Locator</strong></td>
+<td>Opens manual Locator Recovery for this Web Element.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT</strong></td>
+<td>Uses the selected Excel Data memory row to test input through the V1 locator resolver.</td>
+</tr>
+<tr>
+<td><strong>TEST CLICK</strong></td>
+<td>Tests one click through the V1 locator resolver.</td>
+</tr>
+<tr>
+<td><strong>RENAME</strong></td>
+<td>Sets a client-controlled displayed name.</td>
+</tr>
+<tr>
+<td><strong>ROLLBACK</strong></td>
+<td>Restores the canonical name when a <code>client_named</code> value exists.</td>
+</tr>
+<tr>
+<td><strong>EDIT CMD</strong></td>
+<td>Opens Command Editor for the selected row.</td>
+</tr>
+<tr>
+<td>Up / Down</td>
+<td>Reorders the instruction when the relationship graph permits it.</td>
+</tr>
+<tr>
+<td>Trash</td>
+<td>Deletes the instruction after dependency-aware confirmation.</td>
+</tr>
+<tr>
+<td><strong>Tab</strong> / <strong>Enter</strong></td>
+<td>For input elements, configures a follow-up keyboard action.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="45-relationships-and-reconnect-dialogs">4.5 Relationships and reconnect dialogs</h2>
+<p><strong>Purpose:</strong> Make required Web Element parents, loop/Block targets, and variables explicit.</p>
+<blockquote>
+<p><strong>Figure 11 — Reconnect Web Element and Reconnect variable.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Grey relationship buttons show states such as <strong>Reconnect Parent</strong>, <strong>Reconnect Variable</strong>, a connected element ID, or <code>Variable_name (id: n)</code>. Click a reconnectable relationship to select a replacement, disconnect it, or—in variable dialogs—use <strong>Add Variable</strong>. A new independent variable begins as <code>VOID</code> and can then be selected for the command.</p>
+<p>For check commands, the comparison operator and second-variable control appear in the row. Variables are independent records: deleting an instruction does not silently cascade-delete its variable.</p>
+<h2 id="46-command-editor">4.6 Command Editor</h2>
+<p><strong>Entry path:</strong> Instruction row → <strong>EDIT CMD</strong>, or <strong>ADD</strong> beside <strong>Find:</strong> to add a disconnected command.
+<strong>Purpose:</strong> Configure command type, placement, relationships, and command-specific values.</p>
+<blockquote>
+<p><strong>Figure 12 — Command Editor.</strong> Screenshot pending.</p>
+</blockquote>
+<ol>
+<li>Confirm <strong>ADD MODE</strong> or <strong>EDIT MODE</strong> and the displayed Bot Job.</li>
+<li>Choose <strong>Target Block</strong> and <strong>Placement</strong>.</li>
+<li>Search and select <strong>Command</strong> when the instruction type permits it.</li>
+<li>Complete the command-specific editor and variable bindings.</li>
+<li>Use <strong>CREATE NEW</strong>, <strong>COPY NEW</strong>, or <strong>UPDATE</strong> as appropriate.</li>
+<li>Use <strong>CANCEL</strong> to discard the current editor changes.</li>
+</ol>
+<p>Commands include waits, pauses, navigation, loops, GOTO, conditionals, variable operations, checks, and <code>ExcelWrite</code>. Moving a command can display a relationship-impact warning; continue only when the proposed disconnected relationships are understood.</p>
+<h3 id="excelwrite-configuration-in-command-editor">ExcelWrite configuration in Command Editor</h3>
+<p>An <code>ExcelWrite</code> instruction owns its output file and output column. <strong>ExcelWrite file configuration</strong> selects directory/file, <strong>Excel (.xlsx)</strong> or <strong>CSV (.csv)</strong>, and the CSV delimiter. <strong>Search existing ExcelWrite files</strong> lets multiple instructions or Blocks target the same file when their delimiter contract matches.</p>
+<h2 id="47-locator-recovery-review-locator">4.7 Locator Recovery / Review Locator</h2>
+<p><strong>Entry path:</strong> Web Element row → wand <strong>Review Locator</strong>; it can also appear automatically when an execution action cannot resolve one valid element.
+<strong>Purpose:</strong> Compare the failed Bot Job target with previous database candidates and a fresh current-page scan.</p>
+<blockquote>
+<p><strong>Figure 13 — Locator Recovery.</strong> Screenshot pending; this is a priority capture for the client guide.</p>
+</blockquote>
+<p>The first row identifies the Bot Job Web Element that needs recovery. Candidate rows then show saved or current scan evidence. The <strong>Origin</strong> states are:</p>
+<table>
+<thead>
+<tr>
+<th>Origin</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>BOT JOB</strong></td>
+<td>The instruction’s current Web Element—the target that failed or was opened manually.</td>
+</tr>
+<tr>
+<td><strong>PREVIOUS</strong></td>
+<td>A candidate stored from an earlier Page Scanner capture for the owner/page context.</td>
+</tr>
+<tr>
+<td><strong>CURRENT</strong></td>
+<td>A candidate produced by <strong>Page Scanner</strong> in the current recovery session.</td>
+</tr>
+</tbody>
+</table>
+<p>The table includes Test ID, canonical/client/OCR names, action type, <strong>TEST INPUT</strong>, <strong>TEST CLICK</strong>, XPath match, previous/current XPath and CSS, stable attributes, page identities, tag/type/role, confidence, and ambiguity warnings.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Recovery power toggle</td>
+<td>Enables or bypasses locator verification for unresolved elements.</td>
+</tr>
+<tr>
+<td>Candidate radio</td>
+<td>Chooses the candidate for a recovery decision.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Identifies or changes the action used to test that candidate where permitted.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT</strong></td>
+<td>Tests input against only the selected candidate, using Excel Data memory.</td>
+</tr>
+<tr>
+<td><strong>TEST CLICK</strong></td>
+<td>Tests a click against only the selected candidate.</td>
+</tr>
+<tr>
+<td><strong>Page Scanner</strong></td>
+<td>Runs the normal Page Scanner flow against the current browser page and appends <strong>CURRENT</strong> candidates.</td>
+</tr>
+<tr>
+<td><strong>Close Review</strong></td>
+<td>Closes a manually opened review without changing the locator.</td>
+</tr>
+<tr>
+<td><strong>Cancel Recovery</strong></td>
+<td>Cancels an automatic recovery decision.</td>
+</tr>
+<tr>
+<td><strong>Stop Execution</strong></td>
+<td>Stops the current execution while automatic recovery is waiting.</td>
+</tr>
+<tr>
+<td><strong>Bypass &amp; Continue</strong></td>
+<td>Skips the unresolved action and continues.</td>
+</tr>
+<tr>
+<td><strong>Use Once</strong></td>
+<td>Uses the selected candidate for this occurrence without saving it.</td>
+</tr>
+<tr>
+<td><strong>Use and Save Locator</strong></td>
+<td>Uses the selected candidate and persists the locator for later runs.</td>
+</tr>
+<tr>
+<td><strong>?</strong></td>
+<td>Opens Locator Recovery rules and origin explanations.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> A matching name alone is not proof. Prefer Test ID, then stable authored locators. Use and save only after the test action proves the candidate is unique, visible, and correct.</p>
+</blockquote>
+<h1 id="part-3-page-scanner-locators-and-ocr">Part 3 — Page Scanner, locators, and OCR</h1>
+<h2 id="51-page-scanner-workspace">5.1 Page Scanner workspace</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Pre Scan</strong>.
+<strong>Purpose:</strong> Scan the browser page that currently belongs to the selected execution/browser context.</p>
+<blockquote>
+<p><strong>Figure 14 — Page Scanner toolbar.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Page Scanner</strong></td>
+<td>Runs the Playwright scanner for the current page and selected focus/search rules.</td>
+</tr>
+<tr>
+<td><strong>OCR Config</strong></td>
+<td>Opens OCR Configuration.</td>
+</tr>
+<tr>
+<td><strong>Refresh Web Page</strong></td>
+<td>Reloads the current scanner browser page.</td>
+</tr>
+<tr>
+<td><strong>Clear Grid</strong></td>
+<td>Clears displayed scanner results, not the webpage.</td>
+</tr>
+<tr>
+<td>Starting Block / <strong>ONE / ALL ↓</strong> / <strong>Test run</strong> / <strong>Stop</strong></td>
+<td>Uses the shared Bot Job execution selection from the Page Scanner workspace.</td>
+</tr>
+<tr>
+<td><strong>Focus:</strong></td>
+<td>Chooses a reusable scanner profile.</td>
+</tr>
+<tr>
+<td>Profile settings</td>
+<td>Opens <strong>Page Scanner profiles</strong>.</td>
+</tr>
+<tr>
+<td><strong>Search by:</strong></td>
+<td>Accepts selectors or <code>attr:&lt;name&gt;</code> terms such as <code>attr:test-id</code>.</td>
+</tr>
+<tr>
+<td><strong>Search Hidden Fields</strong></td>
+<td>Includes matching hidden controls in the scan request.</td>
+</tr>
+<tr>
+<td><strong>Search</strong></td>
+<td>Runs the scan with the current Focus and Search by values.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong></td>
+<td>Filters results already present in the grid.</td>
+</tr>
+<tr>
+<td><strong>Memory (x)</strong></td>
+<td>Opens Memory List.</td>
+</tr>
+<tr>
+<td><strong>Locator Gen</strong></td>
+<td>Opens Locator Generator.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> Page Scanner must target the currently selected V1/browser owner. If the page is still loading, wait for readiness or refresh before concluding that an element is absent.</p>
+</blockquote>
+<h2 id="52-scanner-results-grid">5.2 Scanner results grid</h2>
+<p><strong>Purpose:</strong> Review, test, rename, retain, and stage scanned Web Elements.</p>
+<blockquote>
+<p><strong>Figure 15 — Page Scanner result Blocks and rows.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Grid control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KEEP ALL</strong></td>
+<td>Checks every displayed element as retained.</td>
+</tr>
+<tr>
+<td><strong>CLEAR KEEPS</strong></td>
+<td>Clears Keep selections.</td>
+</tr>
+<tr>
+<td><strong>DELETE UNCHECKED (x)</strong></td>
+<td>Deletes displayed elements not marked Keep after confirmation.</td>
+</tr>
+<tr>
+<td><strong>CLEAR GRID ALL</strong></td>
+<td>Clears the complete displayed result grid.</td>
+</tr>
+<tr>
+<td><strong>Rows per page</strong></td>
+<td>Selects 5, 10, 20, or 50 rows per scanner Block.</td>
+</tr>
+<tr>
+<td>Block collapse</td>
+<td>Shows or hides the Block’s rows.</td>
+</tr>
+<tr>
+<td>Block <strong>+</strong></td>
+<td>Adds all Web Elements in that Block to Memory List.</td>
+</tr>
+<tr>
+<td><strong>ID</strong></td>
+<td>Shows the raw DOM ID view.</td>
+</tr>
+<tr>
+<td><strong>ID-TEST</strong></td>
+<td>Shows test-attribute evidence such as <code>test-id</code> or <code>data-testid</code>.</td>
+</tr>
+<tr>
+<td><strong>OCR</strong></td>
+<td>Opens the Block’s OCR name-review view.</td>
+</tr>
+<tr>
+<td>Block <strong>TEST INPUT</strong></td>
+<td>Types the scanner’s test value into input elements in that Block.</td>
+</tr>
+<tr>
+<td><strong>Prev / Next</strong></td>
+<td>Moves between result pages inside the Block.</td>
+</tr>
+<tr>
+<td>Keep checkbox</td>
+<td>Protects the row from <strong>DELETE UNCHECKED</strong>.</td>
+</tr>
+<tr>
+<td>Row <strong>+</strong></td>
+<td>Adds that Web Element to Memory List.</td>
+</tr>
+<tr>
+<td><strong>RENAME</strong> / <strong>ROLLBACK</strong></td>
+<td>Sets a client name or restores the original scanned name.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Defines the staged Web Element execution type.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT</strong> / <strong>TEST CLICK</strong></td>
+<td>Performs a direct single-shot test using Test ID, XPath, CSS, then reference attributes.</td>
+</tr>
+<tr>
+<td>Row <strong>X</strong></td>
+<td>Removes that result from the current grid.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="53-page-scanner-profiles">5.3 Page Scanner profiles</h2>
+<p><strong>Entry path:</strong> Page Scanner → settings beside <strong>Focus:</strong>.
+<strong>Purpose:</strong> Save reusable focus and selector rules.</p>
+<blockquote>
+<p><strong>Figure 16 — Page Scanner profiles.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Choose a <strong>Profile</strong>, edit <strong>Name</strong> and <strong>Order</strong>, and add search terms as either <strong>Selector</strong> or <strong>Attribute</strong>. The <code>attr:</code> prefix is stored automatically for attribute terms. <strong>New</strong> starts a profile, <strong>Save</strong> persists it, <strong>Delete</strong> removes a non-protected profile, and <strong>Refresh search terms from database</strong> reloads its rows. The factory default is protected and scans with blank search terms.</p>
+<h2 id="54-locator-generator">5.4 Locator Generator</h2>
+<p><strong>Entry path:</strong> Page Scanner → <strong>Locator Gen</strong>.
+<strong>Purpose:</strong> Convert pasted control HTML into stable ElementDTO locator candidates.</p>
+<blockquote>
+<p><strong>Figure 17 — Locator Generator.</strong> Screenshot pending.</p>
+</blockquote>
+<ol>
+<li>Choose <strong>Target scanned element</strong> when updating an existing row.</li>
+<li>Paste authorized <strong>Control HTML</strong> for the colliding controls.</li>
+<li>Click <strong>Generate</strong>.</li>
+<li>Review generated XPath, CSS, semantic name, and any “positional (fragile)” warning.</li>
+<li>Use <strong>Apply XPath</strong> to update the selected scanned row, <strong>Add ElementDTO</strong> for one candidate, or <strong>Apply All ElementDTOs</strong> for all results.</li>
+<li>Use <strong>Clear</strong> to reset the pasted HTML and feedback.</li>
+</ol>
+<h2 id="55-ocr-configuration">5.5 OCR Configuration</h2>
+<p><strong>Entry path:</strong> Page Scanner → <strong>OCR Config</strong>.
+<strong>Purpose:</strong> Select and tune OCR profiles used for scanner name suggestions.</p>
+<blockquote>
+<p><strong>Figure 18 — OCR Configuration.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Select <strong>Profile</strong>, edit <strong>Name</strong> and <strong>Description</strong>, and adjust grouped recognition parameters. <strong>Test current page</strong> tests the active parameter set, <strong>Save as new</strong> creates a profile, and <strong>Save</strong> updates it. <strong>Delete</strong> is disabled for the default profile. <strong>Clean orphans</strong> removes invalid unowned OCR configuration records according to backend rules.</p>
+<h3 id="ocr-block-review">OCR Block review</h3>
+<p>On Page Scanner, click <strong>OCR</strong> on a result Block. Compare each proposed OCR name with the scanned name, accept only correct suggestions, and apply the reviewed names through the displayed review actions. Client-controlled names should be preserved across later scans; use <strong>ROLLBACK</strong> only when intentionally restoring the canonical/scanned name.</p>
+<h1 id="part-4-data-variables-memory-and-output-files">Part 4 — Data, variables, memory, and output files</h1>
+<h2 id="61-excel-data-execution-input-memory">6.1 Excel Data — execution input memory</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Excel Data</strong>.
+<strong>Purpose:</strong> Choose and edit the dataset used by Test Run and manual input actions.</p>
+<blockquote>
+<p><strong>Figure 19 — Excel Data in Real Data mode.</strong> Screenshot pending.</p>
+</blockquote>
+<p>The header identifies the Bot Job/workbook, connection status, mode, and actions. The metadata line shows file path, mode, selected row, and <strong>SAVED</strong> or <strong>UNSAVED MEMORY</strong>. A highlighted cell shows which value is being used during execution or a manual test.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Real Data behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Real Data</strong> toggle</td>
+<td>Switches to <strong>Synthetic Data</strong>; mode selection is per active Bot Job workspace.</td>
+</tr>
+<tr>
+<td><strong>Recreate Columns</strong></td>
+<td>Rebuilds workbook columns from Bot Job Blocks and input fields.</td>
+</tr>
+<tr>
+<td><strong>Add Row</strong></td>
+<td>Copies the last memory row into a new editable test case.</td>
+</tr>
+<tr>
+<td><strong>Clean Rows</strong></td>
+<td>Removes every memory row while preserving columns.</td>
+</tr>
+<tr>
+<td><strong>Save to Excel</strong></td>
+<td>Atomically replaces the Bot Job workbook with the current REAL memory rows.</td>
+</tr>
+<tr>
+<td><strong>RELOAD FILE</strong></td>
+<td>Discards unsaved REAL memory changes and reloads the workbook.</td>
+</tr>
+<tr>
+<td>Row <strong>X</strong></td>
+<td>Deletes one logical row across every Block.</td>
+</tr>
+<tr>
+<td>Cell input</td>
+<td>Changes only the in-memory value until saved.</td>
+</tr>
+<tr>
+<td><strong>?</strong></td>
+<td>Opens <strong>Excel Data rules</strong>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="real-data-authority">Real Data authority</h3>
+<ul>
+<li><strong>Test run</strong> and manual <strong>TEST INPUT</strong> use Excel Data memory first, including the selected row and permitted unsaved edits.</li>
+<li><strong>Launch</strong> reloads the Excel file at startup, updates/replaces Excel Data memory, and runs from that synchronized snapshot.</li>
+<li>A run freezes one mode and row at startup; it must not mix values from different revisions.</li>
+</ul>
+<blockquote>
+<p><strong>Caution:</strong> <strong>RELOAD FILE</strong> discards unsaved REAL memory. <strong>Save to Excel</strong> makes the memory changes durable in the workbook.</p>
+</blockquote>
+<h2 id="62-excel-data-synthetic-data-mode">6.2 Excel Data — Synthetic Data mode</h2>
+<p><strong>Purpose:</strong> Create isolated test rows without overwriting the real workbook.</p>
+<blockquote>
+<p><strong>Figure 20 — Excel Data in Synthetic Data mode.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Synthetic Data behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Synthetic Data</strong> toggle</td>
+<td>Switches back to <strong>Real Data</strong>.</td>
+</tr>
+<tr>
+<td><strong>Rows</strong></td>
+<td>Selects 1–1000 generated test rows.</td>
+</tr>
+<tr>
+<td><strong>Context</strong> / <strong>Search context</strong></td>
+<td>Selects a synthetic business-data profile.</td>
+</tr>
+<tr>
+<td><strong>Generate Data Test</strong></td>
+<td>Replaces synthetic memory with the requested rows after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Add Row</strong></td>
+<td>Copies the last synthetic memory row.</td>
+</tr>
+<tr>
+<td><strong>Clean Rows</strong></td>
+<td>Clears synthetic rows while preserving columns.</td>
+</tr>
+<tr>
+<td><strong>SAVE DB</strong></td>
+<td>Persists the isolated synthetic dataset to SQLite.</td>
+</tr>
+<tr>
+<td>Context <strong>?</strong></td>
+<td>Explains the available synthetic contexts.</td>
+</tr>
+</tbody>
+</table>
+<p>Synthetic rows remain isolated by Bot Job. They never overwrite the real workbook. Selecting Synthetic Data reloads its database dataset automatically.</p>
+<h2 id="63-excelwriter-manager-execution-output-memory">6.3 ExcelWriter Manager — execution output memory</h2>
+<p><strong>Entry path:</strong> Opened for an execution that contains <code>ExcelWrite</code>; it is also listed in <strong>Pages Open</strong>.
+<strong>Purpose:</strong> Show output files assembled by <code>ExcelWrite</code> instructions before or while they are written to disk.</p>
+<blockquote>
+<p><strong>Figure 21 — ExcelWriter Manager.</strong> Screenshot pending.</p>
+</blockquote>
+<p>ExcelWriter Manager is not Excel Data. Excel Data supplies input values; ExcelWriter Manager collects runtime variable values into output files.</p>
+<table>
+<thead>
+<tr>
+<th>Control/state</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Write policy → End of execution</strong></td>
+<td>Keeps dirty rows in React memory until the run finishes or another explicit flush boundary occurs.</td>
+</tr>
+<tr>
+<td><strong>Write policy → End of each Block</strong></td>
+<td>Writes dirty files after each touched Block completes.</td>
+</tr>
+<tr>
+<td><strong>Save Dirty Files</strong></td>
+<td>Immediately finalizes and writes every dirty file.</td>
+</tr>
+<tr>
+<td>File tabs</td>
+<td>One tab per output filename; shows row count and <code>MEMORY</code>, <code>UPLOADING</code>, <code>SAVED</code>, or <code>FAILED</code>.</td>
+</tr>
+<tr>
+<td>Cell input</td>
+<td>Edits the in-memory output cell and marks the file dirty.</td>
+</tr>
+<tr>
+<td>File status</td>
+<td>Shows final format, revision, and the latest save message.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="excelwrite-file-rules">ExcelWrite file rules</h3>
+<ol>
+<li>Each <code>ExcelWrite</code> instruction has an instruction-owned output file and column.</li>
+<li>Instructions targeting the same file share one delimiter.</li>
+<li>A runtime variable in <code>VOID</code> state does not create an ExcelWriter row or file.</li>
+<li>A runtime variable in <code>VALUE</code> state is written even when its value is an empty string or spaces; the resulting cell can be visually empty.</li>
+<li>CSV is always finalized first. A <code>.csv</code> target writes CSV only; a <code>.xlsx</code> target produces the CSV base artifact and the XLSX artifact.</li>
+<li><strong>Stop</strong>, authored <strong>PAUSE</strong>, and authored close-browser (<code>Q</code>/<code>QUIT</code>) are save boundaries for in-progress ExcelWriter data. The stop/cleanup attempt still proceeds if a save reports a failure.</li>
+<li>During an active run, <strong>Write policy</strong> can be locked so the frozen execution contract cannot change.</li>
+</ol>
+<blockquote>
+<p><strong>Caution:</strong> A <code>SAVED</code> tab confirms the output write acknowledged by the application. A <code>FAILED</code> tab must be resolved before assuming a file exists on disk.</p>
+</blockquote>
+<h2 id="64-runtime-variables">6.4 Runtime Variables</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Variables</strong>.
+<strong>Purpose:</strong> View and edit live Bot Job variable definitions and values.</p>
+<blockquote>
+<p><strong>Figure 22 — Runtime Variables.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads current definitions, values, and revisions.</td>
+</tr>
+<tr>
+<td><strong>ADD</strong></td>
+<td>Opens Add Variable; new independent variables start as <code>VOID</code>.</td>
+</tr>
+<tr>
+<td><strong>AUTO</strong></td>
+<td>Creates and connects missing command variables under the displayed resolution mode.</td>
+</tr>
+<tr>
+<td><strong>CLEAR</strong></td>
+<td>Resets all values to <code>VOID</code> without deleting definitions or instruction relationships.</td>
+</tr>
+<tr>
+<td><strong>ALL</strong></td>
+<td>Requests deletion of all Bot Job variables after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Variables</strong> search</td>
+<td>Filters by variable name or ID.</td>
+</tr>
+<tr>
+<td>Value field</td>
+<td>Edits a runtime value; an empty <code>VALUE("")</code> is different from <code>VOID</code>.</td>
+</tr>
+<tr>
+<td>Row trash</td>
+<td>Deletes that variable after confirmation. Commands and Web Elements remain available.</td>
+</tr>
+<tr>
+<td><strong>?</strong></td>
+<td>Opens memory-variable rules.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="65-memory-list">6.5 Memory List</h2>
+<p><strong>Entry path:</strong> Click a row/Block <strong>+</strong> or <strong>Memory (x)</strong> in Bot Job or Page Scanner.
+<strong>Purpose:</strong> Stage instructions or scanned Web Elements before applying them to the active Bot Job.</p>
+<blockquote>
+<p><strong>Figure 23 — Memory List.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Choose <strong>Block:</strong> to select a target, or <strong>+ Create new block...</strong>. Drag <strong>≡</strong> to reorder staged items. Row <strong>X</strong> removes one item, <strong>Clear all</strong> empties the list, and <strong>Apply</strong> commits the staged items to the chosen target. If the staged item set requires a Block and none is selected, <strong>Apply</strong> remains disabled.</p>
+<blockquote>
+<p><strong>Caution:</strong> Memory List is staging. The target Bot Job changes only after <strong>Apply</strong> succeeds.</p>
+</blockquote>
+<h2 id="66-pages-open">6.6 Pages Open</h2>
+<p><strong>Entry path:</strong> Any <strong>Pages (x)</strong> badge or Main Dashboard user menu → <strong>Pages Open</strong>.
+<strong>Purpose:</strong> Focus and close AR Web pages without guessing which window is behind another.</p>
+<blockquote>
+<p><strong>Figure 24 — Pages Open.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Click a page row to bring it to the foreground. Click its <strong>X</strong> to close that page. <strong>Refresh open pages</strong> reloads the registry. Closing the Main Dashboard displays <strong>Close Main Dashboard?</strong> because this closes every AR Web page and stops the backend.</p>
+<h1 id="part-5-troubleshooting-and-quick-reference">Part 5 — Troubleshooting and quick reference</h1>
+<h2 id="71-a-page-is-disconnected-or-has-no-data">7.1 A page is disconnected or has no data</h2>
+<ol>
+<li>Read the page header status.</li>
+<li>Use its <strong>Refresh</strong> action once.</li>
+<li>Confirm the correct Bot Job is still selected.</li>
+<li>Open <strong>Pages Open</strong> and focus the expected page instead of opening duplicates.</li>
+<li>If the Main Dashboard itself has no Bot Jobs, verify that Configuration loaded the intended database.</li>
+</ol>
+<h2 id="72-test-run-does-not-start">7.2 Test Run does not start</h2>
+<p>Run <strong>CHECK</strong> with the same Starting Block and ONE/ALL mode. Structural failures block startup when the selected graph cannot be executed safely—for example, a required relationship or mandatory configuration is missing. Fix the reported instruction/Block and rerun <strong>CHECK</strong>.</p>
+<h2 id="73-an-element-is-not-found-or-is-ambiguous">7.3 An element is not found or is ambiguous</h2>
+<ol>
+<li>Wait for the page to finish rendering.</li>
+<li>Confirm that the browser is on the expected page and Bot Job.</li>
+<li>Open <strong>Review Locator</strong>.</li>
+<li>Inspect the <strong>BOT JOB</strong> row first.</li>
+<li>Test suitable <strong>PREVIOUS</strong> candidates.</li>
+<li>Click <strong>Page Scanner</strong> to add <strong>CURRENT</strong> candidates.</li>
+<li>Prefer Test ID, then stable authored locators.</li>
+<li>Use <strong>Use Once</strong> for a one-off recovery or <strong>Use and Save Locator</strong> only after proof.</li>
+</ol>
+<h2 id="74-page-scanner-returns-pagereadinesstimeout">7.4 Page Scanner returns PAGE_READINESS_TIMEOUT</h2>
+<p>The scanner could not prove that the current browser page was ready within its bounded wait. Keep the browser open, allow dynamic content to render, use <strong>Refresh Web Page</strong> if appropriate, and try once more. Repeated timeouts should be investigated from runtime logs rather than bypassed with coordinates.</p>
+<h2 id="75-test-input-uses-an-unexpected-value">7.5 Test Input uses an unexpected value</h2>
+<p>Open <strong>Excel Data</strong> and verify:</p>
+<ul>
+<li>the selected mode is <strong>Real Data</strong> or <strong>Synthetic Data</strong> as intended;</li>
+<li>the correct row is selected;</li>
+<li>the Block/column name matches the instruction;</li>
+<li>the desired edit is present in memory.</li>
+</ul>
+<p>Manual <strong>TEST INPUT</strong> and <strong>Test run</strong> use Excel Data memory first. <strong>Launch</strong> reloads the workbook and may replace unsaved REAL memory.</p>
+<h2 id="76-excelwriter-file-is-missing">7.6 ExcelWriter file is missing</h2>
+<p>Open <strong>ExcelWriter Manager</strong> and check whether the target tab exists and whether it is <code>MEMORY</code>, <code>SAVED</code>, or <code>FAILED</code>. A missing tab normally means the <code>ExcelWrite</code> instruction was not reached, its file/column is incomplete, or its connected runtime variable remained <code>VOID</code>. Use <strong>Save Dirty Files</strong> only when a dirty file is visible.</p>
+<h2 id="77-void-versus-empty-value">7.7 VOID versus empty value</h2>
+<p><code>VOID</code> means no runtime value exists. An empty string is a real <code>VALUE</code> with zero visible characters. This distinction matters:</p>
+<ul>
+<li><code>ExcelWrite</code> skips <code>VOID</code>.</li>
+<li><code>ExcelWrite</code> writes an empty cell for <code>VALUE("")</code>.</li>
+<li><strong>CLEAR</strong> in Runtime Variables changes values to <code>VOID</code>.</li>
+<li>Clearing text in an editable value field can intentionally create an empty value when the page confirms that state.</li>
+</ul>
+<h2 id="78-quick-control-reference">7.8 Quick control reference</h2>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Primary meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reload page/workspace data.</td>
+</tr>
+<tr>
+<td><strong>Close</strong></td>
+<td>Close only that detached page unless the dialog explicitly says application.</td>
+</tr>
+<tr>
+<td><strong>Pages (x)</strong></td>
+<td>Open the registry of AR Web pages.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong></td>
+<td>Filter loaded rows locally.</td>
+</tr>
+<tr>
+<td><strong>CHECK</strong></td>
+<td>Validate the selected execution without starting it.</td>
+</tr>
+<tr>
+<td><strong>Launch</strong></td>
+<td>File-authoritative normal Java V1 execution.</td>
+</tr>
+<tr>
+<td><strong>Test run</strong></td>
+<td>Memory-authoritative test execution.</td>
+</tr>
+<tr>
+<td><strong>Stop</strong></td>
+<td>Request execution stop after confirmation.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT / TEST CLICK</strong></td>
+<td>Perform one manual browser action.</td>
+</tr>
+<tr>
+<td><strong>Review Locator</strong></td>
+<td>Open candidate comparison and locator recovery.</td>
+</tr>
+<tr>
+<td><strong>+</strong></td>
+<td>Stage a row/Block in Memory List.</td>
+</tr>
+<tr>
+<td><strong>Apply</strong></td>
+<td>Commit Memory List staging to its target.</td>
+</tr>
+<tr>
+<td><strong>Save to Excel</strong></td>
+<td>Persist REAL Excel Data memory to the workbook.</td>
+</tr>
+<tr>
+<td><strong>SAVE DB</strong></td>
+<td>Persist SYNTHETIC Excel Data memory.</td>
+</tr>
+<tr>
+<td><strong>Save Dirty Files</strong></td>
+<td>Persist dirty ExcelWriter output memory.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="79-known-documentation-limitation">7.9 Known documentation limitation</h2>
+<p>The delivered pages and controls in this edition were verified from the current source branches. The application was running, but the in-app browser-control connection was unavailable and the configured database contains real client data. No screenshots were fabricated or captured from that client dataset. The planned screenshot IDs remain reserved so a safe synthetic session can be captured later without rewriting the chapter structure.</p>
+<h1 id="8-glossary">8. Glossary</h1>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bot Job</td>
+<td>One owned automation definition.</td>
+</tr>
+<tr>
+<td>Block</td>
+<td>Ordered group of instructions.</td>
+</tr>
+<tr>
+<td>Web Element</td>
+<td>Browser control targeted by CLICK, INPUT, or OUTPUT behavior.</td>
+</tr>
+<tr>
+<td>Test ID</td>
+<td>Stable test-oriented HTML attribute used as highest-priority locator evidence.</td>
+</tr>
+<tr>
+<td>Canonical name</td>
+<td>AR Web internal instruction/element identity.</td>
+</tr>
+<tr>
+<td><code>client_named</code></td>
+<td>Client-controlled alias preserved independently from the canonical name.</td>
+</tr>
+<tr>
+<td>OCR name</td>
+<td>Name inferred from visible or nearby screen text.</td>
+</tr>
+<tr>
+<td>Locator Recovery</td>
+<td>Interactive comparison used when a target cannot be uniquely resolved.</td>
+</tr>
+<tr>
+<td>Excel Data</td>
+<td>Input dataset memory used by tests and synchronized with real or synthetic persistence.</td>
+</tr>
+<tr>
+<td>ExcelWriter Manager</td>
+<td>Runtime output-file memory populated by <code>ExcelWrite</code> instructions.</td>
+</tr>
+<tr>
+<td><code>VOID</code></td>
+<td>Runtime variable state with no value.</td>
+</tr>
+<tr>
+<td>Empty value</td>
+<td>A valid value containing zero characters; different from <code>VOID</code>.</td>
+</tr>
+<tr>
+<td>Memory List</td>
+<td>Staging area for applying instructions/Web Elements to a Bot Job.</td>
+</tr>
+</tbody>
+</table>
+<h1 id="9-source-and-verification-record">9. Source and verification record</h1>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Verified value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Documentation repository</td>
+<td><code>ar-web-selenium</code>, branch <code>final-allinweb</code></td>
+</tr>
+<tr>
+<td>Frontend repository</td>
+<td><code>ar-web-allinweb-fe</code>, branch <code>allinweb-delivered</code>, commit <code>8e87d2c</code></td>
+</tr>
+<tr>
+<td>Backend/deployment repository</td>
+<td><code>ar-web-allinweb</code>, branch <code>allinweb-delivered</code>, commit <code>a52227a</code></td>
+</tr>
+<tr>
+<td>Delivered runtime</td>
+<td>Java V1 execution path; independent React detached workspaces</td>
+</tr>
+<tr>
+<td>Screenshot status</td>
+<td>Pending safe synthetic capture; no real client data used</td>
+</tr>
+<tr>
+<td>Source of truth</td>
+<td>This Markdown file</td>
+</tr>
+</tbody>
+</table></article>
+    </main>
+  </div>
+  <footer class="guide-footer">Source-verified client operations guide · Screenshot capture pending a safe synthetic session</footer>
+  <script src="assets/guide.js"></script>
+</body>
+</html>

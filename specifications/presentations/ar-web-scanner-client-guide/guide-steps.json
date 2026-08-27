@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 1,
+  "guide": "AR Web Scanner Complete Client Guide",
+  "generatedAt": "2026-08-27T22:15:09.416882+00:00",
+  "source": "AR-Web-Scanner-Complete-Client-Guide.md",
+  "steps": [
+    {
+      "id": 1,
+      "chapter": "AR Web Scanner Complete Client Guide",
+      "title": "Table of contents",
+      "anchor": "table-of-contents",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 2,
+      "chapter": "1. Purpose and safe use",
+      "title": "1.1 Recommended operating sequence",
+      "anchor": "11-recommended-operating-sequence",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 3,
+      "chapter": "2. Interface fundamentals",
+      "title": "2.1 Detached pages and Pages Open",
+      "anchor": "21-detached-pages-and-pages-open",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 4,
+      "chapter": "2. Interface fundamentals",
+      "title": "2.2 Status messages",
+      "anchor": "22-status-messages",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 5,
+      "chapter": "2. Interface fundamentals",
+      "title": "2.3 Grey action controls",
+      "anchor": "23-grey-action-controls",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 6,
+      "chapter": "2. Interface fundamentals",
+      "title": "2.4 Find, search, and selection",
+      "anchor": "24-find-search-and-selection",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 7,
+      "chapter": "2. Interface fundamentals",
+      "title": "2.5 Destructive confirmations",
+      "anchor": "25-destructive-confirmations",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 8,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.1 Main Dashboard",
+      "anchor": "31-main-dashboard",
+      "screenshot": "01-main-dashboard.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 01 — Main Dashboard. Screenshot pending: capture with synthetic Bot Jobs and no client data."
+    },
+    {
+      "id": 9,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.2 Organizations and Environments",
+      "anchor": "32-organizations-and-environments",
+      "screenshot": "02-organizations-environments.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 02 — Organizations and child Environments. Screenshot pending."
+    },
+    {
+      "id": 10,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.3 New Bot Job",
+      "anchor": "33-new-bot-job",
+      "screenshot": "03-new-bot-job.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 03 — New Bot Job. Screenshot pending."
+    },
+    {
+      "id": 11,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.4 Clone Job",
+      "anchor": "34-clone-job",
+      "screenshot": "04-clone-job.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 04 — Clone Job. Screenshot pending."
+    },
+    {
+      "id": 12,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.5 Configuration",
+      "anchor": "35-configuration",
+      "screenshot": "05-configuration.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 05 — Configuration. Screenshot pending."
+    },
+    {
+      "id": 13,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.6 About this Software",
+      "anchor": "36-about-this-software",
+      "screenshot": "06-about-software.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 06 — About this Software. Screenshot pending."
+    },
+    {
+      "id": 14,
+      "chapter": "Part 1 — Main Dashboard and setup",
+      "title": "3.7 License Request",
+      "anchor": "37-license-request",
+      "screenshot": "07-license-request.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 07 — License Request. Screenshot pending; never capture license content."
+    },
+    {
+      "id": 15,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.1 Bot Job Details workspace",
+      "anchor": "41-bot-job-details-workspace",
+      "screenshot": "08-bot-job-details.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 08 — Bot Job Details and Execution headers. Screenshot pending."
+    },
+    {
+      "id": 16,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.2 Execution rules help",
+      "anchor": "42-execution-rules-help",
+      "screenshot": "09-execution-rules.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 09 — Names, locators, and Excel Data rules. Screenshot pending."
+    },
+    {
+      "id": 17,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.3 Blocks",
+      "anchor": "43-blocks",
+      "screenshot": "10-block-instruction-grid.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 10 — Block and instruction controls. Screenshot pending."
+    },
+    {
+      "id": 18,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.4 Instruction rows and web-element actions",
+      "anchor": "44-instruction-rows-and-web-element-actions",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 19,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.5 Relationships and reconnect dialogs",
+      "anchor": "45-relationships-and-reconnect-dialogs",
+      "screenshot": "11-reconnect-relationship.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 11 — Reconnect Web Element and Reconnect variable. Screenshot pending."
+    },
+    {
+      "id": 20,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.6 Command Editor",
+      "anchor": "46-command-editor",
+      "screenshot": "12-command-editor.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 12 — Command Editor. Screenshot pending."
+    },
+    {
+      "id": 21,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.7 Locator Recovery / Review Locator",
+      "anchor": "47-locator-recovery-review-locator",
+      "screenshot": "13-locator-recovery.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 13 — Locator Recovery. Screenshot pending; this is a priority capture for the client guide."
+    },
+    {
+      "id": 22,
+      "chapter": "Part 3 — Page Scanner, locators, and OCR",
+      "title": "5.1 Page Scanner workspace",
+      "anchor": "51-page-scanner-workspace",
+      "screenshot": "14-page-scanner-toolbar.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 14 — Page Scanner toolbar. Screenshot pending."
+    },
+    {
+      "id": 23,
+      "chapter": "Part 3 — Page Scanner, locators, and OCR",
+      "title": "5.2 Scanner results grid",
+      "anchor": "52-scanner-results-grid",
+      "screenshot": "15-page-scanner-grid.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 15 — Page Scanner result Blocks and rows. Screenshot pending."
+    },
+    {
+      "id": 24,
+      "chapter": "Part 3 — Page Scanner, locators, and OCR",
+      "title": "5.3 Page Scanner profiles",
+      "anchor": "53-page-scanner-profiles",
+      "screenshot": "16-page-scanner-profiles.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 16 — Page Scanner profiles. Screenshot pending."
+    },
+    {
+      "id": 25,
+      "chapter": "Part 3 — Page Scanner, locators, and OCR",
+      "title": "5.4 Locator Generator",
+      "anchor": "54-locator-generator",
+      "screenshot": "17-locator-generator.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 17 — Locator Generator. Screenshot pending."
+    },
+    {
+      "id": 26,
+      "chapter": "Part 3 — Page Scanner, locators, and OCR",
+      "title": "5.5 OCR Configuration",
+      "anchor": "55-ocr-configuration",
+      "screenshot": "18-ocr-configuration.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 18 — OCR Configuration. Screenshot pending."
+    },
+    {
+      "id": 27,
+      "chapter": "Part 4 — Data, variables, memory, and output files",
+      "title": "6.1 Excel Data — execution input memory",
+      "anchor": "61-excel-data-execution-input-memory",
+      "screenshot": "19-excel-data-real.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 19 — Excel Data in Real Data mode. Screenshot pending."
+    },
+    {
+      "id": 28,
+      "chapter": "Part 4 — Data, variables, memory, and output files",
+      "title": "6.2 Excel Data — Synthetic Data mode",
+      "anchor": "62-excel-data-synthetic-data-mode",
+      "screenshot": "20-excel-data-synthetic.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 20 — Excel Data in Synthetic Data mode. Screenshot pending."
+    },
+    {
+      "id": 29,
+      "chapter": "Part 4 — Data, variables, memory, and output files",
+      "title": "6.3 ExcelWriter Manager — execution output memory",
+      "anchor": "63-excelwriter-manager-execution-output-memory",
+      "screenshot": "21-excelwriter-manager.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 21 — ExcelWriter Manager. Screenshot pending."
+    },
+    {
+      "id": 30,
+      "chapter": "Part 4 — Data, variables, memory, and output files",
+      "title": "6.4 Runtime Variables",
+      "anchor": "64-runtime-variables",
+      "screenshot": "22-runtime-variables.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 22 — Runtime Variables. Screenshot pending."
+    },
+    {
+      "id": 31,
+      "chapter": "Part 4 — Data, variables, memory, and output files",
+      "title": "6.5 Memory List",
+      "anchor": "65-memory-list",
+      "screenshot": "23-memory-list.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 23 — Memory List. Screenshot pending."
+    },
+    {
+      "id": 32,
+      "chapter": "Part 4 — Data, variables, memory, and output files",
+      "title": "6.6 Pages Open",
+      "anchor": "66-pages-open",
+      "screenshot": "24-pages-open.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 24 — Pages Open. Screenshot pending."
+    },
+    {
+      "id": 33,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.1 A page is disconnected or has no data",
+      "anchor": "71-a-page-is-disconnected-or-has-no-data",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 34,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.2 Test Run does not start",
+      "anchor": "72-test-run-does-not-start",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 35,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.3 An element is not found or is ambiguous",
+      "anchor": "73-an-element-is-not-found-or-is-ambiguous",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 36,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.4 Page Scanner returns PAGE_READINESS_TIMEOUT",
+      "anchor": "74-page-scanner-returns-pagereadinesstimeout",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 37,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.5 Test Input uses an unexpected value",
+      "anchor": "75-test-input-uses-an-unexpected-value",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 38,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.6 ExcelWriter file is missing",
+      "anchor": "76-excelwriter-file-is-missing",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 39,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.7 VOID versus empty value",
+      "anchor": "77-void-versus-empty-value",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 40,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.8 Quick control reference",
+      "anchor": "78-quick-control-reference",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    },
+    {
+      "id": 41,
+      "chapter": "Part 5 — Troubleshooting and quick reference",
+      "title": "7.9 Known documentation limitation",
+      "anchor": "79-known-documentation-limitation",
+      "screenshot": null,
+      "screenshotStatus": "NOT_REQUIRED",
+      "caution": ""
+    }
+  ]
+}

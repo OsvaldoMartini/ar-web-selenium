@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Part 1 · Main Dashboard and setup · AR Web Scanner Guide</title>
+  <link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><strong>AR Web Scanner</strong><span>Part 1 · Main Dashboard and setup</span></div>
+    <div class="header-actions">
+      <input type="search" data-guide-search placeholder="Search this guide part" aria-label="Search guide">
+      <span class="search-count" data-search-count>All sections</span>
+      <a class="classic-button" href="../AR-Web-Scanner-Complete-Client-Guide.pdf">PDF</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar"><h2>On this page</h2><nav><a class="depth-1" href="#part-1-main-dashboard-and-setup">Part 1 — Main Dashboard and setup</a>
+<a class="depth-2" href="#31-main-dashboard">3.1 Main Dashboard</a>
+<a class="depth-2" href="#32-organizations-and-environments">3.2 Organizations and Environments</a>
+<a class="depth-2" href="#33-new-bot-job">3.3 New Bot Job</a>
+<a class="depth-2" href="#34-clone-job">3.4 Clone Job</a>
+<a class="depth-2" href="#35-configuration">3.5 Configuration</a>
+<a class="depth-2" href="#36-about-this-software">3.6 About this Software</a>
+<a class="depth-2" href="#37-license-request">3.7 License Request</a></nav></aside>
+    <main class="main">
+      <nav class="part-nav" aria-label="Guide parts"><a href="../index.html">Overview</a><a href="../parts/part-1-setup.html" aria-current="page">Part 1 · Setup</a><a href="../parts/part-2-bot-job.html">Part 2 · Bot Job</a><a href="../parts/part-3-page-scanner.html">Part 3 · Scanner</a><a href="../parts/part-4-data.html">Part 4 · Data</a><a href="../parts/part-5-troubleshooting.html">Part 5 · Help</a></nav>
+      <article class="document"><h1 id="part-1-main-dashboard-and-setup">Part 1 — Main Dashboard and setup</h1>
+<h2 id="31-main-dashboard">3.1 Main Dashboard</h2>
+<p><strong>Entry path:</strong> Start the authorized AR Web Scanner application.
+<strong>Purpose:</strong> Select a Bot Job and open every main client workspace.</p>
+<blockquote>
+<p><strong>Figure 01 — Main Dashboard.</strong> Screenshot pending: capture with synthetic Bot Jobs and no client data.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Important condition or result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Organizations</strong></td>
+<td>Opens Organizations and its child Environments.</td>
+<td>Available without selecting a Bot Job.</td>
+</tr>
+<tr>
+<td><strong>New Bot Job</strong></td>
+<td>Opens the New Bot Job workflow.</td>
+<td>Requires a valid Organization Environment before creation.</td>
+</tr>
+<tr>
+<td><strong>Clone Job</strong></td>
+<td>Copies the selected Bot Job into a selected target context.</td>
+<td>Enabled after selecting one Bot Job.</td>
+</tr>
+<tr>
+<td><strong>Config</strong></td>
+<td>Opens Configuration.</td>
+<td>Database actions can be destructive.</td>
+</tr>
+<tr>
+<td><strong>Info</strong></td>
+<td>Opens About this Software.</td>
+<td>Includes the path to License Manager.</td>
+</tr>
+<tr>
+<td><strong>Launch</strong></td>
+<td>Starts the selected Bot Job through the delivered Java V1 execution engine.</td>
+<td>Enabled only for a selected launchable Bot Job.</td>
+</tr>
+<tr>
+<td><strong>Open Job</strong></td>
+<td>Opens Bot Job Details for the selected row.</td>
+<td>Double-clicking a row also opens it.</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads the Bot Job list.</td>
+<td>Use after creation, clone, import, or external changes.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong></td>
+<td>Filters Bot Jobs by visible fields.</td>
+<td>Does not change database data.</td>
+</tr>
+<tr>
+<td>Row checkbox / header checkbox</td>
+<td>Selects one or all loaded Bot Jobs.</td>
+<td>Used by <strong>ALL (x)</strong> deletion.</td>
+</tr>
+<tr>
+<td><strong>ALL (x)</strong></td>
+<td>Requests deletion of checked Bot Jobs.</td>
+<td>Confirmation identifies the count and targets.</td>
+</tr>
+<tr>
+<td>Row <strong>X</strong></td>
+<td>Requests deletion of one Bot Job.</td>
+<td>Removes job data and saved components after confirmation.</td>
+</tr>
+<tr>
+<td>User menu</td>
+<td>Shows the licensed identity and opens <strong>Pages Open</strong>.</td>
+<td>The license status is informational.</td>
+</tr>
+<tr>
+<td><strong>Exit</strong></td>
+<td>Requests application shutdown.</td>
+<td>Closes child pages and backend after confirmation/processing.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Normal workflow</strong></p>
+<ol>
+<li>Click a Bot Job row.</li>
+<li>Confirm that <strong>Open Job</strong>, <strong>Clone Job</strong>, and <strong>Launch</strong> become available as appropriate.</li>
+<li>Click <strong>Open Job</strong> to inspect and test the automation before a normal launch.</li>
+</ol>
+<blockquote>
+<p><strong>Caution:</strong> <strong>Launch</strong> executes the job. Use <strong>CHECK</strong> and a safe environment before running a workflow that submits data or changes an external system.</p>
+</blockquote>
+<h2 id="32-organizations-and-environments">3.2 Organizations and Environments</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>Organizations</strong>.
+<strong>Purpose:</strong> Maintain the owner and URL contexts used by Bot Jobs.</p>
+<blockquote>
+<p><strong>Figure 02 — Organizations and child Environments.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Important condition or result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Organization</strong></td>
+<td>Selects an existing Organization or <strong>+ New Organization</strong>.</td>
+<td>Populates the Organization form and Environment list.</td>
+</tr>
+<tr>
+<td><strong>Environment</strong></td>
+<td>Selects an existing Environment or <strong>+ New Environment</strong>.</td>
+<td>Disabled until an Organization exists.</td>
+</tr>
+<tr>
+<td><strong>Organization Name</strong></td>
+<td>Defines the displayed owner name.</td>
+<td>Required for a useful Organization record.</td>
+</tr>
+<tr>
+<td><strong>URL Baseline</strong></td>
+<td>Stores the Organization’s baseline URL.</td>
+<td>Use an approved non-secret URL.</td>
+</tr>
+<tr>
+<td>Advanced Organization fields</td>
+<td>Store priority, search, and option configuration.</td>
+<td>Use only values agreed for the client environment.</td>
+</tr>
+<tr>
+<td><strong>Create Organization</strong> / <strong>Update Organization</strong></td>
+<td>Creates or updates the displayed Organization.</td>
+<td>The label changes according to whether an ID exists.</td>
+</tr>
+<tr>
+<td><strong>Delete</strong></td>
+<td>Deletes an Organization that has no active Bot Jobs.</td>
+<td>Backend refuses an in-use Organization.</td>
+</tr>
+<tr>
+<td><strong>Environment Name</strong></td>
+<td>Names a child environment such as TEST or UAT.</td>
+<td>Stored under the selected Organization.</td>
+</tr>
+<tr>
+<td><strong>Environment URL</strong></td>
+<td>Defines the exact starting URL.</td>
+<td>Validate before creating Bot Jobs.</td>
+</tr>
+<tr>
+<td><strong>Create Environment</strong> / <strong>Update Environment</strong></td>
+<td>Creates or updates the displayed Environment.</td>
+<td>Requires an Organization.</td>
+</tr>
+<tr>
+<td><strong>Delete Environment</strong></td>
+<td>Deletes the selected child Environment.</td>
+<td>Disabled when deletion would violate the current rules.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> Deleting an Organization or Environment is persistent. The confirmation explains that in-use records are refused.</p>
+</blockquote>
+<h2 id="33-new-bot-job">3.3 New Bot Job</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>New Bot Job</strong>.
+<strong>Purpose:</strong> Create an empty automation job owned by one Organization and Environment.</p>
+<blockquote>
+<p><strong>Figure 03 — New Bot Job.</strong> Screenshot pending.</p>
+</blockquote>
+<ol>
+<li>Select an Organization in the left grid.</li>
+<li>Select one of its Environments in the right grid.</li>
+<li>Enter <strong>Bot Job Name</strong> and optional <strong>Description</strong>.</li>
+<li>Choose <strong>Web App</strong>, <strong>Android</strong>, or <strong>iOS</strong> under <strong>Application Type</strong>.</li>
+<li>Confirm the Organization, Environment, and URL summary.</li>
+<li>Click <strong>Create Bot Job</strong>.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Organizations / Environments</strong></td>
+<td>Opens the maintenance page for missing owner data.</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads available Organizations and Environments.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong> in either grid</td>
+<td>Filters only that selection grid.</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong> / <strong>Close</strong></td>
+<td>Leaves without creating the job.</td>
+</tr>
+<tr>
+<td><strong>Create Bot Job</strong></td>
+<td>Creates the record when name and Environment are valid.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="34-clone-job">3.4 Clone Job</h2>
+<p><strong>Entry path:</strong> Select a Bot Job on Main Dashboard → <strong>Clone Job</strong>.
+<strong>Purpose:</strong> Copy a source Bot Job while assigning a new name, owner context, URL, and application type.</p>
+<blockquote>
+<p><strong>Figure 04 — Clone Job.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Review the read-only <strong>Source Bot Job</strong> summary. Enter <strong>New Bot Job Name</strong>, <strong>Description</strong>, and <strong>Target URL</strong>, then select <strong>Application Type</strong>, target Organization, and target Environment. Click <strong>Clone Bot Job</strong> only after the summary identifies the intended target.</p>
+<blockquote>
+<p><strong>Caution:</strong> Cloning copies the source job structure and related records. A partial database failure is reported and should not be assumed successful.</p>
+</blockquote>
+<h2 id="35-configuration">3.5 Configuration</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>Config</strong>.
+<strong>Purpose:</strong> Select browser and database type, set operational paths, and perform authorized database maintenance.</p>
+<blockquote>
+<p><strong>Figure 05 — Configuration.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+<th>Caution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Browser</strong></td>
+<td>Chooses the shared Playwright browser.</td>
+<td>Changing an active browser can require closing and replacement.</td>
+</tr>
+<tr>
+<td><strong>DB Type</strong></td>
+<td>Selects the configured database type.</td>
+<td>The delivered client uses path-based Access/SQLite configurations.</td>
+</tr>
+<tr>
+<td>Operational path fields and <strong>...</strong></td>
+<td>Edit or browse for supported database/report paths.</td>
+<td>Use absolute authorized paths.</td>
+</tr>
+<tr>
+<td><strong>Reload Configs</strong></td>
+<td>Saves/reloads the selected database connection.</td>
+<td>Successful reload closes other pages so they cannot retain stale owners.</td>
+</tr>
+<tr>
+<td><strong>Backup DB</strong></td>
+<td>Chooses a destination and creates a database backup after confirmation.</td>
+<td>Verify the destination folder.</td>
+</tr>
+<tr>
+<td><strong>Restore DB</strong></td>
+<td>Restores data for <strong>Date Restore</strong> after confirmation.</td>
+<td>Replaces current data and closes other pages.</td>
+</tr>
+<tr>
+<td><strong>Delete DB</strong></td>
+<td>Deletes all Bot Job details in the selected database.</td>
+<td>Destructive and irreversible; confirm the database type.</td>
+</tr>
+<tr>
+<td><strong>Organizations</strong></td>
+<td>Opens Organization maintenance.</td>
+<td>Useful after a reload.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="36-about-this-software">3.6 About this Software</h2>
+<p><strong>Entry path:</strong> Main Dashboard → <strong>Info</strong>.
+<strong>Purpose:</strong> Display installed software and license information.</p>
+<blockquote>
+<p><strong>Figure 06 — About this Software.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Use <strong>Refresh</strong> to reload displayed information. <strong>Open License Manager</strong> and <strong>Manage License</strong> both open the independent License Request page. <strong>Pages (x)</strong> opens the page manager, and <strong>Close</strong> closes only the About page.</p>
+<h2 id="37-license-request">3.7 License Request</h2>
+<p><strong>Entry path:</strong> About this Software → <strong>Open License Manager</strong> or <strong>Manage License</strong>.
+<strong>Purpose:</strong> Generate a license request, activate a response, or select an existing license file.</p>
+<blockquote>
+<p><strong>Figure 07 — License Request.</strong> Screenshot pending; never capture license content.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Mode/control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Request</strong></td>
+<td>Requires Organization, Owner, Email, and agreement acceptance; <strong>Generate request</strong> creates the request.</td>
+</tr>
+<tr>
+<td><strong>Activate</strong></td>
+<td>Selects a response file and uses <strong>Activate license</strong>.</td>
+</tr>
+<tr>
+<td><strong>Use existing</strong></td>
+<td>Selects an existing license file and uses <strong>Use existing license</strong>.</td>
+</tr>
+<tr>
+<td><strong>Refresh license status</strong></td>
+<td>Reloads the current validity state.</td>
+</tr>
+<tr>
+<td>Agreement checkbox</td>
+<td>Records acceptance of the displayed software license agreement.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Security:</strong> Do not share <code>ARWeb.lic</code>, response files, machine identifiers, or request payloads in screenshots or support messages unless an authorized secure process requires them.</p>
+</blockquote></article>
+    </main>
+  </div>
+  <footer class="guide-footer">Source-verified client operations guide · Screenshot capture pending a safe synthetic session</footer>
+  <script src="../assets/guide.js"></script>
+</body>
+</html>

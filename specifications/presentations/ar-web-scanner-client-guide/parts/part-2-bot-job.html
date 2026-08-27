@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Part 2 · Bot Job authoring and execution · AR Web Scanner Guide</title>
+  <link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><strong>AR Web Scanner</strong><span>Part 2 · Bot Job authoring and execution</span></div>
+    <div class="header-actions">
+      <input type="search" data-guide-search placeholder="Search this guide part" aria-label="Search guide">
+      <span class="search-count" data-search-count>All sections</span>
+      <a class="classic-button" href="../AR-Web-Scanner-Complete-Client-Guide.pdf">PDF</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar"><h2>On this page</h2><nav><a class="depth-1" href="#part-2-bot-job-authoring-and-execution">Part 2 — Bot Job authoring and execution</a>
+<a class="depth-2" href="#41-bot-job-details-workspace">4.1 Bot Job Details workspace</a>
+<a class="depth-2" href="#42-execution-rules-help">4.2 Execution rules help</a>
+<a class="depth-2" href="#43-blocks">4.3 Blocks</a>
+<a class="depth-2" href="#44-instruction-rows-and-web-element-actions">4.4 Instruction rows and web-element actions</a>
+<a class="depth-2" href="#45-relationships-and-reconnect-dialogs">4.5 Relationships and reconnect dialogs</a>
+<a class="depth-2" href="#46-command-editor">4.6 Command Editor</a>
+<a class="depth-2" href="#47-locator-recovery-review-locator">4.7 Locator Recovery / Review Locator</a></nav></aside>
+    <main class="main">
+      <nav class="part-nav" aria-label="Guide parts"><a href="../index.html">Overview</a><a href="../parts/part-1-setup.html">Part 1 · Setup</a><a href="../parts/part-2-bot-job.html" aria-current="page">Part 2 · Bot Job</a><a href="../parts/part-3-page-scanner.html">Part 3 · Scanner</a><a href="../parts/part-4-data.html">Part 4 · Data</a><a href="../parts/part-5-troubleshooting.html">Part 5 · Help</a></nav>
+      <article class="document"><h1 id="part-2-bot-job-authoring-and-execution">Part 2 — Bot Job authoring and execution</h1>
+<h2 id="41-bot-job-details-workspace">4.1 Bot Job Details workspace</h2>
+<p><strong>Entry path:</strong> Main Dashboard → select a row → <strong>Open Job</strong>.
+<strong>Purpose:</strong> Author, connect, test, and execute the selected Bot Job.</p>
+<blockquote>
+<p><strong>Figure 08 — Bot Job Details and Execution headers.</strong> Screenshot pending.</p>
+</blockquote>
+<p>The first header switches the visible workspace; the second controls execution.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads the current Bot Job graph and owner state.</td>
+</tr>
+<tr>
+<td><strong>Bot Job</strong></td>
+<td>Returns from another surface to the instruction grid.</td>
+</tr>
+<tr>
+<td><strong>Components</strong> / <strong>Hide Components</strong></td>
+<td>Opens or hides the reusable Components surface.</td>
+</tr>
+<tr>
+<td><strong>Pre Scan</strong></td>
+<td>Opens Page Scanner for the active Bot Job.</td>
+</tr>
+<tr>
+<td><strong>Excel</strong></td>
+<td>Opens the Bot Job workbook through the configured local action.</td>
+</tr>
+<tr>
+<td><strong>Generate</strong></td>
+<td>Rebuilds the Bot Job spreadsheet after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Report</strong></td>
+<td>Chooses and opens an existing report.</td>
+</tr>
+<tr>
+<td>Flame-only button</td>
+<td>Creates a local BAT launcher.</td>
+</tr>
+<tr>
+<td>Starting block</td>
+<td>Chooses <strong>Execute All</strong> or a specific Block.</td>
+</tr>
+<tr>
+<td>Reload Blocks</td>
+<td>Refreshes the Block selector.</td>
+</tr>
+<tr>
+<td>Navigation time</td>
+<td>Cycles 0–10 seconds and saves automatically.</td>
+</tr>
+<tr>
+<td><strong>ONE</strong></td>
+<td>Executes only the selected Block.</td>
+</tr>
+<tr>
+<td><strong>ALL ↓</strong></td>
+<td>Executes from the selected Block through the remaining Blocks.</td>
+</tr>
+<tr>
+<td><strong>Launch</strong></td>
+<td>Uses the Excel file as the starting authority, synchronizes Excel Data memory, then executes through Java V1.</td>
+</tr>
+<tr>
+<td><strong>Test run</strong></td>
+<td>Uses the selected REAL/SYNTHETIC Excel Data memory snapshot, including permitted unsaved test edits.</td>
+</tr>
+<tr>
+<td><strong>CHECK</strong></td>
+<td>Runs the selected preflight without starting execution.</td>
+</tr>
+<tr>
+<td><strong>Stop</strong></td>
+<td>Requests execution stop after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Export</strong> / <strong>Import</strong></td>
+<td>Transfers the Bot Job to or from a selected folder after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Variables</strong></td>
+<td>Opens Runtime Variables.</td>
+</tr>
+<tr>
+<td><strong>Excel Data</strong></td>
+<td>Opens the execution dataset workspace.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="starting-block-and-oneall-rules">Starting Block and ONE/ALL rules</h3>
+<ul>
+<li><strong>Execute All</strong> always uses <strong>ALL</strong> and starts at the first Block.</li>
+<li>Selecting a specific Block changes the mode to <strong>ONE</strong>.</li>
+<li><strong>ONE</strong> runs only that selected Block.</li>
+<li>Switch to <strong>ALL ↓</strong> to run the selected Block and every later Block in order.</li>
+</ul>
+<h2 id="42-execution-rules-help">4.2 Execution rules help</h2>
+<p><strong>Entry path:</strong> Bot Job Details → the blue <strong>?</strong> between <strong>Launch</strong> and <strong>Test run</strong>.
+<strong>Purpose:</strong> Explain names, locator priority, Excel Data authority, and execution paths.</p>
+<blockquote>
+<p><strong>Figure 09 — Names, locators, and Excel Data rules.</strong> Screenshot pending.</p>
+</blockquote>
+<p>The help tabs are <strong>Names &amp; Priority</strong>, <strong>Excel Data Authority</strong>, and <strong>Execution Paths</strong>. The required locator order is:</p>
+<ol>
+<li>Test ID</li>
+<li>Custom XPath</li>
+<li>XPath</li>
+<li>CSS</li>
+<li>Registry locator</li>
+<li>Canonical name</li>
+<li><code>client_named</code></li>
+<li>OCR name</li>
+<li>Locator Recovery</li>
+</ol>
+<p>Semantic names create candidates; they are not direct browser locators. A candidate still needs uniqueness, visibility, element type/role, and requested-action validation.</p>
+<h2 id="43-blocks">4.3 Blocks</h2>
+<p><strong>Purpose:</strong> Group instructions into ordered execution units.</p>
+<blockquote>
+<p><strong>Figure 10 — Block and instruction controls.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Block control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Active/inactive status</td>
+<td>Includes or excludes the Block from execution.</td>
+</tr>
+<tr>
+<td>Collapse/expand</td>
+<td>Hides or shows the instruction rows.</td>
+</tr>
+<tr>
+<td>Block checkbox</td>
+<td>Selects the Block for the checked-Block delete action.</td>
+</tr>
+<tr>
+<td><strong>+</strong></td>
+<td>Adds the complete connected Block to Memory List when allowed.</td>
+</tr>
+<tr>
+<td>Rollback on first Block</td>
+<td>Moves every instruction into the first Block.</td>
+</tr>
+<tr>
+<td>Up / Down</td>
+<td>Reorders the Block.</td>
+</tr>
+<tr>
+<td>Edit</td>
+<td>Renames the Block; the confirmed change is saved.</td>
+</tr>
+<tr>
+<td>Save/component icon</td>
+<td>Creates a reusable component from that Block when available.</td>
+</tr>
+<tr>
+<td>Trash</td>
+<td>Deletes a Block under the displayed deletion rules.</td>
+</tr>
+<tr>
+<td>Selected-row trash</td>
+<td>Deletes only checked instructions in that Block after confirmation.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> The first Block has special structural behavior. Read the delete/move confirmation before changing it.</p>
+</blockquote>
+<h2 id="44-instruction-rows-and-web-element-actions">4.4 Instruction rows and web-element actions</h2>
+<p>An instruction row shows status, selection, command or web-element identity, relationship state, and valid actions.</p>
+<table>
+<thead>
+<tr>
+<th>Row control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>≡</strong></td>
+<td>Drags the instruction; keyboard Alt+Arrow can move one position where allowed.</td>
+</tr>
+<tr>
+<td>Active/inactive status</td>
+<td>Includes or excludes the instruction.</td>
+</tr>
+<tr>
+<td>Checkbox</td>
+<td>Selects this row for the Block’s selected-instruction delete action.</td>
+</tr>
+<tr>
+<td><strong>+</strong></td>
+<td>Adds the connected instruction group to Memory List.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Cycles the web-element execution type and persists the graph-safe replacement.</td>
+</tr>
+<tr>
+<td>Wand <strong>Review Locator</strong></td>
+<td>Opens manual Locator Recovery for this Web Element.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT</strong></td>
+<td>Uses the selected Excel Data memory row to test input through the V1 locator resolver.</td>
+</tr>
+<tr>
+<td><strong>TEST CLICK</strong></td>
+<td>Tests one click through the V1 locator resolver.</td>
+</tr>
+<tr>
+<td><strong>RENAME</strong></td>
+<td>Sets a client-controlled displayed name.</td>
+</tr>
+<tr>
+<td><strong>ROLLBACK</strong></td>
+<td>Restores the canonical name when a <code>client_named</code> value exists.</td>
+</tr>
+<tr>
+<td><strong>EDIT CMD</strong></td>
+<td>Opens Command Editor for the selected row.</td>
+</tr>
+<tr>
+<td>Up / Down</td>
+<td>Reorders the instruction when the relationship graph permits it.</td>
+</tr>
+<tr>
+<td>Trash</td>
+<td>Deletes the instruction after dependency-aware confirmation.</td>
+</tr>
+<tr>
+<td><strong>Tab</strong> / <strong>Enter</strong></td>
+<td>For input elements, configures a follow-up keyboard action.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="45-relationships-and-reconnect-dialogs">4.5 Relationships and reconnect dialogs</h2>
+<p><strong>Purpose:</strong> Make required Web Element parents, loop/Block targets, and variables explicit.</p>
+<blockquote>
+<p><strong>Figure 11 — Reconnect Web Element and Reconnect variable.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Grey relationship buttons show states such as <strong>Reconnect Parent</strong>, <strong>Reconnect Variable</strong>, a connected element ID, or <code>Variable_name (id: n)</code>. Click a reconnectable relationship to select a replacement, disconnect it, or—in variable dialogs—use <strong>Add Variable</strong>. A new independent variable begins as <code>VOID</code> and can then be selected for the command.</p>
+<p>For check commands, the comparison operator and second-variable control appear in the row. Variables are independent records: deleting an instruction does not silently cascade-delete its variable.</p>
+<h2 id="46-command-editor">4.6 Command Editor</h2>
+<p><strong>Entry path:</strong> Instruction row → <strong>EDIT CMD</strong>, or <strong>ADD</strong> beside <strong>Find:</strong> to add a disconnected command.
+<strong>Purpose:</strong> Configure command type, placement, relationships, and command-specific values.</p>
+<blockquote>
+<p><strong>Figure 12 — Command Editor.</strong> Screenshot pending.</p>
+</blockquote>
+<ol>
+<li>Confirm <strong>ADD MODE</strong> or <strong>EDIT MODE</strong> and the displayed Bot Job.</li>
+<li>Choose <strong>Target Block</strong> and <strong>Placement</strong>.</li>
+<li>Search and select <strong>Command</strong> when the instruction type permits it.</li>
+<li>Complete the command-specific editor and variable bindings.</li>
+<li>Use <strong>CREATE NEW</strong>, <strong>COPY NEW</strong>, or <strong>UPDATE</strong> as appropriate.</li>
+<li>Use <strong>CANCEL</strong> to discard the current editor changes.</li>
+</ol>
+<p>Commands include waits, pauses, navigation, loops, GOTO, conditionals, variable operations, checks, and <code>ExcelWrite</code>. Moving a command can display a relationship-impact warning; continue only when the proposed disconnected relationships are understood.</p>
+<h3 id="excelwrite-configuration-in-command-editor">ExcelWrite configuration in Command Editor</h3>
+<p>An <code>ExcelWrite</code> instruction owns its output file and output column. <strong>ExcelWrite file configuration</strong> selects directory/file, <strong>Excel (.xlsx)</strong> or <strong>CSV (.csv)</strong>, and the CSV delimiter. <strong>Search existing ExcelWrite files</strong> lets multiple instructions or Blocks target the same file when their delimiter contract matches.</p>
+<h2 id="47-locator-recovery-review-locator">4.7 Locator Recovery / Review Locator</h2>
+<p><strong>Entry path:</strong> Web Element row → wand <strong>Review Locator</strong>; it can also appear automatically when an execution action cannot resolve one valid element.
+<strong>Purpose:</strong> Compare the failed Bot Job target with previous database candidates and a fresh current-page scan.</p>
+<blockquote>
+<p><strong>Figure 13 — Locator Recovery.</strong> Screenshot pending; this is a priority capture for the client guide.</p>
+</blockquote>
+<p>The first row identifies the Bot Job Web Element that needs recovery. Candidate rows then show saved or current scan evidence. The <strong>Origin</strong> states are:</p>
+<table>
+<thead>
+<tr>
+<th>Origin</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>BOT JOB</strong></td>
+<td>The instruction’s current Web Element—the target that failed or was opened manually.</td>
+</tr>
+<tr>
+<td><strong>PREVIOUS</strong></td>
+<td>A candidate stored from an earlier Page Scanner capture for the owner/page context.</td>
+</tr>
+<tr>
+<td><strong>CURRENT</strong></td>
+<td>A candidate produced by <strong>Page Scanner</strong> in the current recovery session.</td>
+</tr>
+</tbody>
+</table>
+<p>The table includes Test ID, canonical/client/OCR names, action type, <strong>TEST INPUT</strong>, <strong>TEST CLICK</strong>, XPath match, previous/current XPath and CSS, stable attributes, page identities, tag/type/role, confidence, and ambiguity warnings.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Recovery power toggle</td>
+<td>Enables or bypasses locator verification for unresolved elements.</td>
+</tr>
+<tr>
+<td>Candidate radio</td>
+<td>Chooses the candidate for a recovery decision.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Identifies or changes the action used to test that candidate where permitted.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT</strong></td>
+<td>Tests input against only the selected candidate, using Excel Data memory.</td>
+</tr>
+<tr>
+<td><strong>TEST CLICK</strong></td>
+<td>Tests a click against only the selected candidate.</td>
+</tr>
+<tr>
+<td><strong>Page Scanner</strong></td>
+<td>Runs the normal Page Scanner flow against the current browser page and appends <strong>CURRENT</strong> candidates.</td>
+</tr>
+<tr>
+<td><strong>Close Review</strong></td>
+<td>Closes a manually opened review without changing the locator.</td>
+</tr>
+<tr>
+<td><strong>Cancel Recovery</strong></td>
+<td>Cancels an automatic recovery decision.</td>
+</tr>
+<tr>
+<td><strong>Stop Execution</strong></td>
+<td>Stops the current execution while automatic recovery is waiting.</td>
+</tr>
+<tr>
+<td><strong>Bypass &amp; Continue</strong></td>
+<td>Skips the unresolved action and continues.</td>
+</tr>
+<tr>
+<td><strong>Use Once</strong></td>
+<td>Uses the selected candidate for this occurrence without saving it.</td>
+</tr>
+<tr>
+<td><strong>Use and Save Locator</strong></td>
+<td>Uses the selected candidate and persists the locator for later runs.</td>
+</tr>
+<tr>
+<td><strong>?</strong></td>
+<td>Opens Locator Recovery rules and origin explanations.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> A matching name alone is not proof. Prefer Test ID, then stable authored locators. Use and save only after the test action proves the candidate is unique, visible, and correct.</p>
+</blockquote></article>
+    </main>
+  </div>
+  <footer class="guide-footer">Source-verified client operations guide · Screenshot capture pending a safe synthetic session</footer>
+  <script src="../assets/guide.js"></script>
+</body>
+</html>

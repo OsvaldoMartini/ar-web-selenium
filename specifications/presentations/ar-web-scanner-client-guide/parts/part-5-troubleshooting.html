@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Part 5 · Troubleshooting and quick reference · AR Web Scanner Guide</title>
+  <link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><strong>AR Web Scanner</strong><span>Part 5 · Troubleshooting and quick reference</span></div>
+    <div class="header-actions">
+      <input type="search" data-guide-search placeholder="Search this guide part" aria-label="Search guide">
+      <span class="search-count" data-search-count>All sections</span>
+      <a class="classic-button" href="../AR-Web-Scanner-Complete-Client-Guide.pdf">PDF</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar"><h2>On this page</h2><nav><a class="depth-1" href="#part-5-troubleshooting-and-quick-reference">Part 5 — Troubleshooting and quick reference</a>
+<a class="depth-2" href="#71-a-page-is-disconnected-or-has-no-data">7.1 A page is disconnected or has no data</a>
+<a class="depth-2" href="#72-test-run-does-not-start">7.2 Test Run does not start</a>
+<a class="depth-2" href="#73-an-element-is-not-found-or-is-ambiguous">7.3 An element is not found or is ambiguous</a>
+<a class="depth-2" href="#74-page-scanner-returns-pagereadinesstimeout">7.4 Page Scanner returns PAGE_READINESS_TIMEOUT</a>
+<a class="depth-2" href="#75-test-input-uses-an-unexpected-value">7.5 Test Input uses an unexpected value</a>
+<a class="depth-2" href="#76-excelwriter-file-is-missing">7.6 ExcelWriter file is missing</a>
+<a class="depth-2" href="#77-void-versus-empty-value">7.7 VOID versus empty value</a>
+<a class="depth-2" href="#78-quick-control-reference">7.8 Quick control reference</a>
+<a class="depth-2" href="#79-known-documentation-limitation">7.9 Known documentation limitation</a></nav></aside>
+    <main class="main">
+      <nav class="part-nav" aria-label="Guide parts"><a href="../index.html">Overview</a><a href="../parts/part-1-setup.html">Part 1 · Setup</a><a href="../parts/part-2-bot-job.html">Part 2 · Bot Job</a><a href="../parts/part-3-page-scanner.html">Part 3 · Scanner</a><a href="../parts/part-4-data.html">Part 4 · Data</a><a href="../parts/part-5-troubleshooting.html" aria-current="page">Part 5 · Help</a></nav>
+      <article class="document"><h1 id="part-5-troubleshooting-and-quick-reference">Part 5 — Troubleshooting and quick reference</h1>
+<h2 id="71-a-page-is-disconnected-or-has-no-data">7.1 A page is disconnected or has no data</h2>
+<ol>
+<li>Read the page header status.</li>
+<li>Use its <strong>Refresh</strong> action once.</li>
+<li>Confirm the correct Bot Job is still selected.</li>
+<li>Open <strong>Pages Open</strong> and focus the expected page instead of opening duplicates.</li>
+<li>If the Main Dashboard itself has no Bot Jobs, verify that Configuration loaded the intended database.</li>
+</ol>
+<h2 id="72-test-run-does-not-start">7.2 Test Run does not start</h2>
+<p>Run <strong>CHECK</strong> with the same Starting Block and ONE/ALL mode. Structural failures block startup when the selected graph cannot be executed safely—for example, a required relationship or mandatory configuration is missing. Fix the reported instruction/Block and rerun <strong>CHECK</strong>.</p>
+<h2 id="73-an-element-is-not-found-or-is-ambiguous">7.3 An element is not found or is ambiguous</h2>
+<ol>
+<li>Wait for the page to finish rendering.</li>
+<li>Confirm that the browser is on the expected page and Bot Job.</li>
+<li>Open <strong>Review Locator</strong>.</li>
+<li>Inspect the <strong>BOT JOB</strong> row first.</li>
+<li>Test suitable <strong>PREVIOUS</strong> candidates.</li>
+<li>Click <strong>Page Scanner</strong> to add <strong>CURRENT</strong> candidates.</li>
+<li>Prefer Test ID, then stable authored locators.</li>
+<li>Use <strong>Use Once</strong> for a one-off recovery or <strong>Use and Save Locator</strong> only after proof.</li>
+</ol>
+<h2 id="74-page-scanner-returns-pagereadinesstimeout">7.4 Page Scanner returns PAGE_READINESS_TIMEOUT</h2>
+<p>The scanner could not prove that the current browser page was ready within its bounded wait. Keep the browser open, allow dynamic content to render, use <strong>Refresh Web Page</strong> if appropriate, and try once more. Repeated timeouts should be investigated from runtime logs rather than bypassed with coordinates.</p>
+<h2 id="75-test-input-uses-an-unexpected-value">7.5 Test Input uses an unexpected value</h2>
+<p>Open <strong>Excel Data</strong> and verify:</p>
+<ul>
+<li>the selected mode is <strong>Real Data</strong> or <strong>Synthetic Data</strong> as intended;</li>
+<li>the correct row is selected;</li>
+<li>the Block/column name matches the instruction;</li>
+<li>the desired edit is present in memory.</li>
+</ul>
+<p>Manual <strong>TEST INPUT</strong> and <strong>Test run</strong> use Excel Data memory first. <strong>Launch</strong> reloads the workbook and may replace unsaved REAL memory.</p>
+<h2 id="76-excelwriter-file-is-missing">7.6 ExcelWriter file is missing</h2>
+<p>Open <strong>ExcelWriter Manager</strong> and check whether the target tab exists and whether it is <code>MEMORY</code>, <code>SAVED</code>, or <code>FAILED</code>. A missing tab normally means the <code>ExcelWrite</code> instruction was not reached, its file/column is incomplete, or its connected runtime variable remained <code>VOID</code>. Use <strong>Save Dirty Files</strong> only when a dirty file is visible.</p>
+<h2 id="77-void-versus-empty-value">7.7 VOID versus empty value</h2>
+<p><code>VOID</code> means no runtime value exists. An empty string is a real <code>VALUE</code> with zero visible characters. This distinction matters:</p>
+<ul>
+<li><code>ExcelWrite</code> skips <code>VOID</code>.</li>
+<li><code>ExcelWrite</code> writes an empty cell for <code>VALUE("")</code>.</li>
+<li><strong>CLEAR</strong> in Runtime Variables changes values to <code>VOID</code>.</li>
+<li>Clearing text in an editable value field can intentionally create an empty value when the page confirms that state.</li>
+</ul>
+<h2 id="78-quick-control-reference">7.8 Quick control reference</h2>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Primary meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reload page/workspace data.</td>
+</tr>
+<tr>
+<td><strong>Close</strong></td>
+<td>Close only that detached page unless the dialog explicitly says application.</td>
+</tr>
+<tr>
+<td><strong>Pages (x)</strong></td>
+<td>Open the registry of AR Web pages.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong></td>
+<td>Filter loaded rows locally.</td>
+</tr>
+<tr>
+<td><strong>CHECK</strong></td>
+<td>Validate the selected execution without starting it.</td>
+</tr>
+<tr>
+<td><strong>Launch</strong></td>
+<td>File-authoritative normal Java V1 execution.</td>
+</tr>
+<tr>
+<td><strong>Test run</strong></td>
+<td>Memory-authoritative test execution.</td>
+</tr>
+<tr>
+<td><strong>Stop</strong></td>
+<td>Request execution stop after confirmation.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT / TEST CLICK</strong></td>
+<td>Perform one manual browser action.</td>
+</tr>
+<tr>
+<td><strong>Review Locator</strong></td>
+<td>Open candidate comparison and locator recovery.</td>
+</tr>
+<tr>
+<td><strong>+</strong></td>
+<td>Stage a row/Block in Memory List.</td>
+</tr>
+<tr>
+<td><strong>Apply</strong></td>
+<td>Commit Memory List staging to its target.</td>
+</tr>
+<tr>
+<td><strong>Save to Excel</strong></td>
+<td>Persist REAL Excel Data memory to the workbook.</td>
+</tr>
+<tr>
+<td><strong>SAVE DB</strong></td>
+<td>Persist SYNTHETIC Excel Data memory.</td>
+</tr>
+<tr>
+<td><strong>Save Dirty Files</strong></td>
+<td>Persist dirty ExcelWriter output memory.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="79-known-documentation-limitation">7.9 Known documentation limitation</h2>
+<p>The delivered pages and controls in this edition were verified from the current source branches. The application was running, but the in-app browser-control connection was unavailable and the configured database contains real client data. No screenshots were fabricated or captured from that client dataset. The planned screenshot IDs remain reserved so a safe synthetic session can be captured later without rewriting the chapter structure.</p></article>
+    </main>
+  </div>
+  <footer class="guide-footer">Source-verified client operations guide · Screenshot capture pending a safe synthetic session</footer>
+  <script src="../assets/guide.js"></script>
+</body>
+</html>

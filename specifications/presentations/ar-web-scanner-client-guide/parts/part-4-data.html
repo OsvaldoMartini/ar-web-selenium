@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Part 4 · Data, variables, memory, and output files · AR Web Scanner Guide</title>
+  <link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><strong>AR Web Scanner</strong><span>Part 4 · Data, variables, memory, and output files</span></div>
+    <div class="header-actions">
+      <input type="search" data-guide-search placeholder="Search this guide part" aria-label="Search guide">
+      <span class="search-count" data-search-count>All sections</span>
+      <a class="classic-button" href="../AR-Web-Scanner-Complete-Client-Guide.pdf">PDF</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar"><h2>On this page</h2><nav><a class="depth-1" href="#part-4-data-variables-memory-and-output-files">Part 4 — Data, variables, memory, and output files</a>
+<a class="depth-2" href="#61-excel-data-execution-input-memory">6.1 Excel Data — execution input memory</a>
+<a class="depth-2" href="#62-excel-data-synthetic-data-mode">6.2 Excel Data — Synthetic Data mode</a>
+<a class="depth-2" href="#63-excelwriter-manager-execution-output-memory">6.3 ExcelWriter Manager — execution output memory</a>
+<a class="depth-2" href="#64-runtime-variables">6.4 Runtime Variables</a>
+<a class="depth-2" href="#65-memory-list">6.5 Memory List</a>
+<a class="depth-2" href="#66-pages-open">6.6 Pages Open</a></nav></aside>
+    <main class="main">
+      <nav class="part-nav" aria-label="Guide parts"><a href="../index.html">Overview</a><a href="../parts/part-1-setup.html">Part 1 · Setup</a><a href="../parts/part-2-bot-job.html">Part 2 · Bot Job</a><a href="../parts/part-3-page-scanner.html">Part 3 · Scanner</a><a href="../parts/part-4-data.html" aria-current="page">Part 4 · Data</a><a href="../parts/part-5-troubleshooting.html">Part 5 · Help</a></nav>
+      <article class="document"><h1 id="part-4-data-variables-memory-and-output-files">Part 4 — Data, variables, memory, and output files</h1>
+<h2 id="61-excel-data-execution-input-memory">6.1 Excel Data — execution input memory</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Excel Data</strong>.
+<strong>Purpose:</strong> Choose and edit the dataset used by Test Run and manual input actions.</p>
+<blockquote>
+<p><strong>Figure 19 — Excel Data in Real Data mode.</strong> Screenshot pending.</p>
+</blockquote>
+<p>The header identifies the Bot Job/workbook, connection status, mode, and actions. The metadata line shows file path, mode, selected row, and <strong>SAVED</strong> or <strong>UNSAVED MEMORY</strong>. A highlighted cell shows which value is being used during execution or a manual test.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Real Data behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Real Data</strong> toggle</td>
+<td>Switches to <strong>Synthetic Data</strong>; mode selection is per active Bot Job workspace.</td>
+</tr>
+<tr>
+<td><strong>Recreate Columns</strong></td>
+<td>Rebuilds workbook columns from Bot Job Blocks and input fields.</td>
+</tr>
+<tr>
+<td><strong>Add Row</strong></td>
+<td>Copies the last memory row into a new editable test case.</td>
+</tr>
+<tr>
+<td><strong>Clean Rows</strong></td>
+<td>Removes every memory row while preserving columns.</td>
+</tr>
+<tr>
+<td><strong>Save to Excel</strong></td>
+<td>Atomically replaces the Bot Job workbook with the current REAL memory rows.</td>
+</tr>
+<tr>
+<td><strong>RELOAD FILE</strong></td>
+<td>Discards unsaved REAL memory changes and reloads the workbook.</td>
+</tr>
+<tr>
+<td>Row <strong>X</strong></td>
+<td>Deletes one logical row across every Block.</td>
+</tr>
+<tr>
+<td>Cell input</td>
+<td>Changes only the in-memory value until saved.</td>
+</tr>
+<tr>
+<td><strong>?</strong></td>
+<td>Opens <strong>Excel Data rules</strong>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="real-data-authority">Real Data authority</h3>
+<ul>
+<li><strong>Test run</strong> and manual <strong>TEST INPUT</strong> use Excel Data memory first, including the selected row and permitted unsaved edits.</li>
+<li><strong>Launch</strong> reloads the Excel file at startup, updates/replaces Excel Data memory, and runs from that synchronized snapshot.</li>
+<li>A run freezes one mode and row at startup; it must not mix values from different revisions.</li>
+</ul>
+<blockquote>
+<p><strong>Caution:</strong> <strong>RELOAD FILE</strong> discards unsaved REAL memory. <strong>Save to Excel</strong> makes the memory changes durable in the workbook.</p>
+</blockquote>
+<h2 id="62-excel-data-synthetic-data-mode">6.2 Excel Data — Synthetic Data mode</h2>
+<p><strong>Purpose:</strong> Create isolated test rows without overwriting the real workbook.</p>
+<blockquote>
+<p><strong>Figure 20 — Excel Data in Synthetic Data mode.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Synthetic Data behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Synthetic Data</strong> toggle</td>
+<td>Switches back to <strong>Real Data</strong>.</td>
+</tr>
+<tr>
+<td><strong>Rows</strong></td>
+<td>Selects 1–1000 generated test rows.</td>
+</tr>
+<tr>
+<td><strong>Context</strong> / <strong>Search context</strong></td>
+<td>Selects a synthetic business-data profile.</td>
+</tr>
+<tr>
+<td><strong>Generate Data Test</strong></td>
+<td>Replaces synthetic memory with the requested rows after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Add Row</strong></td>
+<td>Copies the last synthetic memory row.</td>
+</tr>
+<tr>
+<td><strong>Clean Rows</strong></td>
+<td>Clears synthetic rows while preserving columns.</td>
+</tr>
+<tr>
+<td><strong>SAVE DB</strong></td>
+<td>Persists the isolated synthetic dataset to SQLite.</td>
+</tr>
+<tr>
+<td>Context <strong>?</strong></td>
+<td>Explains the available synthetic contexts.</td>
+</tr>
+</tbody>
+</table>
+<p>Synthetic rows remain isolated by Bot Job. They never overwrite the real workbook. Selecting Synthetic Data reloads its database dataset automatically.</p>
+<h2 id="63-excelwriter-manager-execution-output-memory">6.3 ExcelWriter Manager — execution output memory</h2>
+<p><strong>Entry path:</strong> Opened for an execution that contains <code>ExcelWrite</code>; it is also listed in <strong>Pages Open</strong>.
+<strong>Purpose:</strong> Show output files assembled by <code>ExcelWrite</code> instructions before or while they are written to disk.</p>
+<blockquote>
+<p><strong>Figure 21 — ExcelWriter Manager.</strong> Screenshot pending.</p>
+</blockquote>
+<p>ExcelWriter Manager is not Excel Data. Excel Data supplies input values; ExcelWriter Manager collects runtime variable values into output files.</p>
+<table>
+<thead>
+<tr>
+<th>Control/state</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Write policy → End of execution</strong></td>
+<td>Keeps dirty rows in React memory until the run finishes or another explicit flush boundary occurs.</td>
+</tr>
+<tr>
+<td><strong>Write policy → End of each Block</strong></td>
+<td>Writes dirty files after each touched Block completes.</td>
+</tr>
+<tr>
+<td><strong>Save Dirty Files</strong></td>
+<td>Immediately finalizes and writes every dirty file.</td>
+</tr>
+<tr>
+<td>File tabs</td>
+<td>One tab per output filename; shows row count and <code>MEMORY</code>, <code>UPLOADING</code>, <code>SAVED</code>, or <code>FAILED</code>.</td>
+</tr>
+<tr>
+<td>Cell input</td>
+<td>Edits the in-memory output cell and marks the file dirty.</td>
+</tr>
+<tr>
+<td>File status</td>
+<td>Shows final format, revision, and the latest save message.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="excelwrite-file-rules">ExcelWrite file rules</h3>
+<ol>
+<li>Each <code>ExcelWrite</code> instruction has an instruction-owned output file and column.</li>
+<li>Instructions targeting the same file share one delimiter.</li>
+<li>A runtime variable in <code>VOID</code> state does not create an ExcelWriter row or file.</li>
+<li>A runtime variable in <code>VALUE</code> state is written even when its value is an empty string or spaces; the resulting cell can be visually empty.</li>
+<li>CSV is always finalized first. A <code>.csv</code> target writes CSV only; a <code>.xlsx</code> target produces the CSV base artifact and the XLSX artifact.</li>
+<li><strong>Stop</strong>, authored <strong>PAUSE</strong>, and authored close-browser (<code>Q</code>/<code>QUIT</code>) are save boundaries for in-progress ExcelWriter data. The stop/cleanup attempt still proceeds if a save reports a failure.</li>
+<li>During an active run, <strong>Write policy</strong> can be locked so the frozen execution contract cannot change.</li>
+</ol>
+<blockquote>
+<p><strong>Caution:</strong> A <code>SAVED</code> tab confirms the output write acknowledged by the application. A <code>FAILED</code> tab must be resolved before assuming a file exists on disk.</p>
+</blockquote>
+<h2 id="64-runtime-variables">6.4 Runtime Variables</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Variables</strong>.
+<strong>Purpose:</strong> View and edit live Bot Job variable definitions and values.</p>
+<blockquote>
+<p><strong>Figure 22 — Runtime Variables.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads current definitions, values, and revisions.</td>
+</tr>
+<tr>
+<td><strong>ADD</strong></td>
+<td>Opens Add Variable; new independent variables start as <code>VOID</code>.</td>
+</tr>
+<tr>
+<td><strong>AUTO</strong></td>
+<td>Creates and connects missing command variables under the displayed resolution mode.</td>
+</tr>
+<tr>
+<td><strong>CLEAR</strong></td>
+<td>Resets all values to <code>VOID</code> without deleting definitions or instruction relationships.</td>
+</tr>
+<tr>
+<td><strong>ALL</strong></td>
+<td>Requests deletion of all Bot Job variables after confirmation.</td>
+</tr>
+<tr>
+<td><strong>Variables</strong> search</td>
+<td>Filters by variable name or ID.</td>
+</tr>
+<tr>
+<td>Value field</td>
+<td>Edits a runtime value; an empty <code>VALUE("")</code> is different from <code>VOID</code>.</td>
+</tr>
+<tr>
+<td>Row trash</td>
+<td>Deletes that variable after confirmation. Commands and Web Elements remain available.</td>
+</tr>
+<tr>
+<td><strong>?</strong></td>
+<td>Opens memory-variable rules.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="65-memory-list">6.5 Memory List</h2>
+<p><strong>Entry path:</strong> Click a row/Block <strong>+</strong> or <strong>Memory (x)</strong> in Bot Job or Page Scanner.
+<strong>Purpose:</strong> Stage instructions or scanned Web Elements before applying them to the active Bot Job.</p>
+<blockquote>
+<p><strong>Figure 23 — Memory List.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Choose <strong>Block:</strong> to select a target, or <strong>+ Create new block...</strong>. Drag <strong>≡</strong> to reorder staged items. Row <strong>X</strong> removes one item, <strong>Clear all</strong> empties the list, and <strong>Apply</strong> commits the staged items to the chosen target. If the staged item set requires a Block and none is selected, <strong>Apply</strong> remains disabled.</p>
+<blockquote>
+<p><strong>Caution:</strong> Memory List is staging. The target Bot Job changes only after <strong>Apply</strong> succeeds.</p>
+</blockquote>
+<h2 id="66-pages-open">6.6 Pages Open</h2>
+<p><strong>Entry path:</strong> Any <strong>Pages (x)</strong> badge or Main Dashboard user menu → <strong>Pages Open</strong>.
+<strong>Purpose:</strong> Focus and close AR Web pages without guessing which window is behind another.</p>
+<blockquote>
+<p><strong>Figure 24 — Pages Open.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Click a page row to bring it to the foreground. Click its <strong>X</strong> to close that page. <strong>Refresh open pages</strong> reloads the registry. Closing the Main Dashboard displays <strong>Close Main Dashboard?</strong> because this closes every AR Web page and stops the backend.</p></article>
+    </main>
+  </div>
+  <footer class="guide-footer">Source-verified client operations guide · Screenshot capture pending a safe synthetic session</footer>
+  <script src="../assets/guide.js"></script>
+</body>
+</html>

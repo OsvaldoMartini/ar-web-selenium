@@ -1,0 +1,11 @@
+{
+  "source": "D:\\Projects\\AllinWeb\\ar-web-selenium\\specifications\\presentations\\ar-web-scanner-client-guide\\AR-Web-Scanner-Complete-Client-Guide.md",
+  "html": "D:\\Projects\\AllinWeb\\ar-web-selenium\\specifications\\presentations\\ar-web-scanner-client-guide\\index.html",
+  "docx": "D:\\Projects\\AllinWeb\\ar-web-selenium\\specifications\\presentations\\ar-web-scanner-client-guide\\AR-Web-Scanner-Complete-Client-Guide.docx",
+  "pdf": "D:\\Projects\\AllinWeb\\ar-web-selenium\\specifications\\presentations\\ar-web-scanner-client-guide\\AR-Web-Scanner-Complete-Client-Guide.pdf",
+  "htmlValidation": {
+    "htmlFiles": 6,
+    "failures": [],
+    "passed": true
+  }
+}

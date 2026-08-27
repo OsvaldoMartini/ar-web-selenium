@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Part 3 · Page Scanner, locators, and OCR · AR Web Scanner Guide</title>
+  <link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><strong>AR Web Scanner</strong><span>Part 3 · Page Scanner, locators, and OCR</span></div>
+    <div class="header-actions">
+      <input type="search" data-guide-search placeholder="Search this guide part" aria-label="Search guide">
+      <span class="search-count" data-search-count>All sections</span>
+      <a class="classic-button" href="../AR-Web-Scanner-Complete-Client-Guide.pdf">PDF</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar"><h2>On this page</h2><nav><a class="depth-1" href="#part-3-page-scanner-locators-and-ocr">Part 3 — Page Scanner, locators, and OCR</a>
+<a class="depth-2" href="#51-page-scanner-workspace">5.1 Page Scanner workspace</a>
+<a class="depth-2" href="#52-scanner-results-grid">5.2 Scanner results grid</a>
+<a class="depth-2" href="#53-page-scanner-profiles">5.3 Page Scanner profiles</a>
+<a class="depth-2" href="#54-locator-generator">5.4 Locator Generator</a>
+<a class="depth-2" href="#55-ocr-configuration">5.5 OCR Configuration</a></nav></aside>
+    <main class="main">
+      <nav class="part-nav" aria-label="Guide parts"><a href="../index.html">Overview</a><a href="../parts/part-1-setup.html">Part 1 · Setup</a><a href="../parts/part-2-bot-job.html">Part 2 · Bot Job</a><a href="../parts/part-3-page-scanner.html" aria-current="page">Part 3 · Scanner</a><a href="../parts/part-4-data.html">Part 4 · Data</a><a href="../parts/part-5-troubleshooting.html">Part 5 · Help</a></nav>
+      <article class="document"><h1 id="part-3-page-scanner-locators-and-ocr">Part 3 — Page Scanner, locators, and OCR</h1>
+<h2 id="51-page-scanner-workspace">5.1 Page Scanner workspace</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Pre Scan</strong>.
+<strong>Purpose:</strong> Scan the browser page that currently belongs to the selected execution/browser context.</p>
+<blockquote>
+<p><strong>Figure 14 — Page Scanner toolbar.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Page Scanner</strong></td>
+<td>Runs the Playwright scanner for the current page and selected focus/search rules.</td>
+</tr>
+<tr>
+<td><strong>OCR Config</strong></td>
+<td>Opens OCR Configuration.</td>
+</tr>
+<tr>
+<td><strong>Refresh Web Page</strong></td>
+<td>Reloads the current scanner browser page.</td>
+</tr>
+<tr>
+<td><strong>Clear Grid</strong></td>
+<td>Clears displayed scanner results, not the webpage.</td>
+</tr>
+<tr>
+<td>Starting Block / <strong>ONE / ALL ↓</strong> / <strong>Test run</strong> / <strong>Stop</strong></td>
+<td>Uses the shared Bot Job execution selection from the Page Scanner workspace.</td>
+</tr>
+<tr>
+<td><strong>Focus:</strong></td>
+<td>Chooses a reusable scanner profile.</td>
+</tr>
+<tr>
+<td>Profile settings</td>
+<td>Opens <strong>Page Scanner profiles</strong>.</td>
+</tr>
+<tr>
+<td><strong>Search by:</strong></td>
+<td>Accepts selectors or <code>attr:&lt;name&gt;</code> terms such as <code>attr:test-id</code>.</td>
+</tr>
+<tr>
+<td><strong>Search Hidden Fields</strong></td>
+<td>Includes matching hidden controls in the scan request.</td>
+</tr>
+<tr>
+<td><strong>Search</strong></td>
+<td>Runs the scan with the current Focus and Search by values.</td>
+</tr>
+<tr>
+<td><strong>Find:</strong></td>
+<td>Filters results already present in the grid.</td>
+</tr>
+<tr>
+<td><strong>Memory (x)</strong></td>
+<td>Opens Memory List.</td>
+</tr>
+<tr>
+<td><strong>Locator Gen</strong></td>
+<td>Opens Locator Generator.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caution:</strong> Page Scanner must target the currently selected V1/browser owner. If the page is still loading, wait for readiness or refresh before concluding that an element is absent.</p>
+</blockquote>
+<h2 id="52-scanner-results-grid">5.2 Scanner results grid</h2>
+<p><strong>Purpose:</strong> Review, test, rename, retain, and stage scanned Web Elements.</p>
+<blockquote>
+<p><strong>Figure 15 — Page Scanner result Blocks and rows.</strong> Screenshot pending.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Grid control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KEEP ALL</strong></td>
+<td>Checks every displayed element as retained.</td>
+</tr>
+<tr>
+<td><strong>CLEAR KEEPS</strong></td>
+<td>Clears Keep selections.</td>
+</tr>
+<tr>
+<td><strong>DELETE UNCHECKED (x)</strong></td>
+<td>Deletes displayed elements not marked Keep after confirmation.</td>
+</tr>
+<tr>
+<td><strong>CLEAR GRID ALL</strong></td>
+<td>Clears the complete displayed result grid.</td>
+</tr>
+<tr>
+<td><strong>Rows per page</strong></td>
+<td>Selects 5, 10, 20, or 50 rows per scanner Block.</td>
+</tr>
+<tr>
+<td>Block collapse</td>
+<td>Shows or hides the Block’s rows.</td>
+</tr>
+<tr>
+<td>Block <strong>+</strong></td>
+<td>Adds all Web Elements in that Block to Memory List.</td>
+</tr>
+<tr>
+<td><strong>ID</strong></td>
+<td>Shows the raw DOM ID view.</td>
+</tr>
+<tr>
+<td><strong>ID-TEST</strong></td>
+<td>Shows test-attribute evidence such as <code>test-id</code> or <code>data-testid</code>.</td>
+</tr>
+<tr>
+<td><strong>OCR</strong></td>
+<td>Opens the Block’s OCR name-review view.</td>
+</tr>
+<tr>
+<td>Block <strong>TEST INPUT</strong></td>
+<td>Types the scanner’s test value into input elements in that Block.</td>
+</tr>
+<tr>
+<td><strong>Prev / Next</strong></td>
+<td>Moves between result pages inside the Block.</td>
+</tr>
+<tr>
+<td>Keep checkbox</td>
+<td>Protects the row from <strong>DELETE UNCHECKED</strong>.</td>
+</tr>
+<tr>
+<td>Row <strong>+</strong></td>
+<td>Adds that Web Element to Memory List.</td>
+</tr>
+<tr>
+<td><strong>RENAME</strong> / <strong>ROLLBACK</strong></td>
+<td>Sets a client name or restores the original scanned name.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Defines the staged Web Element execution type.</td>
+</tr>
+<tr>
+<td><strong>TEST INPUT</strong> / <strong>TEST CLICK</strong></td>
+<td>Performs a direct single-shot test using Test ID, XPath, CSS, then reference attributes.</td>
+</tr>
+<tr>
+<td>Row <strong>X</strong></td>
+<td>Removes that result from the current grid.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="53-page-scanner-profiles">5.3 Page Scanner profiles</h2>
+<p><strong>Entry path:</strong> Page Scanner → settings beside <strong>Focus:</strong>.
+<strong>Purpose:</strong> Save reusable focus and selector rules.</p>
+<blockquote>
+<p><strong>Figure 16 — Page Scanner profiles.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Choose a <strong>Profile</strong>, edit <strong>Name</strong> and <strong>Order</strong>, and add search terms as either <strong>Selector</strong> or <strong>Attribute</strong>. The <code>attr:</code> prefix is stored automatically for attribute terms. <strong>New</strong> starts a profile, <strong>Save</strong> persists it, <strong>Delete</strong> removes a non-protected profile, and <strong>Refresh search terms from database</strong> reloads its rows. The factory default is protected and scans with blank search terms.</p>
+<h2 id="54-locator-generator">5.4 Locator Generator</h2>
+<p><strong>Entry path:</strong> Page Scanner → <strong>Locator Gen</strong>.
+<strong>Purpose:</strong> Convert pasted control HTML into stable ElementDTO locator candidates.</p>
+<blockquote>
+<p><strong>Figure 17 — Locator Generator.</strong> Screenshot pending.</p>
+</blockquote>
+<ol>
+<li>Choose <strong>Target scanned element</strong> when updating an existing row.</li>
+<li>Paste authorized <strong>Control HTML</strong> for the colliding controls.</li>
+<li>Click <strong>Generate</strong>.</li>
+<li>Review generated XPath, CSS, semantic name, and any “positional (fragile)” warning.</li>
+<li>Use <strong>Apply XPath</strong> to update the selected scanned row, <strong>Add ElementDTO</strong> for one candidate, or <strong>Apply All ElementDTOs</strong> for all results.</li>
+<li>Use <strong>Clear</strong> to reset the pasted HTML and feedback.</li>
+</ol>
+<h2 id="55-ocr-configuration">5.5 OCR Configuration</h2>
+<p><strong>Entry path:</strong> Page Scanner → <strong>OCR Config</strong>.
+<strong>Purpose:</strong> Select and tune OCR profiles used for scanner name suggestions.</p>
+<blockquote>
+<p><strong>Figure 18 — OCR Configuration.</strong> Screenshot pending.</p>
+</blockquote>
+<p>Select <strong>Profile</strong>, edit <strong>Name</strong> and <strong>Description</strong>, and adjust grouped recognition parameters. <strong>Test current page</strong> tests the active parameter set, <strong>Save as new</strong> creates a profile, and <strong>Save</strong> updates it. <strong>Delete</strong> is disabled for the default profile. <strong>Clean orphans</strong> removes invalid unowned OCR configuration records according to backend rules.</p>
+<h3 id="ocr-block-review">OCR Block review</h3>
+<p>On Page Scanner, click <strong>OCR</strong> on a result Block. Compare each proposed OCR name with the scanned name, accept only correct suggestions, and apply the reviewed names through the displayed review actions. Client-controlled names should be preserved across later scans; use <strong>ROLLBACK</strong> only when intentionally restoring the canonical/scanned name.</p></article>
+    </main>
+  </div>
+  <footer class="guide-footer">Source-verified client operations guide · Screenshot capture pending a safe synthetic session</footer>
+  <script src="../assets/guide.js"></script>
+</body>
+</html>
