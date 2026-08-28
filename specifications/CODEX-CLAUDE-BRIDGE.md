@@ -23,20 +23,27 @@ Prompts: `presentations/PROMPT-1-GUIDE-MANUAL.md` (Codex) ·
 | 2 | Verify handoff contract on Codex's output (pre-flight) | CLAUDE | task 1 |
 | 3 | Build narrated video presentations per PROMPT-2 | CLAUDE | task 2 |
 | 4 | Delivery package (zip + Istruzioni.pdf) in docs/presentations | CLAUDE | task 3 |
-| 5 | Update the guide for the reworked Components page (new sections + refreshed screenshots for the states it changes) | CODEX | Components-page fixes finished |
 | 6 | Propagate Components-page changes into the presentation (steps.json + narration for affected steps) | CLAUDE | task 5 |
 
-**Current coordination (28.08.2026, from Osvaldo):** Codex is finishing the
-Components-page code fixes — that work has priority and nobody else touches
-code. The guide will need a Components-page update afterwards (task 5) BEFORE
-final screenshot capture, so captures are not wasted on a stale UI. Claude
-progresses meanwhile on presentation-side preparation only.
+**Current coordination (28.08.2026, from Osvaldo):** Components code and the
+Components-only guide update are finished. Guide checkpoint `5c7e1f42` is in
+review; Claude may now propagate task 5 into presentation task 6. Final runtime
+screenshots still require the approved synthetic Bot Job so no client data is
+captured.
 
 ## ONGOING (claimed — name, date, expected outcome)
 
 - **Task 1 — CODEX — 27.08.2026:** Guide content and all delivery formats are complete and verified. Safe synthetic-data screenshot capture remains pending because the in-app browser was unavailable and the configured database contains real client data.
 
 ## REVIEW (finished work awaiting the other agent's / Osvaldo's check)
+
+- **Task 5 — Components client-guide update — CODEX — 28.08.2026:**
+  guide checkpoint `5c7e1f42` adds Components Library creation, Organization
+  scope, detached-copy rules, Block/row Memory staging, Apply/Create & Apply,
+  rename/rollback, and fail-closed revision guidance. Figure `13A` and
+  `13a-components-library.png` are reserved for safe synthetic capture. HTML
+  validation passed 6/6; DOCX 17/17 and PDF 20/20 pages were visually
+  inspected. No application code or runtime state changed.
 
 - **BUG ROOT CAUSE (blocker, reported live by Osvaldo) — CLAUDE — 28.08.2026:**
   every Components apply fails with "Components changed after they were
@@ -119,11 +126,11 @@ servers — both taken).
 
 > Keep current: what you produced, where, deviations from the contract.
 
-- Status: **GUIDE READY FOR REVIEW — SAFE SCREENSHOTS PENDING**
+- Status: **COMPONENTS GUIDE READY FOR REVIEW — SAFE SCREENSHOTS PENDING**
 - Guides produced: `specifications/presentations/ar-web-scanner-client-guide/AR-Web-Scanner-Complete-Client-Guide.md`, navigable `index.html` plus five part pages, DOCX, PDF, coverage matrix, and handoff.
-- Screenshot count + resolution: 0 captured; 24 synthetic-data capture slots and filenames are defined in `screenshots/README.md`.
+- Screenshot count + resolution: 0 captured; 25 synthetic-data capture slots and filenames are defined in `screenshots/README.md`, including Components Library as `13a-components-library.png`.
 - Deviations from contract: output is under `specifications/presentations/ar-web-scanner-client-guide/` rather than `docs/guide/`; screenshots are intentionally absent because the in-app browser was unavailable and the configured database contains real Banca Stato data. No customer data was copied into the guide.
-- Notes for Claude: guide checkpoint `412c3f96`. Source inventory is based on delivered frontend `ar-web-allinweb-fe` branch `allinweb-delivered` at `8e87d2c` and backend/deployment project `ar-web-allinweb` at `a52227a`. HTML validation passed for 6/6 files; DOCX 16/16 pages and PDF 19/19 pages were rendered and visually inspected. The guide explicitly covers Locator Recovery / Review Locator, Excel Data REAL versus SYNTHETIC execution memory, ExcelWriter output memory and save boundaries, Runtime Variables, Page Scanner, and Bot Job operations. Do not begin final screenshot-dependent video assembly until an approved synthetic Bot Job is available.
+- Notes for Claude: guide checkpoint `5c7e1f42`. Source inventory is based on delivered frontend `ar-web-allinweb-fe` branch `allinweb-delivered` at `6270db9` and backend/deployment project `ar-web-allinweb` at `630410a`. HTML validation passed for 6/6 files; DOCX 17/17 pages and PDF 20/20 pages were rendered and visually inspected. The guide now explicitly covers Components Library plus Locator Recovery / Review Locator, Excel Data REAL versus SYNTHETIC execution memory, ExcelWriter output memory and save boundaries, Runtime Variables, Page Scanner, and Bot Job operations. Task 6 may consume `guide-steps.json`; do not begin final screenshot-dependent video assembly until an approved synthetic Bot Job is active.
 - Components Apply blocker fixed by backend commit `630410a` on `allinweb-delivered`: one organization-scoped `ComponentLibraryGraphRevisionService` now supplies the revision used by both Components snapshots and Memory Apply; snapshot rows also project `variableId`. Safe revision/count diagnostics and fail-closed projection-drift logging were added. Focused verification passed 6/6 and the complete delivered-backend suite passed 46/46. No package, runtime restart, database mutation, or live Apply was performed.
 
 ## SEZIONE CLAUDE (Phase 2 owner — presentations)
@@ -174,6 +181,7 @@ servers — both taken).
 
 | Date | Agent | What changed |
 |---|---|---|
+| 28.08.2026 | CODEX | Guide checkpoint `5c7e1f42`: added the Components Library chapter and Figure 13A contract, updated Components/Memory coverage and source commits, regenerated Markdown/HTML/DOCX/PDF/steps, validated HTML 6/6, and visually inspected DOCX 17/17 and PDF 20/20 pages. No application code or runtime state changed. |
 | 28.08.2026 | CODEX | Packaged and started backend `630410a`: `mvn clean package` passed 46/46 tests; delivery JAR SHA-256 is `69F27DE1D31753B38A2BF84D960FBBDEA3212C62CE24818D9C835775B4180171`. Fresh Banca Stato PID `14136` is responsive on `49676/49677`, uses the configured SQLite database, serves `main.1c5beda3.js` with HTTP 200, and returned the Main Dashboard list response. Live Component Memory Apply remains the user acceptance gate. |
 | 28.08.2026 | CODEX | Fixed the Components variable-linked graph-revision mismatch at backend `630410a`; canonical revision authority is shared by page load and Memory Apply, diagnostics were added, focused tests passed 6/6, and the complete delivered-backend suite passed 46/46. Packaging/restart/live Apply remain separate. |
 | 28.08.2026 | CLAUDE | Tasks 5+6 queued (Components-page guide + presentation propagation); coordination note added: Codex finishes Components fixes first, guide update precedes screenshot capture |
