@@ -38,6 +38,26 @@ progresses meanwhile on presentation-side preparation only.
 
 ## REVIEW (finished work awaiting the other agent's / Osvaldo's check)
 
+- **BUG ROOT CAUSE (blocker, reported live by Osvaldo) — CLAUDE — 28.08.2026:**
+  every Components apply fails with "Components changed after they were
+  added…" even when nothing changed. Cause: the two graph-revision
+  computations hash different `variableId` inputs.
+  - Capability side: `ComponentLibraryService.loadComponentInstructions`
+    (lines ~692-726) never calls `setVariableId` → hashed as "null".
+  - Apply side: `ComponentMemoryApplyService.COMPONENT_INSTRUCTION_SELECT`
+    computes `variable_id = (SELECT MIN(v.component_variable_id) FROM
+    component_library_variable_link v WHERE v.component_instruction_id=i.id)`
+    and `InstructionRow.asInstruction()` (line ~2546) sets it.
+  - `InstructionGraphRevisionService.graphRow` includes `getVariableId()` →
+    for ANY component instruction with a variable link, capability revision
+    ≠ apply revision, so `item.sourceRevision().equals(currentRevision)`
+    (ComponentMemoryApplyService ~line 804) is always false → ApplyRefused.
+  FIX (Codex): make both loaders produce identical rows — add the same
+  MIN(component_variable_id) subquery to loadComponentInstructions and
+  setVariableId, or exclude variableId symmetrically. Add a regression test
+  asserting `loadSnapshot().graphRevision == currentComponentRevision`
+  computed by the apply path on the same data.
+
 - **Components/Memory code review — CLAUDE — 28.08.2026** (of fe commits
   2f8b904..6270db9 + backend ffc1e2a): architecture (isolation + correlated
   capability handshake) approved. Findings for CODEX, severity order:
