@@ -19,6 +19,7 @@ independently exercised in the running application during this guide session.
 | G11 | 4.5 | Reconnect relationships | row relationship chip | parent/variable connect, disconnect, Add Variable, operator/second variable | `InstructionRelationshipDetails.tsx`, reconnect dialogs | relationship transactions | SOURCE | 11 pending |
 | G12 | 4.6 | Command Editor | row → EDIT CMD / ADD | target Block, placement, command, editors, create/copy/update/cancel, ExcelWrite file | `CommandEditorPage.tsx`, `CommandEditorPageBody.tsx`, editor modules | command editor workspace/transactions | SOURCE | 12 pending |
 | G13 | 4.7 | Locator Recovery | row → Review Locator or automatic recovery | origin, tests, scan, use once/save, bypass/stop/help | `SmokeTestLocatorRecoveryModal.tsx`, GridItem recovery hook | V1 recovery coordinator/scanner | SOURCE | 13 pending |
+| G13A | 4.8 | Components Library | Bot Job → Components | save Component, refresh, organization scope, block/row memory, type, rename/rollback, apply to target Block | `ComponentsPage.tsx`, `GridItemComp.tsx`, Components workspace hooks, `MemoryList.tsx` | Component library persistence, canonical graph revision, Memory Apply transaction | SOURCE | 13A pending |
 | G14 | 5.1 | Page Scanner toolbar | Bot Job → Pre Scan | Page Scanner, OCR Config, Refresh Web Page, Clear Grid, execution controls, Focus/Search | `GridItemScann.tsx`, scanner header/control modules | Page Scanner workspace/scanner services | SOURCE | 14 pending |
 | G15 | 5.2 | Scanner results | Page Scanner after scan | keep/delete/clear, pagination, ID/ID-TEST/OCR, type, tests, rename/rollback, memory | `GridItemScann.tsx` | scanner row/test/memory handlers | SOURCE | 15 pending |
 | G16 | 5.3 | Page Scanner profiles | scanner Focus settings | profile, terms, add/remove/refresh, new/save/delete | `PageScannerFocusProfileEditor.tsx` | profile persistence | SOURCE | 16 pending |
@@ -28,7 +29,7 @@ independently exercised in the running application during this guide session.
 | G20 | 6.2 | Excel Data SYNTHETIC | Excel Data mode toggle | rows, context, generate, Save DB, isolated memory | `ExcelSyntheticControls.tsx`, `ExcelDataModeToggle.tsx` | synthetic dataset persistence | SOURCE | 20 pending |
 | G21 | 6.3 | ExcelWriter Manager | execution with ExcelWrite | policy, file tabs, cells, Save Dirty Files, states | `ExcelWriterManagerPage.tsx`, `ExcelWriteManagerWorkspace.tsx`, domain modules | finalized artifact write service | SOURCE | 21 pending |
 | G22 | 6.4 | Runtime Variables | Bot Job → Variables | refresh, add, auto, clear, delete all/one, edit/search/help | `RuntimeVariablesPage.tsx`, `RuntimeMemoryPanel.tsx` | runtime variable service | SOURCE | 22 pending |
-| G23 | 6.5 | Memory List | row/Block + or Memory (x) | target Block, create, reorder, remove, clear, apply | `MemoryList.tsx` | Memory List workspace/apply transaction | SOURCE | 23 pending |
+| G23 | 6.5 | Memory List | Bot Job/Components/Page Scanner row or Block +, or Memory (x) | target Block, create, reorder, remove, clear, apply independent Component copies | `MemoryList.tsx`, Components memory bridge | Memory List workspace/apply transaction | SOURCE | 23 pending |
 | G24 | 6.6 | Pages Open | Pages (x) / user menu | refresh, focus, close page, close application warning | `PagesOpen.tsx` | page registry/focus/close handlers | SOURCE | 24 pending |
 
 ## Deliberate exclusions
@@ -43,7 +44,7 @@ independently exercised in the running application during this guide session.
 
 ## Coverage totals
 
-- 24 client-visible screens/states documented.
-- 24 planned screenshot IDs reserved.
-- 0 runtime screenshots captured; 24 remain pending a safe synthetic session.
+- 25 client-visible screens/states documented.
+- 25 planned screenshot IDs reserved.
+- 0 runtime screenshots captured; 25 remain pending a safe synthetic session.
 - 4 intentionally excluded non-delivered/optional surfaces recorded above.

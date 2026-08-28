@@ -23,7 +23,8 @@
 <a class="depth-2" href="#44-instruction-rows-and-web-element-actions">4.4 Instruction rows and web-element actions</a>
 <a class="depth-2" href="#45-relationships-and-reconnect-dialogs">4.5 Relationships and reconnect dialogs</a>
 <a class="depth-2" href="#46-command-editor">4.6 Command Editor</a>
-<a class="depth-2" href="#47-locator-recovery-review-locator">4.7 Locator Recovery / Review Locator</a></nav></aside>
+<a class="depth-2" href="#47-locator-recovery-review-locator">4.7 Locator Recovery / Review Locator</a>
+<a class="depth-2" href="#48-components-library">4.8 Components Library</a></nav></aside>
     <main class="main">
       <nav class="part-nav" aria-label="Guide parts"><a href="../index.html">Overview</a><a href="../parts/part-1-setup.html">Part 1 · Setup</a><a href="../parts/part-2-bot-job.html" aria-current="page">Part 2 · Bot Job</a><a href="../parts/part-3-page-scanner.html">Part 3 · Scanner</a><a href="../parts/part-4-data.html">Part 4 · Data</a><a href="../parts/part-5-troubleshooting.html">Part 5 · Help</a></nav>
       <article class="document"><h1 id="part-2-bot-job-authoring-and-execution">Part 2 — Bot Job authoring and execution</h1>
@@ -51,8 +52,8 @@
 <td>Returns from another surface to the instruction grid.</td>
 </tr>
 <tr>
-<td><strong>Components</strong> / <strong>Hide Components</strong></td>
-<td>Opens or hides the reusable Components surface.</td>
+<td><strong>Components</strong></td>
+<td>Opens the detached Components Library for the selected Bot Job's Organization.</td>
 </tr>
 <tr>
 <td><strong>Pre Scan</strong></td>
@@ -394,6 +395,84 @@
 </table>
 <blockquote>
 <p><strong>Caution:</strong> A matching name alone is not proof. Prefer Test ID, then stable authored locators. Use and save only after the test action proves the candidate is unique, visible, and correct.</p>
+</blockquote>
+<h2 id="48-components-library">4.8 Components Library</h2>
+<p><strong>Entry path:</strong> Bot Job Details → <strong>Components</strong>.
+<strong>Purpose:</strong> Reuse an Organization's detached instruction and command templates without retaining a live relationship to the source Bot Job.</p>
+<blockquote>
+<p><strong>Figure 13A — Components Library.</strong> Screenshot pending; use only the approved synthetic Organization and show one reusable Component with its Memory controls.</p>
+</blockquote>
+<h3 id="create-a-component-from-a-bot-job">Create a Component from a Bot Job</h3>
+<ol>
+<li>In Bot Job Details, locate the source Block and click its save/component control.</li>
+<li>In <strong>Save component</strong>, review the displayed Block number and instruction count.</li>
+<li>Enter <strong>Component name</strong> and <strong>Description</strong>.</li>
+<li>Click <strong>Save component</strong>.</li>
+<li>Open <strong>Components</strong> and use <strong>Refresh</strong> if the saved Component is not yet visible.</li>
+</ol>
+<p>Saving copies the Block into the Organization's Component Library. The Component is free-standing: its instructions, command configuration, locator references, and private variable copies do not keep a live relationship to the source Bot Job.</p>
+<h3 id="components-scope-and-controls">Components scope and controls</h3>
+<table>
+<thead>
+<tr>
+<th>Rule/control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organization scope</td>
+<td>Shows only Components owned by the selected Bot Job's Organization. A Component cannot be applied across Organizations.</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Reloads Components from the authoritative database.</td>
+</tr>
+<tr>
+<td><strong>Pages (x)</strong></td>
+<td>Opens Pages Open without changing the Component selection.</td>
+</tr>
+<tr>
+<td><strong>Close</strong></td>
+<td>Closes only the detached Components window.</td>
+</tr>
+<tr>
+<td><strong>MEMORY (x)</strong></td>
+<td>Opens Memory List with the currently staged Component instructions.</td>
+</tr>
+<tr>
+<td>Block <strong>+</strong></td>
+<td>Adds every instruction in that exact Component Block to Memory List without deleting existing staged items. Repeating the action refreshes matching rows instead of creating duplicates.</td>
+</tr>
+<tr>
+<td>Row <strong>+</strong></td>
+<td>Adds that instruction and its required dependency group when the displayed capability permits it.</td>
+</tr>
+<tr>
+<td><strong>CLICK / INPUT / OUTPUT</strong></td>
+<td>Changes the reusable Web Element action type.</td>
+</tr>
+<tr>
+<td><strong>RENAME</strong> / <strong>SAVE</strong></td>
+<td>Sets and saves a client-controlled name without changing the canonical name.</td>
+</tr>
+<tr>
+<td><strong>ROLLBACK</strong></td>
+<td>Restores the original canonical name by removing the client-controlled name.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="copy-components-into-a-bot-job">Copy Components into a Bot Job</h3>
+<ol>
+<li>Use a Block or row <strong>+</strong> in Components.</li>
+<li>In Memory List, confirm the source is <strong>Reusable Component instructions</strong>.</li>
+<li>Select an existing target under <strong>Block:</strong>, or choose <strong>+ Create new block...</strong>.</li>
+<li>Reorder or remove staged rows if necessary.</li>
+<li>Click <strong>Apply</strong>, or <strong>Create &amp; Apply</strong> for a new Block.</li>
+<li>Return to Bot Job Details and confirm the copied instructions are independent rows in the target Bot Job.</li>
+</ol>
+<blockquote>
+<p><strong>Caution:</strong> Memory List is the only bridge from Components into a Bot Job. <strong>Apply</strong> fails closed if the Organization, Component revision, target Bot Job, or required relationships changed after staging. Refresh Components and stage the rows again; do not bypass the warning.</p>
 </blockquote></article>
     </main>
   </div>

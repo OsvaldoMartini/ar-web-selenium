@@ -218,7 +218,7 @@ def build_steps(text: str) -> None:
         title = strip_inline(line[3:])
         next_heading = next((j for j in range(index + 1, len(lines)) if lines[j].startswith("#")), len(lines))
         section = "\n".join(lines[index + 1:next_heading])
-        figure = re.search(r"Figure\s+(\d+)\s+—\s+([^*\n]+)", section)
+        figure = re.search(r"Figure\s+(\d+[A-Z]?)\s+—\s+([^*\n]+)", section)
         screenshot = None
         if figure:
             screen_id = figure.group(1)

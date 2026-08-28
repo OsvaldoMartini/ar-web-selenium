@@ -1,12 +1,12 @@
 # AR Web Scanner Complete Client Guide
 
-**Guide edition:** 1.0
-**Date:** 27 August 2026
+**Guide edition:** 1.1
+**Date:** 28 August 2026
 **Audience:** Authorized AR Web Scanner operators, Bot Job designers, and test analysts
 **Product scope:** Delivered Banca Stato desktop edition, Java V1 execution path
 **Classification:** Client operations guide; use only with authorized test data
 
-> This guide is based on the delivered React frontend at commit `8e87d2c` and backend/deployment assets at commit `a52227a`. Controls and behavior were verified from current source. Live screenshot capture is pending because the in-app browser control was unavailable; every planned figure is therefore shown as a clearly marked capture slot rather than a fabricated image.
+> This guide is based on the delivered React frontend at commit `6270db9` and backend/deployment assets at commit `630410a`. Controls and behavior were verified from current source. Live screenshot capture is pending because the configured database contains real client data; every planned figure is therefore shown as a clearly marked capture slot rather than a fabricated image.
 
 ## Table of contents
 
@@ -206,7 +206,7 @@ The first header switches the visible workspace; the second controls execution.
 | --- | --- |
 | **Refresh** | Reloads the current Bot Job graph and owner state. |
 | **Bot Job** | Returns from another surface to the instruction grid. |
-| **Components** / **Hide Components** | Opens or hides the reusable Components surface. |
+| **Components** | Opens the detached Components Library for the selected Bot Job's Organization. |
 | **Pre Scan** | Opens Page Scanner for the active Bot Job. |
 | **Excel** | Opens the Bot Job workbook through the configured local action. |
 | **Generate** | Rebuilds the Bot Job spreadsheet after confirmation. |
@@ -359,6 +359,49 @@ The table includes Test ID, canonical/client/OCR names, action type, **TEST INPU
 | **?** | Opens Locator Recovery rules and origin explanations. |
 
 > **Caution:** A matching name alone is not proof. Prefer Test ID, then stable authored locators. Use and save only after the test action proves the candidate is unique, visible, and correct.
+
+## 4.8 Components Library
+
+**Entry path:** Bot Job Details → **Components**.
+**Purpose:** Reuse an Organization's detached instruction and command templates without retaining a live relationship to the source Bot Job.
+
+> **Figure 13A — Components Library.** Screenshot pending; use only the approved synthetic Organization and show one reusable Component with its Memory controls.
+
+### Create a Component from a Bot Job
+
+1. In Bot Job Details, locate the source Block and click its save/component control.
+2. In **Save component**, review the displayed Block number and instruction count.
+3. Enter **Component name** and **Description**.
+4. Click **Save component**.
+5. Open **Components** and use **Refresh** if the saved Component is not yet visible.
+
+Saving copies the Block into the Organization's Component Library. The Component is free-standing: its instructions, command configuration, locator references, and private variable copies do not keep a live relationship to the source Bot Job.
+
+### Components scope and controls
+
+| Rule/control | What it does |
+| --- | --- |
+| Organization scope | Shows only Components owned by the selected Bot Job's Organization. A Component cannot be applied across Organizations. |
+| **Refresh** | Reloads Components from the authoritative database. |
+| **Pages (x)** | Opens Pages Open without changing the Component selection. |
+| **Close** | Closes only the detached Components window. |
+| **MEMORY (x)** | Opens Memory List with the currently staged Component instructions. |
+| Block **+** | Adds every instruction in that exact Component Block to Memory List without deleting existing staged items. Repeating the action refreshes matching rows instead of creating duplicates. |
+| Row **+** | Adds that instruction and its required dependency group when the displayed capability permits it. |
+| **CLICK / INPUT / OUTPUT** | Changes the reusable Web Element action type. |
+| **RENAME** / **SAVE** | Sets and saves a client-controlled name without changing the canonical name. |
+| **ROLLBACK** | Restores the original canonical name by removing the client-controlled name. |
+
+### Copy Components into a Bot Job
+
+1. Use a Block or row **+** in Components.
+2. In Memory List, confirm the source is **Reusable Component instructions**.
+3. Select an existing target under **Block:**, or choose **+ Create new block...**.
+4. Reorder or remove staged rows if necessary.
+5. Click **Apply**, or **Create & Apply** for a new Block.
+6. Return to Bot Job Details and confirm the copied instructions are independent rows in the target Bot Job.
+
+> **Caution:** Memory List is the only bridge from Components into a Bot Job. **Apply** fails closed if the Organization, Component revision, target Bot Job, or required relationships changed after staging. Refresh Components and stage the rows again; do not bypass the warning.
 
 # Part 3 — Page Scanner, locators, and OCR
 
@@ -551,12 +594,12 @@ ExcelWriter Manager is not Excel Data. Excel Data supplies input values; ExcelWr
 
 ## 6.5 Memory List
 
-**Entry path:** Click a row/Block **+** or **Memory (x)** in Bot Job or Page Scanner.
-**Purpose:** Stage instructions or scanned Web Elements before applying them to the active Bot Job.
+**Entry path:** Click a row/Block **+** or **Memory (x)** in Bot Job, Components, or Page Scanner.
+**Purpose:** Stage Bot Job instructions, reusable Component instructions, or scanned Web Elements before applying them to the active Bot Job.
 
 > **Figure 23 — Memory List.** Screenshot pending.
 
-Choose **Block:** to select a target, or **+ Create new block...**. Drag **≡** to reorder staged items. Row **X** removes one item, **Clear all** empties the list, and **Apply** commits the staged items to the chosen target. If the staged item set requires a Block and none is selected, **Apply** remains disabled.
+Choose **Block:** to select a target, or **+ Create new block...**. Drag **≡** to reorder staged items. Row **X** removes one item, **Clear all** empties the list, and **Apply** commits the staged items to the chosen target. Component-sourced rows are copied as independent Bot Job instructions; they do not remain linked to the Component or its source Bot Job. If the staged item set requires a Block and none is selected, **Apply** remains disabled.
 
 > **Caution:** Memory List is staging. The target Bot Job changes only after **Apply** succeeds.
 
@@ -669,8 +712,8 @@ The delivered pages and controls in this edition were verified from the current 
 | Item | Verified value |
 | --- | --- |
 | Documentation repository | `ar-web-selenium`, branch `final-allinweb` |
-| Frontend repository | `ar-web-allinweb-fe`, branch `allinweb-delivered`, commit `8e87d2c` |
-| Backend/deployment repository | `ar-web-allinweb`, branch `allinweb-delivered`, commit `a52227a` |
+| Frontend repository | `ar-web-allinweb-fe`, branch `allinweb-delivered`, commit `6270db9` |
+| Backend/deployment repository | `ar-web-allinweb`, branch `allinweb-delivered`, commit `630410a` |
 | Delivered runtime | Java V1 execution path; independent React detached workspaces |
 | Screenshot status | Pending safe synthetic capture; no real client data used |
 | Source of truth | This Markdown file |

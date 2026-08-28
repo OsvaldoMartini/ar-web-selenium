@@ -25,6 +25,7 @@ Required capture contract:
 | 11 | `11-reconnect-relationship.png` | Reconnect Web Element or variable |
 | 12 | `12-command-editor.png` | Command Editor populated state |
 | 13 | `13-locator-recovery.png` | Locator Recovery with BOT JOB/PREVIOUS/CURRENT rows |
+| 13A | `13a-components-library.png` | Organization-scoped Components Library with one reusable Block and Memory controls |
 | 14 | `14-page-scanner-toolbar.png` | Page Scanner toolbar and search |
 | 15 | `15-page-scanner-grid.png` | Result Blocks and row actions |
 | 16 | `16-page-scanner-profiles.png` | Focus profile editor |

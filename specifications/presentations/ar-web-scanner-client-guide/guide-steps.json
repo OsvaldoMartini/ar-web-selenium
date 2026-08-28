@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "guide": "AR Web Scanner Complete Client Guide",
-  "generatedAt": "2026-08-27T22:15:09.416882+00:00",
+  "generatedAt": "2026-08-28T13:23:10.844387+00:00",
   "source": "AR-Web-Scanner-Complete-Client-Guide.md",
   "steps": [
     {
@@ -195,6 +195,15 @@
     },
     {
       "id": 22,
+      "chapter": "Part 2 — Bot Job authoring and execution",
+      "title": "4.8 Components Library",
+      "anchor": "48-components-library",
+      "screenshot": "13a-components-library.png",
+      "screenshotStatus": "PENDING",
+      "caution": "Figure 13A — Components Library. Screenshot pending; use only the approved synthetic Organization and show one reusable Component with its Memory controls."
+    },
+    {
+      "id": 23,
       "chapter": "Part 3 — Page Scanner, locators, and OCR",
       "title": "5.1 Page Scanner workspace",
       "anchor": "51-page-scanner-workspace",
@@ -203,7 +212,7 @@
       "caution": "Figure 14 — Page Scanner toolbar. Screenshot pending."
     },
     {
-      "id": 23,
+      "id": 24,
       "chapter": "Part 3 — Page Scanner, locators, and OCR",
       "title": "5.2 Scanner results grid",
       "anchor": "52-scanner-results-grid",
@@ -212,7 +221,7 @@
       "caution": "Figure 15 — Page Scanner result Blocks and rows. Screenshot pending."
     },
     {
-      "id": 24,
+      "id": 25,
       "chapter": "Part 3 — Page Scanner, locators, and OCR",
       "title": "5.3 Page Scanner profiles",
       "anchor": "53-page-scanner-profiles",
@@ -221,7 +230,7 @@
       "caution": "Figure 16 — Page Scanner profiles. Screenshot pending."
     },
     {
-      "id": 25,
+      "id": 26,
       "chapter": "Part 3 — Page Scanner, locators, and OCR",
       "title": "5.4 Locator Generator",
       "anchor": "54-locator-generator",
@@ -230,7 +239,7 @@
       "caution": "Figure 17 — Locator Generator. Screenshot pending."
     },
     {
-      "id": 26,
+      "id": 27,
       "chapter": "Part 3 — Page Scanner, locators, and OCR",
       "title": "5.5 OCR Configuration",
       "anchor": "55-ocr-configuration",
@@ -239,7 +248,7 @@
       "caution": "Figure 18 — OCR Configuration. Screenshot pending."
     },
     {
-      "id": 27,
+      "id": 28,
       "chapter": "Part 4 — Data, variables, memory, and output files",
       "title": "6.1 Excel Data — execution input memory",
       "anchor": "61-excel-data-execution-input-memory",
@@ -248,7 +257,7 @@
       "caution": "Figure 19 — Excel Data in Real Data mode. Screenshot pending."
     },
     {
-      "id": 28,
+      "id": 29,
       "chapter": "Part 4 — Data, variables, memory, and output files",
       "title": "6.2 Excel Data — Synthetic Data mode",
       "anchor": "62-excel-data-synthetic-data-mode",
@@ -257,7 +266,7 @@
       "caution": "Figure 20 — Excel Data in Synthetic Data mode. Screenshot pending."
     },
     {
-      "id": 29,
+      "id": 30,
       "chapter": "Part 4 — Data, variables, memory, and output files",
       "title": "6.3 ExcelWriter Manager — execution output memory",
       "anchor": "63-excelwriter-manager-execution-output-memory",
@@ -266,7 +275,7 @@
       "caution": "Figure 21 — ExcelWriter Manager. Screenshot pending."
     },
     {
-      "id": 30,
+      "id": 31,
       "chapter": "Part 4 — Data, variables, memory, and output files",
       "title": "6.4 Runtime Variables",
       "anchor": "64-runtime-variables",
@@ -275,7 +284,7 @@
       "caution": "Figure 22 — Runtime Variables. Screenshot pending."
     },
     {
-      "id": 31,
+      "id": 32,
       "chapter": "Part 4 — Data, variables, memory, and output files",
       "title": "6.5 Memory List",
       "anchor": "65-memory-list",
@@ -284,7 +293,7 @@
       "caution": "Figure 23 — Memory List. Screenshot pending."
     },
     {
-      "id": 32,
+      "id": 33,
       "chapter": "Part 4 — Data, variables, memory, and output files",
       "title": "6.6 Pages Open",
       "anchor": "66-pages-open",
@@ -293,7 +302,7 @@
       "caution": "Figure 24 — Pages Open. Screenshot pending."
     },
     {
-      "id": 33,
+      "id": 34,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.1 A page is disconnected or has no data",
       "anchor": "71-a-page-is-disconnected-or-has-no-data",
@@ -302,7 +311,7 @@
       "caution": ""
     },
     {
-      "id": 34,
+      "id": 35,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.2 Test Run does not start",
       "anchor": "72-test-run-does-not-start",
@@ -311,7 +320,7 @@
       "caution": ""
     },
     {
-      "id": 35,
+      "id": 36,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.3 An element is not found or is ambiguous",
       "anchor": "73-an-element-is-not-found-or-is-ambiguous",
@@ -320,7 +329,7 @@
       "caution": ""
     },
     {
-      "id": 36,
+      "id": 37,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.4 Page Scanner returns PAGE_READINESS_TIMEOUT",
       "anchor": "74-page-scanner-returns-pagereadinesstimeout",
@@ -329,7 +338,7 @@
       "caution": ""
     },
     {
-      "id": 37,
+      "id": 38,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.5 Test Input uses an unexpected value",
       "anchor": "75-test-input-uses-an-unexpected-value",
@@ -338,7 +347,7 @@
       "caution": ""
     },
     {
-      "id": 38,
+      "id": 39,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.6 ExcelWriter file is missing",
       "anchor": "76-excelwriter-file-is-missing",
@@ -347,7 +356,7 @@
       "caution": ""
     },
     {
-      "id": 39,
+      "id": 40,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.7 VOID versus empty value",
       "anchor": "77-void-versus-empty-value",
@@ -356,7 +365,7 @@
       "caution": ""
     },
     {
-      "id": 40,
+      "id": 41,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.8 Quick control reference",
       "anchor": "78-quick-control-reference",
@@ -365,7 +374,7 @@
       "caution": ""
     },
     {
-      "id": 41,
+      "id": 42,
       "chapter": "Part 5 — Troubleshooting and quick reference",
       "title": "7.9 Known documentation limitation",
       "anchor": "79-known-documentation-limitation",
