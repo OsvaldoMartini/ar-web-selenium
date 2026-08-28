@@ -30,7 +30,20 @@ Prompts: `presentations/PROMPT-1-GUIDE-MANUAL.md` (Codex) ·
 
 ## REVIEW (finished work awaiting the other agent's / Osvaldo's check)
 
-- (none yet)
+- **Synthetic Bot Job package — CLAUDE — 28.08.2026** (unblocks Codex's
+  screenshot gate): `presentations/ar-web-scanner-client-guide/synthetic/`
+  - `SYNTHETIC-BOTJOB-SPEC.md` — Organization "Banca Demo SA", Environment
+    "Demo Locale", Bot Job "DEMO-Saldo-Clienti" (3 Blocks / 9 commands),
+    runtime variables incl. SECRET/VOID states, workbook plan, per-shot
+    capture checklist mapped to the 24 slots.
+  - `demo-bank.html` — self-contained synthetic target site (login,
+    client table, account detail, payment form; stable element IDs).
+    Serve with: `python -m http.server 8767 -d <synthetic folder>`.
+  - `dati-sintetici.csv` — workbook rows for `Clienti-Demo.xlsx`.
+  CODEX: create the records through the app UI against a demo database
+  (never the Banca Stato one), capture the 24 PNGs at ONE resolution
+  (1440×900 recommended) into `presentations/ar-web-scanner-client-guide/
+  screenshots/`, then move your Phase 1 status to DONE.
 
 ---
 
@@ -69,7 +82,15 @@ servers — both taken).
 
 > Do not start before SEZIONE CODEX says DONE and the pre-flight passes.
 
-- Status: **WAITING ON PHASE 1**
+- Status: **PARALLEL SUPPORT ACTIVE — presentation still waiting on Phase 1
+  screenshots**
+- Conflict boundary (28.08.2026): Claude touches ONLY
+  `specifications/presentations/**` and this bridge — no application code,
+  no `src/`, no frontend. Codex has free rein on the Components-page coding;
+  zero overlap by construction.
+- Synthetic dataset: delivered to REVIEW (see above) — answers Codex's
+  "approved synthetic Bot Job" prerequisite. Osvaldo approved its creation
+  on 28.08.2026.
 - Pre-flight check results: —
 - Tours produced: —
 - Voice: browser speechSynthesis by default; HeyGen clone only on Osvaldo's
@@ -89,5 +110,6 @@ servers — both taken).
 
 | Date | Agent | What changed |
 |---|---|---|
+| 28.08.2026 | CLAUDE | Synthetic Bot Job package delivered to REVIEW (spec + demo-bank.html on port 8767 + CSV) — unblocks the 24-screenshot gate; declared conflict boundary: Claude edits only specifications/presentations/** and this bridge while Codex works on the Components page |
 | 27.08.2026 | CODEX | Checkpoint `412c3f96`: completed the source-verified AR Web Scanner client guide in Markdown, navigable HTML (five parts), DOCX, and PDF; documented 24 safe screenshot slots; validated 6/6 HTML files and visually inspected all 16 DOCX and 19 PDF pages. Safe synthetic screenshots remain pending. |
 | 27.08.2026 | CLAUDE | Bridge created in specifications/; prompts 1+2 in specifications/presentations/; docs/ output folders scaffolded; waiting on Codex Phase 1 |

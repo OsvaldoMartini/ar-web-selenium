@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="it-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banca Demo SA — e-Banking dimostrativo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; font-family: "Segoe UI", sans-serif; }
+  body { background: #f2f4f8; color: #1d2433; }
+  .banner { background: #b3261e; color: #fff; text-align: center; padding: 6px; font-size: .85rem; font-weight: 600; }
+  header { background: #103a63; color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 18px; }
+  header h1 { font-size: 1.15rem; }
+  nav a { color: #cfe0f4; margin-right: 16px; text-decoration: none; font-size: .9rem; }
+  main { max-width: 980px; margin: 24px auto; padding: 0 16px; display: grid; gap: 20px; }
+  .card { background: #fff; border: 1px solid #d8dfea; border-radius: 10px; padding: 20px; }
+  .card h2 { font-size: 1rem; margin-bottom: 12px; color: #103a63; }
+  label { display: block; font-size: .8rem; color: #5a6478; margin: 10px 0 4px; }
+  input, select { width: 260px; padding: 8px; border: 1px solid #c4ccda; border-radius: 6px; }
+  button { margin-top: 14px; background: #1c62b7; color: #fff; border: 0; border-radius: 6px; padding: 9px 20px; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #e3e8f0; }
+  th { color: #5a6478; font-size: .78rem; text-transform: uppercase; }
+  .pos { color: #157347; font-weight: 600; }
+  a.det { color: #1c62b7; }
+  #saldo-disponibile { font-size: 1.6rem; font-weight: 700; color: #103a63; }
+  .muted { color: #5a6478; font-size: .82rem; }
+</style>
+</head>
+<body>
+<div class="banner">AMBIENTE DIMOSTRATIVO — DATI SINTETICI — NESSUN DATO REALE</div>
+<header>
+  <h1>Banca Demo SA</h1>
+  <nav>
+    <a href="#accesso" id="nav-accesso">Accesso</a>
+    <a href="#clienti" id="nav-clienti">Clienti</a>
+    <a href="#conto" id="nav-conto">Dettaglio conto</a>
+    <a href="#pagamento" id="nav-pagamento">Nuovo pagamento</a>
+  </nav>
+</header>
+<main>
+  <section class="card" id="accesso">
+    <h2>Annunciarsi</h2>
+    <label for="utente">Utente</label>
+    <input id="utente" name="utente" placeholder="demo.utente">
+    <label for="parola">Parola d'ordine</label>
+    <input id="parola" name="parola" type="password" placeholder="********">
+    <button id="btn-accedi" type="button">Accedi</button>
+    <p class="muted">Qualsiasi combinazione è accettata: pagina puramente dimostrativa.</p>
+  </section>
+
+  <section class="card" id="clienti">
+    <h2>Clienti dimostrativi</h2>
+    <table id="tabella-clienti">
+      <thead><tr><th>Cliente</th><th>Conto</th><th>Divisa</th><th>Saldo</th><th></th></tr></thead>
+      <tbody>
+        <tr id="riga-cliente-1"><td>Cliente Demo Uno</td><td>CH00 DEMO 0000 0000 0001</td><td>CHF</td><td class="pos">18'425.35</td><td><a class="det" href="#conto" id="det-1">Dettagli</a></td></tr>
+        <tr id="riga-cliente-2"><td>Cliente Demo Due</td><td>CH00 DEMO 0000 0000 0002</td><td>CHF</td><td class="pos">72'540.00</td><td><a class="det" href="#conto" id="det-2">Dettagli</a></td></tr>
+        <tr id="riga-cliente-3"><td>Cliente Demo Tre</td><td>CH00 DEMO 0000 0000 0003</td><td>EUR</td><td class="pos">9'340.75</td><td><a class="det" href="#conto" id="det-3">Dettagli</a></td></tr>
+        <tr id="riga-cliente-4"><td>Cliente Demo Quattro</td><td>CH00 DEMO 0000 0000 0004</td><td>CHF</td><td class="pos">1'250.10</td><td><a class="det" href="#conto" id="det-4">Dettagli</a></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" id="conto">
+    <h2>Dettaglio conto — Cliente Demo Uno</h2>
+    <p class="muted">Conto privato · CH00 DEMO 0000 0000 0001 · aggiornato al 28.08.2026</p>
+    <p style="margin-top:10px">Saldo disponibile</p>
+    <p id="saldo-disponibile">CHF 18'425.35</p>
+    <p class="muted" id="saldo-contabile">Saldo contabile: CHF 18'610.90</p>
+  </section>
+
+  <section class="card" id="pagamento">
+    <h2>Nuovo pagamento (formulario dimostrativo)</h2>
+    <label for="beneficiario">Beneficiario</label>
+    <input id="beneficiario" placeholder="Cliente Demo Due">
+    <label for="importo">Importo (CHF)</label>
+    <input id="importo" placeholder="100.00">
+    <label for="motivo">Motivo</label>
+    <input id="motivo" placeholder="Pagamento dimostrativo">
+    <button id="btn-invia-pagamento" type="button">Invia</button>
+  </section>
+</main>
+</body>
+</html>
