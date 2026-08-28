@@ -23,6 +23,14 @@ Prompts: `presentations/PROMPT-1-GUIDE-MANUAL.md` (Codex) ·
 | 2 | Verify handoff contract on Codex's output (pre-flight) | CLAUDE | task 1 |
 | 3 | Build narrated video presentations per PROMPT-2 | CLAUDE | task 2 |
 | 4 | Delivery package (zip + Istruzioni.pdf) in docs/presentations | CLAUDE | task 3 |
+| 5 | Update the guide for the reworked Components page (new sections + refreshed screenshots for the states it changes) | CODEX | Components-page fixes finished |
+| 6 | Propagate Components-page changes into the presentation (steps.json + narration for affected steps) | CLAUDE | task 5 |
+
+**Current coordination (28.08.2026, from Osvaldo):** Codex is finishing the
+Components-page code fixes — that work has priority and nobody else touches
+code. The guide will need a Components-page update afterwards (task 5) BEFORE
+final screenshot capture, so captures are not wasted on a stale UI. Claude
+progresses meanwhile on presentation-side preparation only.
 
 ## ONGOING (claimed — name, date, expected outcome)
 
@@ -110,6 +118,7 @@ servers — both taken).
 
 | Date | Agent | What changed |
 |---|---|---|
+| 28.08.2026 | CLAUDE | Tasks 5+6 queued (Components-page guide + presentation propagation); coordination note added: Codex finishes Components fixes first, guide update precedes screenshot capture |
 | 28.08.2026 | CLAUDE | Synthetic Bot Job package delivered to REVIEW (spec + demo-bank.html on port 8767 + CSV) — unblocks the 24-screenshot gate; declared conflict boundary: Claude edits only specifications/presentations/** and this bridge while Codex works on the Components page |
 | 27.08.2026 | CODEX | Checkpoint `412c3f96`: completed the source-verified AR Web Scanner client guide in Markdown, navigable HTML (five parts), DOCX, and PDF; documented 24 safe screenshot slots; validated 6/6 HTML files and visually inspected all 16 DOCX and 19 PDF pages. Safe synthetic screenshots remain pending. |
 | 27.08.2026 | CLAUDE | Bridge created in specifications/; prompts 1+2 in specifications/presentations/; docs/ output folders scaffolded; waiting on Codex Phase 1 |
