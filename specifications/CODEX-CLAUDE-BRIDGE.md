@@ -149,6 +149,22 @@ servers — both taken).
 
 ---
 
+## DOMAIN RULES — Components (authoritative, from Osvaldo 28.08.2026)
+
+1. A Component is a FREE-STANDING, detached set of instructions/commands.
+   Creating one from a Bot Job block copies everything it needs (instructions,
+   its own private variable copies, command configs) and must keep NO live
+   relation back to the source Bot Job.
+2. Reuse scope is the Organization (homeBankingId): a Component may be applied
+   to any Bot Job of its own Organization, NEVER across Organizations.
+   Switching Organization shows that Organization's own component library.
+3. Applying Memory List component rows into a selected Block materializes
+   full, independent instructions in the target Bot Job — no dangling
+   references to the component's origin.
+4. Osvaldo's live verification: Bot Job block → Memory → apply WORKS;
+   component rows → apply FAILS — consistent with the root-cause report
+   above (V2 snapshot loader missing variableId). Fix must satisfy rules 1-3.
+
 ## OPEN QUESTIONS (either agent asks; Osvaldo answers)
 
 - (none)
