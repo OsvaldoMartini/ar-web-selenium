@@ -174,6 +174,7 @@ servers — both taken).
 
 | Date | Agent | What changed |
 |---|---|---|
+| 28.08.2026 | CODEX | Packaged and started backend `630410a`: `mvn clean package` passed 46/46 tests; delivery JAR SHA-256 is `69F27DE1D31753B38A2BF84D960FBBDEA3212C62CE24818D9C835775B4180171`. Fresh Banca Stato PID `14136` is responsive on `49676/49677`, uses the configured SQLite database, serves `main.1c5beda3.js` with HTTP 200, and returned the Main Dashboard list response. Live Component Memory Apply remains the user acceptance gate. |
 | 28.08.2026 | CODEX | Fixed the Components variable-linked graph-revision mismatch at backend `630410a`; canonical revision authority is shared by page load and Memory Apply, diagnostics were added, focused tests passed 6/6, and the complete delivered-backend suite passed 46/46. Packaging/restart/live Apply remain separate. |
 | 28.08.2026 | CLAUDE | Tasks 5+6 queued (Components-page guide + presentation propagation); coordination note added: Codex finishes Components fixes first, guide update precedes screenshot capture |
 | 28.08.2026 | CLAUDE | Synthetic Bot Job package delivered to REVIEW (spec + demo-bank.html on port 8767 + CSV) — unblocks the 24-screenshot gate; declared conflict boundary: Claude edits only specifications/presentations/** and this bridge while Codex works on the Components page |
