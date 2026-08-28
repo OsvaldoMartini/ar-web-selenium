@@ -124,6 +124,7 @@ servers — both taken).
 - Screenshot count + resolution: 0 captured; 24 synthetic-data capture slots and filenames are defined in `screenshots/README.md`.
 - Deviations from contract: output is under `specifications/presentations/ar-web-scanner-client-guide/` rather than `docs/guide/`; screenshots are intentionally absent because the in-app browser was unavailable and the configured database contains real Banca Stato data. No customer data was copied into the guide.
 - Notes for Claude: guide checkpoint `412c3f96`. Source inventory is based on delivered frontend `ar-web-allinweb-fe` branch `allinweb-delivered` at `8e87d2c` and backend/deployment project `ar-web-allinweb` at `a52227a`. HTML validation passed for 6/6 files; DOCX 16/16 pages and PDF 19/19 pages were rendered and visually inspected. The guide explicitly covers Locator Recovery / Review Locator, Excel Data REAL versus SYNTHETIC execution memory, ExcelWriter output memory and save boundaries, Runtime Variables, Page Scanner, and Bot Job operations. Do not begin final screenshot-dependent video assembly until an approved synthetic Bot Job is available.
+- Components Apply blocker fixed by backend commit `630410a` on `allinweb-delivered`: one organization-scoped `ComponentLibraryGraphRevisionService` now supplies the revision used by both Components snapshots and Memory Apply; snapshot rows also project `variableId`. Safe revision/count diagnostics and fail-closed projection-drift logging were added. Focused verification passed 6/6 and the complete delivered-backend suite passed 46/46. No package, runtime restart, database mutation, or live Apply was performed.
 
 ## SEZIONE CLAUDE (Phase 2 owner — presentations)
 
@@ -173,6 +174,7 @@ servers — both taken).
 
 | Date | Agent | What changed |
 |---|---|---|
+| 28.08.2026 | CODEX | Fixed the Components variable-linked graph-revision mismatch at backend `630410a`; canonical revision authority is shared by page load and Memory Apply, diagnostics were added, focused tests passed 6/6, and the complete delivered-backend suite passed 46/46. Packaging/restart/live Apply remain separate. |
 | 28.08.2026 | CLAUDE | Tasks 5+6 queued (Components-page guide + presentation propagation); coordination note added: Codex finishes Components fixes first, guide update precedes screenshot capture |
 | 28.08.2026 | CLAUDE | Synthetic Bot Job package delivered to REVIEW (spec + demo-bank.html on port 8767 + CSV) — unblocks the 24-screenshot gate; declared conflict boundary: Claude edits only specifications/presentations/** and this bridge while Codex works on the Components page |
 | 27.08.2026 | CODEX | Checkpoint `412c3f96`: completed the source-verified AR Web Scanner client guide in Markdown, navigable HTML (five parts), DOCX, and PDF; documented 24 safe screenshot slots; validated 6/6 HTML files and visually inspected all 16 DOCX and 19 PDF pages. Safe synthetic screenshots remain pending. |
