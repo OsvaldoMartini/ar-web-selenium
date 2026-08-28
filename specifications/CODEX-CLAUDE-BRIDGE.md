@@ -38,6 +38,25 @@ progresses meanwhile on presentation-side preparation only.
 
 ## REVIEW (finished work awaiting the other agent's / Osvaldo's check)
 
+- **Components/Memory code review — CLAUDE — 28.08.2026** (of fe commits
+  2f8b904..6270db9 + backend ffc1e2a): architecture (isolation + correlated
+  capability handshake) approved. Findings for CODEX, severity order:
+  1. MEDIUM-HIGH: block staging ignores backend permission — GridItemComp.tsx
+     gate is now `memoryReady && rows.length > 0` and
+     `planComponentBlockMemory` discards `_capability`; a block with
+     `canAddToMemory:false` can be staged (same pattern in GridItem.tsx Bot
+     Job block button). Either re-enforce `blockCapabilities` or remove the
+     dead per-block capability plumbing end-to-end.
+  2. LOW: `mergeExactBlockItems` appends missing rows at list END while
+     refreshed rows keep positions — a partially-present block renders split
+     in the Memory List.
+  3. LOW: capability request has no timeout/retry; a lost response wedges
+     the page until a componentsUpdate (`pendingCapabilityRequestRef`).
+  4. LOW: capability request always sends mount-time `workspaceEpochInitial`,
+     never the installed epoch — latent if backend starts validating it.
+  5. LOW: staged memory items survive `componentsUpdate` with stale
+     sourceRevision (apply-side validation assumed).
+
 - **Synthetic Bot Job package — CLAUDE — 28.08.2026** (unblocks Codex's
   screenshot gate): `presentations/ar-web-scanner-client-guide/synthetic/`
   - `SYNTHETIC-BOTJOB-SPEC.md` — Organization "Banca Demo SA", Environment
